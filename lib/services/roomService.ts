@@ -18,12 +18,6 @@ import { addPlayer } from './playerService';
 
 /**
  * 新しいルームを作成
- *
- * ヒント:
- * 1. ルームIDを生成（6桁の英数字）
- * 2. Firestoreの`rooms`コレクションに新規ドキュメント作成
- * 3. 作成者を最初のプレイヤーとして追加
- * 4. 作成したルームIDを返す
  */
 export async function createRoom(params: CreateRoomParams): Promise<string> {
   // ルームIDを生成
