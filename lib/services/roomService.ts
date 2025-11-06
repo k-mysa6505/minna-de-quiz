@@ -6,6 +6,7 @@ import {
   doc,
   setDoc,
   getDoc,
+  getDocs,
   updateDoc,
   onSnapshot,
   Timestamp
@@ -13,7 +14,6 @@ import {
 import { db } from '@/lib/firebase';
 import type { Room, CreateRoomParams, JoinRoomParams } from '@/types';
 import { generateRoomId, isValidRoomId } from '@/lib/utils/generateRoomId';
-import { update } from 'firebase/database';
 import { addPlayer } from './playerService';
 
 /**
@@ -26,10 +26,13 @@ export async function createRoom(params: CreateRoomParams): Promise<string> {
     throw new Error('Generated room ID is invalid');
   }
 
+  // 作成者を最初のプレイヤーとして追加（マスター）
+  const masterId = await addPlayer(roomId, params.nickname, true);
+
   // Firestoreにルームドキュメントを作成
-  await setDoc(doc(db, 'rooms'), {
+  await setDoc(doc(db, 'rooms', roomId), {
     roomId,
-    masterId: params.nickname,
+    masterId,  // playerId を設定
     status: 'waiting',
     createdAt: Timestamp.now(),
     maxPlayers: params.maxPlayers || 10,
@@ -72,11 +75,14 @@ export async function joinRoom(params: JoinRoomParams): Promise<string> {
 
 /**
  * ルーム情報を取得
- * TODO: 実装してください
  */
 export async function getRoom(roomId: string): Promise<Room | null> {
-  // TODO: 実装
-  throw new Error('Not implemented');
+  const roomDoc = await getDoc(doc(db, 'rooms', roomId));
+  if (roomDoc.exists()) {
+    return roomDoc.data() as Room;
+  } else {
+    return null;
+  }
 }
 
 /**
@@ -86,7 +92,7 @@ export function subscribeToRoom(
   roomId: string,
   callback: (room: Room | null) => void
 ): () => void {
-  console.log(`購読開始: ${roomId}`);
+  console.log(`Starting subscribe room info: ${roomId}`);
 
   // Firestoreのリアルタイム監視
   const unsubscribe = onSnapshot(
@@ -100,39 +106,45 @@ export function subscribeToRoom(
       }
     },
     (error) => {
-      console.error('購読エラー:', error);
+      console.error('Subscription Error:', error);
       callback(null);
     }
   );
 
   // 購読解除関数を返す
   return () => {
-    console.log(`購読停止: ${roomId}`);
+    console.log(`Quit Subscription: ${roomId}`);
     unsubscribe();  // Firestoreの監視を停止
   };
 }
 
 /**
  * ルームのステータスを更新
- * TODO: 実装してください
  */
 export async function updateRoomStatus(
   roomId: string,
   status: Room['status']
 ): Promise<void> {
-  // TODO: 実装
-  throw new Error('Not implemented');
+  const roomRef = doc(db, 'rooms', roomId);
+  await updateDoc(roomRef, { status });
 }
 
 /**
  * ゲーム開始
- * TODO: 実装してください
- *
- * ヒント:
- * 1. 参加人数が最小人数以上か確認
- * 2. ルームステータスを'creating'に更新
  */
 export async function startGame(roomId: string): Promise<void> {
-  // TODO: 実装
-  throw new Error('Not implemented');
+  const room = await getRoom(roomId);
+
+  // 参加人数が最小人数以上か確認
+  if (!room) {
+    throw new Error('Room does not exist');
+  }
+  const playersRef = collection(db, 'rooms', roomId, 'players');
+  const playersSnapshot = await getDocs(playersRef);
+  if (playersSnapshot.size < room.minPlayers) {
+    throw new Error('Not enough players to start the game');
+  }
+
+  // ルームステータスを'creating'に更新
+  await updateRoomStatus(roomId, 'creating');
 }
