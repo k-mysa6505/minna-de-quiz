@@ -18,8 +18,9 @@ import { addPlayer } from './playerService';
 
 /**
  * 新しいルームを作成
+ * @returns { roomId, playerId } - ルームIDとプレイヤーID
  */
-export async function createRoom(params: CreateRoomParams): Promise<string> {
+export async function createRoom(params: CreateRoomParams): Promise<{ roomId: string; playerId: string }> {
   // ルームIDを生成
   const roomId = generateRoomId();
   if (!isValidRoomId(roomId)) {
@@ -40,7 +41,7 @@ export async function createRoom(params: CreateRoomParams): Promise<string> {
     isClosed: false
   });
 
-  return roomId;
+  return { roomId, playerId: masterId };
 }
 
 /**

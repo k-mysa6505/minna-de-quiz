@@ -32,7 +32,7 @@ export async function addPlayer(
   const colorIndex = players.length % PLAYER_COLORS.length;
 
   // プレイヤー情報をFirestoreに追加
-  const playersRef = collection(db, 'rooms', roomId, 'players')
+  const playersRef = collection(db, 'rooms', roomId, 'players');
   const playerDoc = await addDoc(playersRef, {
     nickname,
     color: PLAYER_COLORS[colorIndex],
