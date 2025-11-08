@@ -7,6 +7,7 @@ import {
   addDoc,
   updateDoc,
   getDocs,
+  getDoc,
   onSnapshot,
   Timestamp
 } from 'firebase/firestore';
@@ -86,8 +87,21 @@ export async function updatePlayerOnlineStatus(
   playerId: string,
   isOnline: boolean
 ): Promise<void> {
-  const playerRef = doc(db, 'rooms', roomId, 'players', playerId);
-  await updateDoc(playerRef, { isOnline });
+  try {
+    const playerRef = doc(db, 'rooms', roomId, 'players', playerId);
+    
+    // ドキュメントが存在するか確認
+    const playerSnap = await getDoc(playerRef);
+    if (!playerSnap.exists()) {
+      console.warn(`Player ${playerId} does not exist in room ${roomId}. Skipping online status update.`);
+      return;
+    }
+    
+    await updateDoc(playerRef, { isOnline });
+  } catch (error) {
+    console.error(`Failed to update online status for player ${playerId}:`, error);
+    // エラーを投げずに処理を続行
+  }
 }
 
 /**
@@ -98,8 +112,21 @@ export async function updatePlayerScore(
   playerId: string,
   score: number
 ): Promise<void> {
-  const playerRef = doc(db, 'rooms', roomId, 'players', playerId);
-  await updateDoc(playerRef, { score });
+  try {
+    const playerRef = doc(db, 'rooms', roomId, 'players', playerId);
+    
+    // ドキュメントが存在するか確認
+    const playerSnap = await getDoc(playerRef);
+    if (!playerSnap.exists()) {
+      console.warn(`Player ${playerId} does not exist in room ${roomId}. Skipping score update.`);
+      return;
+    }
+    
+    await updateDoc(playerRef, { score });
+  } catch (error) {
+    console.error(`Failed to update score for player ${playerId}:`, error);
+    // エラーを投げずに処理を続行
+  }
 }
 
 /**

@@ -11,6 +11,7 @@ export interface GameState {
   currentQuestionIndex: number;
   questionOrder: string[];
   totalQuestions: number;
+  playersReady?: string[]; // 次の問題への準備が完了したプレイヤーIDのリスト
 }
 
 /**

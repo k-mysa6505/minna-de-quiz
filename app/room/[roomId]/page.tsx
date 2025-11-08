@@ -2,14 +2,14 @@
 // ゲームルームページ - メイン画面
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
-import { subscribeToRoom, updateRoomStatus, deleteRoom } from '@/lib/services/roomService';
-import { subscribeToPlayers, updatePlayerOnlineStatus } from '@/lib/services/playerService';
+import { subscribeToRoom, updateRoomStatus, deleteRoom, removePlayerFromRoom } from '@/lib/services/roomService';
+import { subscribeToPlayers, updatePlayerOnlineStatus, updatePlayerScore } from '@/lib/services/playerService';
 import { createQuestion, getQuestionProgress, getQuestions } from '@/lib/services/questionService';
 import { uploadQuestionImage } from '@/lib/services/storageService';
-import { initializeGame, getGameState, submitAnswer, submitPrediction, getAnswers, getPrediction, nextQuestion } from '@/lib/services/gameService';
+import { initializeGame, getGameState, submitAnswer, submitPrediction, getAnswers, getPrediction, nextQuestion, markPlayerReady } from '@/lib/services/gameService';
 import type { Room, Player, RoomStatus, QuestionFormData, Question, GameState, Answer, Prediction } from '@/types';
 
 export default function RoomPage() {
@@ -17,24 +17,69 @@ export default function RoomPage() {
   const router = useRouter();
   const roomId = params.roomId as string;
 
-  // Initialize currentPlayerId, loading and error from localStorage synchronously (client-side)
-  const initialPlayerId =
-    typeof window !== 'undefined' ? (localStorage.getItem('currentPlayerId') || '') : '';
-  const [currentPlayerId, setCurrentPlayerId] = useState<string>(initialPlayerId);
+  // playerIdとroomIdの検証（初期値として）
+  const getInitialState = () => {
+    if (typeof window !== 'undefined') {
+      const storedPlayerId = localStorage.getItem('currentPlayerId');
+      const storedRoomId = localStorage.getItem('currentRoomId');
+
+      if (!storedPlayerId || storedRoomId !== roomId) {
+        return {
+          playerId: '',
+          error: 'プレイヤー情報が見つかりません。再度ルームに参加してください。',
+          loading: false
+        };
+      }
+
+      return {
+        playerId: storedPlayerId,
+        error: '',
+        loading: true
+      };
+    }
+
+    return {
+      playerId: '',
+      error: '',
+      loading: true
+    };
+  };
+
+  const initialState = getInitialState();
+  const [currentPlayerId, setCurrentPlayerId] = useState<string>(initialState.playerId);
   const [room, setRoom] = useState<Room | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
-  const [loading, setLoading] = useState<boolean>(initialPlayerId ? true : false);
-  const [error, setError] = useState<string>(
-    initialPlayerId ? '' : 'プレイヤー情報が見つかりません。再度ルームに参加してください。'
-  );
+  const [loading, setLoading] = useState<boolean>(initialState.loading);
+  const [error, setError] = useState<string>(initialState.error);
+  const deleteRoomTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!currentPlayerId) {
       return;
     }
 
-    // プレイヤーをオンラインに設定
-    updatePlayerOnlineStatus(roomId, currentPlayerId, true).catch(console.error);
+    // プレイヤーをオンラインに設定（少し遅延させてFirestoreの書き込み完了を待つ）
+    const setOnlineTimeout = setTimeout(() => {
+      updatePlayerOnlineStatus(roomId, currentPlayerId, true).catch(console.error);
+    }, 500);
+
+    // ブラウザを閉じる時の処理
+    const handleBeforeUnload = () => {
+      // オフラインにする（ベストエフォート）
+      updatePlayerOnlineStatus(roomId, currentPlayerId, false).catch(console.error);
+    };
+
+    // ページの可視性が変わった時の処理（タブが閉じられた時など）
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        updatePlayerOnlineStatus(roomId, currentPlayerId, false).catch(console.error);
+      } else {
+        updatePlayerOnlineStatus(roomId, currentPlayerId, true).catch(console.error);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // ルーム情報を取得＆監視
     const unsubscribeRoom = subscribeToRoom(roomId, (roomData) => {
@@ -50,15 +95,60 @@ export default function RoomPage() {
     // プレイヤー情報を取得＆監視
     const unsubscribePlayers = subscribeToPlayers(roomId, (playerList) => {
       setPlayers(playerList);
+
+      // 現在のプレイヤーがリストに存在しない場合はエラー
+      // ただし、finished状態では他のプレイヤーが先に退出している可能性があるのでチェックしない
+      const playerExists = playerList.some(p => p.playerId === currentPlayerId);
+      if (!playerExists && playerList.length > 0 && room?.status !== 'finished') {
+        setError('このプレイヤーはルームに参加していません。再度参加してください。');
+        setLoading(false);
+      }
+
+      // 自動削除の条件：
+      // 1. finished状態ではない（finishedは退出ボタンで明示的に削除）
+      // 2. waiting状態ではない（プレイヤーが参加中の可能性が高い）
+      // 3. プレイヤーが存在する
+      // 4. 全員がオフライン
+      if (
+        room?.status !== 'finished' && 
+        room?.status !== 'waiting' && 
+        playerList.length > 0
+      ) {
+        const allOffline = playerList.every(p => !p.isOnline);
+        if (allOffline) {
+          // 既存のタイムアウトをクリア（デバウンス）
+          if (deleteRoomTimeoutRef.current) {
+            clearTimeout(deleteRoomTimeoutRef.current);
+          }
+          
+          console.log('All players are offline in non-waiting room. Scheduling deletion...');
+          // 一定時間待ってから削除（再接続の猶予）
+          deleteRoomTimeoutRef.current = setTimeout(() => {
+            deleteRoom(roomId).catch(console.error);
+            deleteRoomTimeoutRef.current = null;
+          }, 10000); // 10秒に延長して再接続の猶予を増やす
+        } else {
+          // 誰かがオンラインになったら、スケジュールされた削除をキャンセル
+          if (deleteRoomTimeoutRef.current) {
+            clearTimeout(deleteRoomTimeoutRef.current);
+            deleteRoomTimeoutRef.current = null;
+            console.log('Player came online. Cancelling room deletion.');
+          }
+        }
+      }
     });
 
     return () => {
+      clearTimeout(setOnlineTimeout);
+      if (deleteRoomTimeoutRef.current) {
+        clearTimeout(deleteRoomTimeoutRef.current);
+      }
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       unsubscribeRoom();
       unsubscribePlayers();
-      // ページを離れるときにオフラインにする（finished状態以外）
-      if (room?.status !== 'finished') {
-        updatePlayerOnlineStatus(roomId, currentPlayerId, false).catch(console.error);
-      }
+      // ページを離れるときにオフラインにする
+      updatePlayerOnlineStatus(roomId, currentPlayerId, false).catch(console.error);
     };
   }, [roomId, currentPlayerId, room?.status]);
 
@@ -224,8 +314,20 @@ function WaitingPhase({
         {/* 参加URL（コピー用） */}
         <button
           onClick={() => {
-            navigator.clipboard.writeText(getJoinUrl(roomId));
-            alert('URLをコピーしました！');
+            if (typeof window !== 'undefined' && navigator.clipboard) {
+              navigator.clipboard.writeText(getJoinUrl(roomId))
+                .then(() => {
+                  alert('URLをコピーしました！');
+                })
+                .catch((error) => {
+                  console.error('Failed to copy:', error);
+                  alert('URLのコピーに失敗しました');
+                });
+            } else {
+              // フォールバック: URLを表示
+              const url = getJoinUrl(roomId);
+              alert(`参加URL: ${url}`);
+            }
           }}
           className="text-sm text-blue-600 hover:text-blue-800 underline"
         >
@@ -277,16 +379,16 @@ function QuestionCreationPhase({
       try {
         const progressData = await getQuestionProgress(roomId);
         setProgress(progressData);
-        
+
         // 全員が問題を作成したらゲーム開始
         if (progressData.created === progressData.total && progressData.total > 0) {
           // 問題IDを取得
           const allQuestions = await getQuestions(roomId);
           const questionIds = allQuestions.map(q => q.questionId);
-          
+
           // ゲーム状態を初期化
           await initializeGame(roomId, questionIds);
-          
+
           // ステータスを'playing'に更新
           await updateRoomStatus(roomId, 'playing');
         }
@@ -321,7 +423,7 @@ function QuestionCreationPhase({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!questionText.trim()) {
       alert('問題文を入力してください');
       return;
@@ -488,6 +590,10 @@ function GamePlayPhase({
   const [showResults, setShowResults] = useState(false);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [prediction, setPrediction] = useState<Prediction | null>(null);
+  const [isReady, setIsReady] = useState(false);
+  const [waitingForPlayers, setWaitingForPlayers] = useState(false);
+  const prevQuestionIdRef = useRef<string | null>(null);
+  const hasCalculatedScoreRef = useRef<boolean>(false);
 
   // ゲーム状態と問題を取得
   useEffect(() => {
@@ -495,13 +601,48 @@ function GamePlayPhase({
       try {
         const state = await getGameState(roomId);
         const allQuestions = await getQuestions(roomId);
-        
+
         if (state && allQuestions.length > 0) {
           setGameState(state);
-          
+
           const currentQuestionId = state.questionOrder[state.currentQuestionIndex];
           const question = allQuestions.find(q => q.questionId === currentQuestionId);
+
+          // 問題が変わった時に状態をリセット
+          if (question && prevQuestionIdRef.current !== question.questionId) {
+            prevQuestionIdRef.current = question.questionId;
+            setSelectedAnswer(null);
+            setPredictedCorrectCount(0);
+            setHasSubmittedAnswer(false);
+            setHasSubmittedPrediction(false);
+            setShowResults(false);
+            setAnswers([]);
+            setPrediction(null);
+            setIsReady(false);
+            setWaitingForPlayers(false);
+            hasCalculatedScoreRef.current = false; // スコア計算フラグもリセット
+          }
+
           setCurrentQuestion(question || null);
+
+          // 自分が準備完了かチェック
+          const playersReady = state.playersReady || [];
+          const amIReady = playersReady.includes(currentPlayerId);
+          if (amIReady !== isReady) {
+            setIsReady(amIReady);
+          }
+
+          // 全員準備完了したら待機状態を解除して次の問題へ
+          if (playersReady.length >= players.length && playersReady.length > 0) {
+            if (waitingForPlayers) {
+              setWaitingForPlayers(false);
+            }
+          } else if (amIReady) {
+            // 自分が準備完了しているが全員揃っていない場合は待機
+            if (!waitingForPlayers) {
+              setWaitingForPlayers(true);
+            }
+          }
         }
       } catch (error) {
         console.error('Failed to load game data:', error);
@@ -509,9 +650,10 @@ function GamePlayPhase({
     };
 
     loadGameData();
-    const interval = setInterval(loadGameData, 2000);
+    const interval = setInterval(loadGameData, 1000); // より頻繁にチェック
     return () => clearInterval(interval);
-  }, [roomId]);
+  }, [roomId, currentPlayerId, players.length, isReady, waitingForPlayers]);
+
 
   // 回答と予想の送信状態をチェック
   useEffect(() => {
@@ -530,10 +672,39 @@ function GamePlayPhase({
         // 全員が回答・予想を送信したら結果表示
         const isAuthor = currentQuestion.authorId === currentPlayerId;
         const otherPlayersCount = players.length - 1; // 出題者を除く
-        
-        if (allAnswers.length === otherPlayersCount && pred) {
+
+        if (allAnswers.length === otherPlayersCount && pred && !showResults) {
           setShowResults(true);
           setAnswers(allAnswers);
+
+          // スコア計算・更新（一度だけ実行）
+          if (!hasCalculatedScoreRef.current) {
+            hasCalculatedScoreRef.current = true;
+
+            const correctAnswersCount = allAnswers.filter(a => a.isCorrect).length;
+
+            // 正解者にポイント付与（10点）
+            for (const answer of allAnswers) {
+              if (answer.isCorrect) {
+                const player = players.find(p => p.playerId === answer.playerId);
+                if (player) {
+                  await updatePlayerScore(roomId, answer.playerId, player.score + 10).catch(err => {
+                    console.error(`Failed to update score for player ${answer.playerId}:`, err);
+                  });
+                }
+              }
+            }
+
+            // 出題者の予想が的中した場合にポイント付与（20点）
+            if (pred.predictedCount === correctAnswersCount) {
+              const author = players.find(p => p.playerId === currentQuestion.authorId);
+              if (author) {
+                await updatePlayerScore(roomId, currentQuestion.authorId, author.score + 20).catch(err => {
+                  console.error(`Failed to update author score:`, err);
+                });
+              }
+            }
+          }
         }
       } catch (error) {
         console.error('Failed to check submissions:', error);
@@ -543,7 +714,7 @@ function GamePlayPhase({
     const interval = setInterval(checkSubmissions, 2000);
     checkSubmissions();
     return () => clearInterval(interval);
-  }, [roomId, currentQuestion, currentPlayerId, players.length]);
+  }, [roomId, currentQuestion, currentPlayerId, players, showResults]);
 
   const handleAnswerSubmit = async () => {
     if (selectedAnswer === null || !currentQuestion) return;
@@ -578,18 +749,44 @@ function GamePlayPhase({
     try {
       // 最後の問題かチェック
       if (gameState.currentQuestionIndex >= gameState.totalQuestions - 1) {
+        // 最後の問題の場合：スコア計算が完了するまで少し待ってからfinishedに変更
+        // これにより、スコア更新が完了する前にルームが削除されるのを防ぐ
+        console.log('Last question completed. Waiting for score calculation...');
+        
+        // スコア計算完了を待つ（最大5秒）
+        let waitTime = 0;
+        const maxWait = 5000;
+        const checkInterval = 500;
+        
+        while (waitTime < maxWait && !hasCalculatedScoreRef.current) {
+          await new Promise(resolve => setTimeout(resolve, checkInterval));
+          waitTime += checkInterval;
+        }
+        
+        console.log('Score calculation completed or timed out. Moving to finished state...');
+        
         // ゲーム終了 - ステータスをfinishedに変更
         await updateRoomStatus(roomId, 'finished');
       } else {
-        // 次の問題へ進む
-        await nextQuestion(roomId);
-        setSelectedAnswer(null);
-        setPredictedCorrectCount(0);
-        setHasSubmittedAnswer(false);
-        setHasSubmittedPrediction(false);
-        setShowResults(false);
-        setAnswers([]);
-        setPrediction(null);
+        // プレイヤーを準備完了にする
+        await markPlayerReady(roomId, currentPlayerId);
+        setIsReady(true);
+        setWaitingForPlayers(true);
+
+        // 全員が準備完了したら次の問題へ進む（バックグラウンドで自動実行）
+        const checkAllReady = async () => {
+          const state = await getGameState(roomId);
+          if (!state) return;
+
+          const playersReady = state.playersReady || [];
+          if (playersReady.length >= players.length) {
+            // 全員準備完了 - 次の問題へ
+            await nextQuestion(roomId);
+          }
+        };
+
+        // 少し待ってからチェック（他のプレイヤーの状態更新を待つ）
+        setTimeout(checkAllReady, 1000);
       }
     } catch (error) {
       console.error('Failed to go to next question:', error);
@@ -608,6 +805,53 @@ function GamePlayPhase({
   const isAuthor = currentQuestion.authorId === currentPlayerId;
   const otherPlayersCount = players.length - 1; // 出題者を除く
 
+  // 待機画面を表示
+  if (waitingForPlayers) {
+    const playersReady = gameState.playersReady || [];
+
+    return (
+      <div className="space-y-6">
+        <h2 className="text-2xl font-bold text-center">次の問題を準備中...</h2>
+
+        <div className="text-center p-8 bg-blue-50 rounded-lg">
+          <div className="text-6xl mb-4">⏳</div>
+          <p className="text-lg text-gray-700 mb-4">
+            他のプレイヤーが準備完了するまでお待ちください
+          </p>
+          <p className="text-sm text-gray-600">
+            準備完了: {playersReady.length} / {players.length}
+          </p>
+        </div>
+
+        {/* 準備完了プレイヤー一覧 */}
+        <div className="space-y-2">
+          {players.map(player => {
+            const isPlayerReady = playersReady.includes(player.playerId);
+            return (
+              <div
+                key={player.playerId}
+                className={`flex items-center justify-between p-3 rounded-lg ${
+                  isPlayerReady ? 'bg-green-50 border-green-300' : 'bg-gray-50 border-gray-300'
+                } border`}
+              >
+                <div className="flex items-center space-x-2">
+                  <div
+                    className="w-4 h-4 rounded-full"
+                    style={{ backgroundColor: player.color }}
+                  />
+                  <span className="font-bold">{player.nickname}</span>
+                </div>
+                <span className="text-lg">
+                  {isPlayerReady ? '✅' : '⏳'}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* 進捗表示 */}
@@ -623,9 +867,9 @@ function GamePlayPhase({
       <div className="bg-white border-2 border-gray-300 rounded-lg p-6 space-y-4">
         <h3 className="text-xl font-bold text-gray-800">{currentQuestion.text}</h3>
         {currentQuestion.imageUrl && (
-          <img 
-            src={currentQuestion.imageUrl} 
-            alt="Question" 
+          <img
+            src={currentQuestion.imageUrl}
+            alt="Question"
             className="max-w-full rounded-lg"
           />
         )}
@@ -700,7 +944,7 @@ function GamePlayPhase({
           {/* 結果表示 */}
           <div className="space-y-4">
             <h4 className="font-bold text-gray-700 text-xl">結果発表</h4>
-            
+
             {/* 正解表示 */}
             <div className="bg-green-50 border-2 border-green-300 rounded-lg p-4">
               <p className="text-sm text-gray-600">正解</p>
@@ -714,7 +958,7 @@ function GamePlayPhase({
               {answers.map(answer => {
                 const player = players.find(p => p.playerId === answer.playerId);
                 const isCorrect = answer.answer === currentQuestion.correctAnswer;
-                
+
                 return (
                   <div
                     key={answer.playerId}
@@ -786,65 +1030,77 @@ function FinalResultPhase({
 }) {
   const router = useRouter();
   const [hasLeft, setHasLeft] = useState(false);
-  
-  // スコア順にソート
-  const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
+
+  // プレイヤーリストのスナップショット（useState初期値として保持）
+  const [displayPlayers] = useState<Player[]>(players);
+
+  // スコア順にソート（表示用プレイヤーリストまたは現在のリストを使用）
+  const playersToShow = displayPlayers.length > 0 ? displayPlayers : players;
+  const sortedPlayers = [...playersToShow].sort((a, b) => b.score - a.score);
   const maxScore = sortedPlayers[0]?.score || 0;
 
-  // コンポーネントのアンマウント時（ページを離れるとき）にプレイヤーをオフラインにする
+  // プレイヤー数を監視し、0になったらルームを削除
   useEffect(() => {
-    const currentPlayerId = localStorage.getItem('currentPlayerId');
-    
+    if (players.length === 0) {
+      console.log('No players left in finished room. Deleting room...');
+      deleteRoom(roomId).catch(err => {
+        console.error('Failed to delete empty room:', err);
+      });
+    }
+  }, [players.length, roomId]);
+
+  // コンポーネントのアンマウント時（ページを離れるとき）の処理
+  useEffect(() => {
     return () => {
-      // ページを離れるときの処理
-      if (currentPlayerId && !hasLeft) {
-        // プレイヤーをオフラインにする
-        updatePlayerOnlineStatus(roomId, currentPlayerId, false).catch(console.error);
+      // finished状態では、退出ボタン以外でプレイヤーを削除しない
+      // ブラウザを閉じただけではプレイヤーを削除せず、オフラインにするだけ
+      if (!hasLeft) {
+        const currentPlayerId = localStorage.getItem('currentPlayerId');
+        if (currentPlayerId) {
+          // オフラインにする（ブラウザを閉じた場合）
+          updatePlayerOnlineStatus(roomId, currentPlayerId, false).catch(console.error);
+          // プレイヤーは削除しない - 退出ボタンで明示的に削除
+        }
       }
     };
   }, [roomId, hasLeft]);
 
-  // プレイヤー数を監視して、全員退出したらルームを削除
-  useEffect(() => {
-    const checkAndDeleteRoom = async () => {
-      // オンラインのプレイヤーがいなくなったらルームを削除
-      const onlinePlayers = players.filter(p => p.isOnline);
-      
-      if (players.length > 0 && onlinePlayers.length === 0) {
-        console.log('All players have left. Deleting room...');
-        try {
-          await deleteRoom(roomId);
-          console.log('Room deleted successfully');
-        } catch (error) {
-          console.error('Failed to delete room:', error);
-        }
-      }
-    };
-
-    // 少し遅延させて確実にステータス更新後にチェック
-    const timer = setTimeout(checkAndDeleteRoom, 2000);
-    
-    return () => clearTimeout(timer);
-  }, [roomId, players]);
-
   const handleLeaveRoom = async () => {
     try {
       const currentPlayerId = localStorage.getItem('currentPlayerId');
-      if (currentPlayerId) {
-        // プレイヤーをオフラインにする
-        await updatePlayerOnlineStatus(roomId, currentPlayerId, false);
-        setHasLeft(true);
+      if (!currentPlayerId) {
+        router.push('/');
+        return;
       }
-      
+
+      console.log(`Player ${currentPlayerId} leaving room ${roomId}`);
+      setHasLeft(true);
+
+      // まずオフラインにする
+      await updatePlayerOnlineStatus(roomId, currentPlayerId, false);
+
+      // プレイヤーをルームから削除
+      const remainingPlayers = await removePlayerFromRoom(roomId, currentPlayerId);
+      console.log(`Remaining players after leave: ${remainingPlayers}`);
+
       // localStorageをクリア
       localStorage.removeItem('currentPlayerId');
       localStorage.removeItem('currentRoomId');
-      
+
+      // 最後のプレイヤーだった場合、ルームを削除
+      if (remainingPlayers === 0) {
+        console.log('Last player leaving. Deleting room...');
+        await deleteRoom(roomId);
+        console.log('Room deleted successfully');
+      }
+
       // ホームに戻る
       router.push('/');
     } catch (error) {
       console.error('Failed to leave room:', error);
       // エラーが発生してもホームに戻る
+      localStorage.removeItem('currentPlayerId');
+      localStorage.removeItem('currentRoomId');
       router.push('/');
     }
   };
@@ -914,7 +1170,7 @@ function FinalResultPhase({
         <div className="grid grid-cols-2 gap-4">
           <div className="text-center">
             <p className="text-sm text-gray-600">参加人数</p>
-            <p className="text-2xl font-bold text-gray-800">{players.length}</p>
+            <p className="text-2xl font-bold text-gray-800">{playersToShow.length}</p>
           </div>
           <div className="text-center">
             <p className="text-sm text-gray-600">最高得点</p>
@@ -923,8 +1179,8 @@ function FinalResultPhase({
           <div className="text-center">
             <p className="text-sm text-gray-600">平均得点</p>
             <p className="text-2xl font-bold text-gray-800">
-              {players.length > 0 
-                ? Math.round(players.reduce((sum, p) => sum + p.score, 0) / players.length)
+              {playersToShow.length > 0
+                ? Math.round(playersToShow.reduce((sum, p) => sum + p.score, 0) / playersToShow.length)
                 : 0
               }
             </p>
@@ -932,7 +1188,7 @@ function FinalResultPhase({
           <div className="text-center">
             <p className="text-sm text-gray-600">総得点</p>
             <p className="text-2xl font-bold text-gray-800">
-              {players.reduce((sum, p) => sum + p.score, 0)}
+              {playersToShow.reduce((sum, p) => sum + p.score, 0)}
             </p>
           </div>
         </div>

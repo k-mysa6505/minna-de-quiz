@@ -3,13 +3,17 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { joinRoom } from '@/lib/services/roomService';
 import { PLAYER_COLORS } from '@/types';
 
 export default function JoinRoomPage() {
   const router = useRouter();
-  const [roomId, setRoomId] = useState('');
+  const searchParams = useSearchParams();
+  
+  // URLパラメータからルームIDを取得（初期値として使用）
+  const roomIdFromUrl = searchParams.get('roomId');
+  const [roomId, setRoomId] = useState(roomIdFromUrl ? roomIdFromUrl.toUpperCase() : '');
   const [nickname, setNickname] = useState('');
   const [selectedColor, setSelectedColor] = useState<string>(PLAYER_COLORS[0]);
   const [isJoining, setIsJoining] = useState(false);

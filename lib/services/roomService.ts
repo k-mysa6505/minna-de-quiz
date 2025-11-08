@@ -156,10 +156,13 @@ export async function startGame(roomId: string): Promise<void> {
  */
 export async function deleteRoom(roomId: string): Promise<void> {
   try {
+    console.log(`Starting deletion of room ${roomId}`);
+    
     // サブコレクションを削除
     // 1. players サブコレクションを削除
     const playersRef = collection(db, 'rooms', roomId, 'players');
     const playersSnapshot = await getDocs(playersRef);
+    console.log(`Deleting ${playersSnapshot.size} players`);
     const playerDeletePromises = playersSnapshot.docs.map(playerDoc => 
       deleteDoc(playerDoc.ref)
     );
@@ -168,6 +171,7 @@ export async function deleteRoom(roomId: string): Promise<void> {
     // 2. questions サブコレクションを削除
     const questionsRef = collection(db, 'rooms', roomId, 'questions');
     const questionsSnapshot = await getDocs(questionsRef);
+    console.log(`Deleting ${questionsSnapshot.size} questions`);
     const questionDeletePromises = questionsSnapshot.docs.map(questionDoc => 
       deleteDoc(questionDoc.ref)
     );
@@ -176,6 +180,7 @@ export async function deleteRoom(roomId: string): Promise<void> {
     // 3. answers サブコレクションを削除
     const answersRef = collection(db, 'rooms', roomId, 'answers');
     const answersSnapshot = await getDocs(answersRef);
+    console.log(`Deleting ${answersSnapshot.size} answers`);
     const answerDeletePromises = answersSnapshot.docs.map(answerDoc => 
       deleteDoc(answerDoc.ref)
     );
@@ -184,6 +189,7 @@ export async function deleteRoom(roomId: string): Promise<void> {
     // 4. predictions サブコレクションを削除
     const predictionsRef = collection(db, 'rooms', roomId, 'predictions');
     const predictionsSnapshot = await getDocs(predictionsRef);
+    console.log(`Deleting ${predictionsSnapshot.size} predictions`);
     const predictionDeletePromises = predictionsSnapshot.docs.map(predictionDoc => 
       deleteDoc(predictionDoc.ref)
     );
@@ -192,6 +198,7 @@ export async function deleteRoom(roomId: string): Promise<void> {
     // 5. gameState サブコレクションを削除
     const gameStateRef = collection(db, 'rooms', roomId, 'gameState');
     const gameStateSnapshot = await getDocs(gameStateRef);
+    console.log(`Deleting ${gameStateSnapshot.size} game states`);
     const gameStateDeletePromises = gameStateSnapshot.docs.map(stateDoc => 
       deleteDoc(stateDoc.ref)
     );
@@ -204,6 +211,28 @@ export async function deleteRoom(roomId: string): Promise<void> {
     console.log(`Room ${roomId} and all subcollections deleted successfully`);
   } catch (error) {
     console.error('Failed to delete room:', error);
+    throw error;
+  }
+}
+
+/**
+ * プレイヤーをルームから削除
+ */
+export async function removePlayerFromRoom(
+  roomId: string,
+  playerId: string
+): Promise<number> {
+  try {
+    // プレイヤーを削除
+    const playerRef = doc(db, 'rooms', roomId, 'players', playerId);
+    await deleteDoc(playerRef);
+    
+    // 残りのプレイヤー数を返す
+    const playersRef = collection(db, 'rooms', roomId, 'players');
+    const playersSnapshot = await getDocs(playersRef);
+    return playersSnapshot.size;
+  } catch (error) {
+    console.error('Failed to remove player from room:', error);
     throw error;
   }
 }

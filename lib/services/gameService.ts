@@ -23,7 +23,8 @@ export async function initializeGame(
   await setDoc(gameStateRef, {
     currentQuestionIndex: 0,
     questionOrder: shuffledOrder,
-    totalQuestions: questionIds.length
+    totalQuestions: questionIds.length,
+    playersReady: [] // 初期化時は誰も準備完了していない
   });
 }
 
@@ -39,7 +40,7 @@ export async function getGameState(roomId: string): Promise<GameState | null> {
 }
 
 /**
- * 次の問題へ進む
+ * 次の問題へ進む（全員の準備が整った場合のみ）
  */
 export async function nextQuestion(roomId: string): Promise<void> {
   const gameStateRef = doc(db, 'rooms', roomId, 'gameState', 'state');
@@ -56,10 +57,63 @@ export async function nextQuestion(roomId: string): Promise<void> {
     throw new Error('Already at the last question');
   }
 
-  // インデックスを進める
+  // インデックスを進めて、準備完了状態をリセット
   await updateDoc(gameStateRef, {
-    currentQuestionIndex: gameState.currentQuestionIndex + 1
+    currentQuestionIndex: gameState.currentQuestionIndex + 1,
+    playersReady: [] // 準備完了プレイヤーをリセット
   });
+}
+
+/**
+ * プレイヤーを準備完了にする
+ */
+export async function markPlayerReady(
+  roomId: string,
+  playerId: string
+): Promise<void> {
+  const gameStateRef = doc(db, 'rooms', roomId, 'gameState', 'state');
+  const gameStateDoc = await getDoc(gameStateRef);
+
+  if (!gameStateDoc.exists()) {
+    throw new Error('Game state not found');
+  }
+
+  const gameState = gameStateDoc.data() as GameState;
+  const playersReady = gameState.playersReady || [];
+
+  // 既に準備完了の場合は何もしない
+  if (playersReady.includes(playerId)) {
+    return;
+  }
+
+  // プレイヤーを準備完了リストに追加
+  await updateDoc(gameStateRef, {
+    playersReady: [...playersReady, playerId]
+  });
+}
+
+/**
+ * 全員が準備完了かチェック
+ */
+export async function areAllPlayersReady(
+  roomId: string
+): Promise<boolean> {
+  const gameStateRef = doc(db, 'rooms', roomId, 'gameState', 'state');
+  const gameStateDoc = await getDoc(gameStateRef);
+
+  if (!gameStateDoc.exists()) {
+    return false;
+  }
+
+  const gameState = gameStateDoc.data() as GameState;
+  const playersReady = gameState.playersReady || [];
+
+  // プレイヤー数を取得
+  const playersRef = collection(db, 'rooms', roomId, 'players');
+  const playersSnapshot = await getDocs(playersRef);
+  const totalPlayers = playersSnapshot.size;
+
+  return playersReady.length >= totalPlayers;
 }
 
 /**
