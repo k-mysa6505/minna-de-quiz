@@ -8,6 +8,7 @@ import {
   getDoc,
   getDocs,
   updateDoc,
+  deleteDoc,
   onSnapshot,
   Timestamp
 } from 'firebase/firestore';
@@ -148,4 +149,61 @@ export async function startGame(roomId: string): Promise<void> {
 
   // ルームステータスを'creating'に更新
   await updateRoomStatus(roomId, 'creating');
+}
+
+/**
+ * ルームとそのサブコレクションを削除
+ */
+export async function deleteRoom(roomId: string): Promise<void> {
+  try {
+    // サブコレクションを削除
+    // 1. players サブコレクションを削除
+    const playersRef = collection(db, 'rooms', roomId, 'players');
+    const playersSnapshot = await getDocs(playersRef);
+    const playerDeletePromises = playersSnapshot.docs.map(playerDoc => 
+      deleteDoc(playerDoc.ref)
+    );
+    await Promise.all(playerDeletePromises);
+
+    // 2. questions サブコレクションを削除
+    const questionsRef = collection(db, 'rooms', roomId, 'questions');
+    const questionsSnapshot = await getDocs(questionsRef);
+    const questionDeletePromises = questionsSnapshot.docs.map(questionDoc => 
+      deleteDoc(questionDoc.ref)
+    );
+    await Promise.all(questionDeletePromises);
+
+    // 3. answers サブコレクションを削除
+    const answersRef = collection(db, 'rooms', roomId, 'answers');
+    const answersSnapshot = await getDocs(answersRef);
+    const answerDeletePromises = answersSnapshot.docs.map(answerDoc => 
+      deleteDoc(answerDoc.ref)
+    );
+    await Promise.all(answerDeletePromises);
+
+    // 4. predictions サブコレクションを削除
+    const predictionsRef = collection(db, 'rooms', roomId, 'predictions');
+    const predictionsSnapshot = await getDocs(predictionsRef);
+    const predictionDeletePromises = predictionsSnapshot.docs.map(predictionDoc => 
+      deleteDoc(predictionDoc.ref)
+    );
+    await Promise.all(predictionDeletePromises);
+
+    // 5. gameState サブコレクションを削除
+    const gameStateRef = collection(db, 'rooms', roomId, 'gameState');
+    const gameStateSnapshot = await getDocs(gameStateRef);
+    const gameStateDeletePromises = gameStateSnapshot.docs.map(stateDoc => 
+      deleteDoc(stateDoc.ref)
+    );
+    await Promise.all(gameStateDeletePromises);
+
+    // 6. 最後にルーム本体を削除
+    const roomRef = doc(db, 'rooms', roomId);
+    await deleteDoc(roomRef);
+
+    console.log(`Room ${roomId} and all subcollections deleted successfully`);
+  } catch (error) {
+    console.error('Failed to delete room:', error);
+    throw error;
+  }
 }
