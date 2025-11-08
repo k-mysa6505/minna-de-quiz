@@ -4,6 +4,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { QRCodeSVG } from 'qrcode.react';
 import { subscribeToRoom, updateRoomStatus, deleteRoom, removePlayerFromRoom } from '@/lib/services/roomService';
 import { subscribeToPlayers, updatePlayerOnlineStatus, updatePlayerScore } from '@/lib/services/playerService';
@@ -863,15 +864,19 @@ function GamePlayPhase({
 
       <h2 className="text-2xl font-bold text-center">ゲーム進行中</h2>
 
-      {/* 問題表示 */}
       <div className="bg-white border-2 border-gray-300 rounded-lg p-6 space-y-4">
         <h3 className="text-xl font-bold text-gray-800">{currentQuestion.text}</h3>
         {currentQuestion.imageUrl && (
-          <img
-            src={currentQuestion.imageUrl}
-            alt="Question"
-            className="max-w-full rounded-lg"
-          />
+          <div className="w-full">
+            <Image
+              src={currentQuestion.imageUrl}
+              alt="Question"
+              width={1200}
+              height={800}
+              className="max-w-full rounded-lg"
+              priority={true}
+            />
+          </div>
         )}
       </div>
 
