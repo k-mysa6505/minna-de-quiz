@@ -68,7 +68,6 @@ export function GamePlayPhase({ roomId, players, currentPlayerId }: GamePlayPhas
                 }`}
               >
                 <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 rounded-full" style={{ backgroundColor: player.color }} />
                   <span className="font-bold">{player.nickname}</span>
                 </div>
                 <span className="text-lg">{isPlayerReady ? '✅' : '⏳'}</span>
