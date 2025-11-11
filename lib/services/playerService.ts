@@ -12,7 +12,7 @@ import {
   Timestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { PLAYER_COLORS, type Player } from '@/types';
+import type { Player } from '@/types';
 
 /**
  * プレイヤーを追加
@@ -28,15 +28,10 @@ export async function addPlayer(
     throw new Error('Nickname is already taken in this room');
   }
 
-  // 既存プレイヤー数を取得して色を決定
-  const players = await getPlayers(roomId);
-  const colorIndex = players.length % PLAYER_COLORS.length;
-
   // プレイヤー情報をFirestoreに追加
   const playersRef = collection(db, 'rooms', roomId, 'players');
   const playerDoc = await addDoc(playersRef, {
     nickname,
-    color: PLAYER_COLORS[colorIndex],
     isOnline: true,
     isMaster,
     score: 0,
