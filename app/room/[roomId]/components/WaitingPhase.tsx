@@ -1,7 +1,6 @@
 // app/room/[roomId]/components/WaitingPhase.tsx
 'use client';
 
-import { QRCodeSVG } from 'qrcode.react';
 import { updateRoomStatus } from '@/lib/services/roomService';
 import type { Player } from '@/types';
 
@@ -13,80 +12,44 @@ interface WaitingPhaseProps {
 }
 
 export function WaitingPhase({ roomId, players, currentPlayerId, isMaster }: WaitingPhaseProps) {
-  const joinUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/join-room?roomId=${roomId}`
-    : '';
-
   const handleStartGame = async () => {
     try {
       await updateRoomStatus(roomId, 'creating');
     } catch (error) {
       console.error('Failed to start game:', error);
-      alert('ゲーム開始に失敗しました');
-    }
-  };
-
-  const handleCopyUrl = () => {
-    if (typeof window !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(joinUrl)
-        .then(() => alert('URLをコピーしました！'))
-        .catch((error) => {
-          console.error('Failed to copy:', error);
-          alert('URLのコピーに失敗しました');
-        });
-    } else {
-      alert(`参加URL: ${joinUrl}`);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-center">プレイヤー待機中</h2>
+    <div className="space-y-8">
+      <h2 className="text-3xl font-bold text-white tracking-tight">プレイヤー待機中</h2>
 
       {/* プレイヤー一覧 */}
-      <div className="text-gray-600 text-center">
-        プレイヤー一覧
-        <ul className="mt-4 space-y-2">
+      <div className="bg-gradient-to-br from-slate-800/70 to-slate-900/70 rounded-2xl border border-slate-700/50 p-6">
+        <div className="text-lg font-semibold mb-4 text-slate-300">
+          参加者 ({players.length}名)
+        </div>
+        <ul className="space-y-2">
           {players.map((player) => (
             <li
               key={player.playerId}
-              className={`flex items-center justify-center space-x-4 p-2 border rounded-lg ${
+              className={`flex items-center justify-between p-3 rounded-lg transition-all ${
                 player.playerId === currentPlayerId
-                  ? 'bg-blue-50 border-blue-400'
-                  : 'bg-gray-100 border-gray-300'
+                  ? 'bg-blue-500/20 border border-blue-500/50'
+                  : 'bg-slate-700/30'
               }`}
             >
-              <div
-                className="w-6 h-6 rounded-full"
-                style={{ backgroundColor: player.color }}
-              />
-              <span className="font-bold text-gray-800">{player.nickname}</span>
-              {player.isMaster && <span className="text-sm text-gray-500">(ホスト)</span>}
+              <div className="flex items-center gap-3">
+                <span className="font-semibold text-white">{player.nickname}</span>
+                {player.isMaster && (
+                  <span className="text-xs text-slate-400 bg-slate-600 px-2 py-1 rounded">
+                    ホスト
+                  </span>
+                )}
+              </div>
             </li>
           ))}
         </ul>
-      </div>
-
-      {/* QRコード表示 */}
-      <div className="flex flex-col items-center space-y-4 p-6 bg-gray-50 rounded-lg">
-        <h3 className="text-lg font-bold text-gray-800">ルームに参加</h3>
-        <p className="text-sm text-gray-600">このQRコードをスキャンして参加</p>
-
-        <div className="bg-white p-4 rounded-lg shadow-md">
-          <QRCodeSVG value={joinUrl} size={200} level="H" includeMargin={true} />
-        </div>
-
-        <div className="text-center">
-          <p className="text-sm text-gray-600">ルームID</p>
-          <p className="text-3xl font-mono font-bold text-blue-600">{roomId}</p>
-        </div>
-
-        <button
-          onClick={handleCopyUrl}
-          className="text-sm text-blue-600 hover:text-blue-800 underline"
-        >
-          URLをコピー
-        </button>
       </div>
 
       {/* ゲーム開始ボタン（ホストのみ） */}
@@ -94,7 +57,7 @@ export function WaitingPhase({ roomId, players, currentPlayerId, isMaster }: Wai
         <button
           disabled={players.length < 2}
           onClick={handleStartGame}
-          className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-bold py-4 px-6 rounded-lg text-xl"
+          className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 disabled:from-slate-600 disabled:to-slate-700 text-white font-bold py-5 px-6 rounded-2xl text-xl shadow-2xl transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed"
         >
           ゲーム開始
         </button>

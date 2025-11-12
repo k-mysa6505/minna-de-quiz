@@ -6,23 +6,24 @@ import Link from 'next/link';
 
 export default function NotFound() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8 bg-gradient-to-b from-gray-50 to-gray-100">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 space-y-6 text-center">
+    <main className="flex min-h-screen flex-col items-center justify-center p-8">
+      <div className="max-w-md w-full bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm rounded-2xl shadow-2xl border border-slate-700/50 p-10 space-y-8 text-center">
         {/* エラーメッセージ */}
         <div>
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">404</h1>
-          <h2 className="text-2xl font-bold text-gray-700 mb-4">
+          <h1 className="text-6xl font-bold text-white mb-4 tracking-tight">404</h1>
+          <h2 className="text-3xl font-bold text-slate-200 mb-6 tracking-tight">
             ページが見つかりません
           </h2>
           <p className="text-gray-600">
-            ゲストの皆さん、彼は冒険の予定外の場所へ迷い込んだぞ！
+            あーあ！ゲストの皆さん、<br />
+            彼は冒険の予定外の場所へ迷い込んだぞ！
           </p>
         </div>
 
         {/* ホームに戻るボタン */}
         <Link
           href="/"
-          className="inline-block w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors"
+          className="inline-block w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-4 px-6 rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105"
         >
           ホームに戻る
         </Link>

@@ -102,26 +102,6 @@ export default function RoomPage() {
   return (
     <main className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-6xl mx-auto">
-        {/* ヘッダー */}
-        <header className="bg-white rounded-lg shadow p-4 mb-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800">
-                ルーム: {roomId}
-              </h1>
-              <p className="text-gray-600">
-                状態: {getRoomStatusLabel(room.status)}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-gray-600">プレイヤー数</p>
-              <p className="text-2xl font-bold text-blue-600">
-                {players.length}
-              </p>
-            </div>
-          </div>
-        </header>
-
         {/* メインコンテンツ: ゲーム状態に応じて切り替え */}
         <div className="bg-white rounded-lg shadow p-6">
           {room.status === 'waiting' && (

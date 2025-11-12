@@ -17,11 +17,11 @@ export function calculatePlayerScore(
   predictions: Prediction[]
 ): number {
   let score = 0;
-  
+
   // TODO: 回答の正解数をカウント
-  
+
   // TODO: 予想の的中数をカウント
-  
+
   return score;
 }
 
@@ -35,9 +35,9 @@ export function calculateAllScores(
   predictions: Prediction[]
 ): Map<string, number> {
   const scores = new Map<string, number>();
-  
+
   // TODO: 各プレイヤーのスコアを計算
-  
+
   return scores;
 }
 

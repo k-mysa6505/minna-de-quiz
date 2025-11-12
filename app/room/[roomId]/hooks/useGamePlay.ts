@@ -21,7 +21,7 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
   const [prediction, setPrediction] = useState<Prediction | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [waitingForPlayers, setWaitingForPlayers] = useState(false);
-  
+
   const prevQuestionIdRef = useRef<string | null>(null);
   const hasCalculatedScoreRef = useRef<boolean>(false);
 
@@ -107,9 +107,18 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
       if (!currentQuestion) return;
 
       try {
+        const isAuthor = currentQuestion.authorId === currentPlayerId;
+
         const allAnswers = await getAnswers(roomId, currentQuestion.questionId);
-        const myAnswer = allAnswers.find(a => a.playerId === currentPlayerId);
-        setHasSubmittedAnswer(!!myAnswer);
+
+        // 出題者は回答を送信しないので、回答者の場合のみチェック
+        if (!isAuthor) {
+          const myAnswer = allAnswers.find(a => a.playerId === currentPlayerId);
+          setHasSubmittedAnswer(!!myAnswer);
+        } else {
+          // 出題者の場合は常にfalse
+          setHasSubmittedAnswer(false);
+        }
 
         const pred = await getPrediction(roomId, currentQuestion.questionId);
         setHasSubmittedPrediction(!!pred);
@@ -144,10 +153,8 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
       const isCorrect = selectedAnswer === currentQuestion.correctAnswer;
       await submitAnswer(roomId, currentQuestion.questionId, currentPlayerId, selectedAnswer, isCorrect);
       setHasSubmittedAnswer(true);
-      alert('回答を送信しました！');
     } catch (error) {
       console.error('Failed to submit answer:', error);
-      alert('回答の送信に失敗しました');
     }
   };
 
@@ -157,10 +164,8 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
     try {
       await submitPrediction(roomId, currentQuestion.questionId, currentPlayerId, predictedCorrectCount);
       setHasSubmittedPrediction(true);
-      alert('予想を送信しました！');
     } catch (error) {
       console.error('Failed to submit prediction:', error);
-      alert('予想の送信に失敗しました');
     }
   };
 
@@ -171,16 +176,16 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
       if (gameState.currentQuestionIndex >= gameState.totalQuestions - 1) {
         // 最後の問題：スコア計算完了を待つ
         console.log('Last question. Waiting for score calculation...');
-        
+
         let waitTime = 0;
         const maxWait = 5000;
         const checkInterval = 500;
-        
+
         while (waitTime < maxWait && !hasCalculatedScoreRef.current) {
           await new Promise(resolve => setTimeout(resolve, checkInterval));
           waitTime += checkInterval;
         }
-        
+
         console.log('Moving to finished state...');
         await updateRoomStatus(roomId, 'finished');
       } else {
@@ -202,7 +207,6 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
       }
     } catch (error) {
       console.error('Failed to go to next question:', error);
-      alert('次の問題への移動に失敗しました');
     }
   };
 

@@ -32,15 +32,26 @@ export async function createRoom(params: CreateRoomParams): Promise<{ roomId: st
   const masterId = await addPlayer(roomId, params.nickname, true);
 
   // Firestoreにルームドキュメントを作成
-  await setDoc(doc(db, 'rooms', roomId), {
+  const roomData: Partial<Room> = {
     roomId,
-    masterId,  // playerId を設定
+    masterId,
+    masterNickname: params.nickname,
     status: 'waiting',
     createdAt: Timestamp.now(),
-    maxPlayers: params.maxPlayers || 10,
-    minPlayers: params.minPlayers || 3,
-    isClosed: false
-  });
+    maxPlayers: params.maxPlayers || 8,
+    minPlayers: params.minPlayers || 2,
+    isClosed: false,
+    timeLimit: params.timeLimit || 30,
+    scoringMode: params.scoringMode || 'standard',
+    wrongAnswerPenalty: params.wrongAnswerPenalty || 0,
+  };
+
+  // descriptionがundefinedでない場合のみ追加
+  if (params.description) {
+    roomData.description = params.description;
+  }
+
+  await setDoc(doc(db, 'rooms', roomId), roomData);
 
   return { roomId, playerId: masterId };
 }
@@ -157,7 +168,7 @@ export async function startGame(roomId: string): Promise<void> {
 export async function deleteRoom(roomId: string): Promise<void> {
   try {
     console.log(`Starting deletion of room ${roomId}`);
-    
+
     // サブコレクションを削除
     // 1. players サブコレクションを削除
     const playersRef = collection(db, 'rooms', roomId, 'players');
@@ -226,7 +237,7 @@ export async function removePlayerFromRoom(
     // プレイヤーを削除
     const playerRef = doc(db, 'rooms', roomId, 'players', playerId);
     await deleteDoc(playerRef);
-    
+
     // 残りのプレイヤー数を返す
     const playersRef = collection(db, 'rooms', roomId, 'players');
     const playersSnapshot = await getDocs(playersRef);

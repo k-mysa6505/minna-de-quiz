@@ -72,26 +72,39 @@ export function FinalResultPhase({ roomId, players }: FinalResultPhaseProps) {
   const sortedPlayers = [...playersToShow].sort((a, b) => b.score - a.score);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      <h2 className="text-4xl font-bold text-center text-white tracking-tight mb-8">
+        最終結果
+      </h2>
+
       {/* 最終順位 */}
-      <div className="bg-gray-900 rounded-lg p-6">
-        <h3 className="text-lg font-bold text-gray-400 mb-4 uppercase tracking-wider">FINAL RESULTS</h3>
-        <div className="space-y-2">
+      <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm rounded-2xl p-8 border border-slate-700/50 shadow-2xl">
+        <div className="space-y-4">
           {sortedPlayers.map((player, index) => {
             // 1位の背景を強調
-            const bgColor = index === 0 ? 'bg-indigo-900/50' : 'bg-gray-800/50';
+            const isWinner = index === 0;
+            const bgColor = isWinner 
+              ? 'bg-gradient-to-r from-yellow-600/30 to-yellow-700/30 border-2 border-yellow-500/50 shadow-lg shadow-yellow-500/20' 
+              : 'bg-slate-700/40 border border-slate-600/50';
 
             return (
               <div
                 key={player.playerId}
-                className={`flex items-center justify-between px-4 py-3 rounded ${bgColor} border-b border-gray-700/50`}
+                className={`flex items-center justify-between px-6 py-5 rounded-xl ${bgColor} transition-all`}
               >
-                <div className="flex items-center space-x-4">
-                  <span className="text-lg font-bold text-gray-400 w-8">{index + 1}.</span>
-                  <span className="text-lg font-medium text-white">{player.nickname}</span>
+                <div className="flex items-center space-x-6">
+                  <span className={`text-2xl font-bold w-10 ${isWinner ? 'text-yellow-400' : 'text-slate-400'}`}>
+                    {index === 0 ? '🏆' : `${index + 1}.`}
+                  </span>
+                  <span className={`text-xl font-semibold ${isWinner ? 'text-white' : 'text-slate-200'}`}>
+                    {player.nickname}
+                  </span>
                 </div>
                 <div className="text-right">
-                  <p className="text-lg font-bold text-white">{player.score.toLocaleString()}pt</p>
+                  <p className={`text-2xl font-bold ${isWinner ? 'text-yellow-400' : 'text-white'}`}>
+                    {player.score.toLocaleString()}
+                    <span className="text-sm ml-1">pt</span>
+                  </p>
                 </div>
               </div>
             );
@@ -102,7 +115,7 @@ export function FinalResultPhase({ roomId, players }: FinalResultPhaseProps) {
       {/* ホームに戻るボタン */}
       <button
         onClick={handleLeaveRoom}
-        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg"
+        className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-5 px-6 rounded-2xl shadow-2xl transition-all duration-300 transform hover:scale-105"
       >
         ホームに戻る
       </button>

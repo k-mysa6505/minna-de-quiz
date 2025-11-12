@@ -84,14 +84,14 @@ export async function updatePlayerOnlineStatus(
 ): Promise<void> {
   try {
     const playerRef = doc(db, 'rooms', roomId, 'players', playerId);
-    
+
     // ドキュメントが存在するか確認
     const playerSnap = await getDoc(playerRef);
     if (!playerSnap.exists()) {
       console.warn(`Player ${playerId} does not exist in room ${roomId}. Skipping online status update.`);
       return;
     }
-    
+
     await updateDoc(playerRef, { isOnline });
   } catch (error) {
     console.error(`Failed to update online status for player ${playerId}:`, error);
@@ -109,14 +109,14 @@ export async function updatePlayerScore(
 ): Promise<void> {
   try {
     const playerRef = doc(db, 'rooms', roomId, 'players', playerId);
-    
+
     // ドキュメントが存在するか確認
     const playerSnap = await getDoc(playerRef);
     if (!playerSnap.exists()) {
       console.warn(`Player ${playerId} does not exist in room ${roomId}. Skipping score update.`);
       return;
     }
-    
+
     await updateDoc(playerRef, { score });
   } catch (error) {
     console.error(`Failed to update score for player ${playerId}:`, error);
