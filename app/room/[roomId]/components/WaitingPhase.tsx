@@ -30,7 +30,22 @@ export function WaitingPhase({ roomId, players, currentPlayerId, isMaster }: Wai
           PLAYER
         </div>
         <ul className="space-y-1">
-          {players.map((player, idx) => (
+          {(() => {
+            const sortedPlayers = [...players].sort((a, b) => {
+              const getTime = (t: unknown): number => {
+                if (t == null) return 0;
+                if (typeof t === 'number') return t;
+                if (typeof t === 'string') return new Date(t).getTime();
+                const maybeTimestamp = t as { toDate?: () => Date };
+                if (typeof maybeTimestamp.toDate === 'function') return maybeTimestamp.toDate!().getTime();
+                if (t instanceof Date) return t.getTime();
+                return 0;
+              };
+
+              return getTime(a.joinedAt) - getTime(b.joinedAt);
+            });
+
+            return sortedPlayers.map((player, idx) => (
             <li
               key={player.playerId}
               className={`flex items-center justify-between px-3 py-1 rounded- transition-all ${
@@ -51,7 +66,8 @@ export function WaitingPhase({ roomId, players, currentPlayerId, isMaster }: Wai
                 )}
               </div>
             </li>
-          ))}
+            ));
+          })()}
         </ul>
       </div>
 
