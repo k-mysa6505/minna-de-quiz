@@ -12,7 +12,7 @@ export default function CreateRoomPage() {
   const [nickname, setNickname] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState('');
-  
+
   // オプション設定
   const [showOptions, setShowOptions] = useState(false);
   const [description, setDescription] = useState('');
@@ -20,7 +20,7 @@ export default function CreateRoomPage() {
   const [scoringMode, setScoringMode] = useState<ScoringMode>('standard');
   const [wrongAnswerPenalty, setWrongAnswerPenalty] = useState<number>(0);
   const [maxPlayers, setMaxPlayers] = useState<number>(8);
-  
+
   // 説明モーダル
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [helpContent, setHelpContent] = useState({ title: '', content: '' });
@@ -44,7 +44,7 @@ export default function CreateRoomPage() {
     setIsCreating(true);
 
     try {
-      const { roomId, playerId } = await createRoom({ 
+      const { roomId, playerId } = await createRoom({
         nickname: nickname.trim(),
         description: description.trim() || undefined,
         timeLimit,
@@ -93,13 +93,15 @@ export default function CreateRoomPage() {
         </div>
 
         {/* オプションボタン */}
-        <button
-          type="button"
-          onClick={() => setShowOptions(!showOptions)}
-          className="w-full bg-slate-700/50 hover:bg-slate-600/50 text-slate-200 font-medium py-3 px-4 rounded-xl border border-slate-600 transition-all duration-300"
-        >
-          {showOptions ? 'オプションを閉じる' : 'オプション'}
-        </button>
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setShowOptions(!showOptions)}
+            className="text-slate-200 text-sm underline underline-offset-2 px-2 py-1 transition-all duration-300"
+          >
+            {showOptions ? 'オプションを閉じる' : 'オプション'}
+          </button>
+        </div>
 
         {/* エラーメッセージ */}
         {error && (
@@ -130,7 +132,7 @@ export default function CreateRoomPage() {
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50" onClick={() => setShowOptions(false)}>
           <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border border-slate-700 p-6 max-w-md w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-2xl font-bold text-white mb-6">オプション設定</h2>
-            
+
             <div className="space-y-5">
               {/* ルームの説明 */}
               <div>
