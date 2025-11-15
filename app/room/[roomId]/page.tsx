@@ -10,7 +10,6 @@ import { WaitingPhase } from './components/WaitingPhase';
 import { QuestionCreationPhase } from './components/QuestionCreationPhase';
 import { GamePlayPhase } from './components/GamePlayPhase';
 import { FinalResultPhase } from './components/FinalResultPhase';
-import type { RoomStatus } from '@/types';
 
 // 初期状態を取得するヘルパー関数
 function getInitialPlayerState(roomId: string) {
@@ -38,17 +37,6 @@ function getInitialPlayerState(roomId: string) {
     error: '',
     loading: true
   };
-}
-
-// ルームステータスのラベル変換
-function getRoomStatusLabel(status: RoomStatus): string {
-  const labels: Record<RoomStatus, string> = {
-    waiting: '待機中',
-    creating: '問題作成中',
-    playing: 'ゲーム進行中',
-    finished: '終了',
-  };
-  return labels[status] || status;
 }
 
 export default function RoomPage() {
