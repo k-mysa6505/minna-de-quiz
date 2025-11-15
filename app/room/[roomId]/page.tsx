@@ -88,10 +88,10 @@ export default function RoomPage() {
 
   // メイン画面
   return (
-    <main className="min-h-screen bg-gray-50 p-4">
+    <main className="min-h-screen p-4">
       <div className="max-w-6xl mx-auto">
         {/* メインコンテンツ: ゲーム状態に応じて切り替え */}
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="shadow py-6">
           {room.status === 'waiting' && (
             <WaitingPhase
               roomId={roomId}

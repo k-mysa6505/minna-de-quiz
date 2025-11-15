@@ -89,14 +89,14 @@ export default function JoinRoomPage() {
       <main className="flex min-h-screen flex-col items-center justify-center p-8">
         <div className="max-w-md w-full bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm rounded-2xl shadow-2xl border border-slate-700/50 p-8 space-y-6">
           <div className="text-center">
-            <h1 className="text-3xl font-bold text-white mb-3 tracking-tight">
+            <h1 className="text-1xl font-bold text-white mb-3 tracking-tight">
               このルームに参加しますか？
             </h1>
           </div>
 
           <div className="space-y-4 bg-slate-700/30 rounded-xl p-6 border border-slate-600/50">
             <div>
-              <p className="text-sm text-slate-400 mb-1">ルームID</p>
+              <p className="text-sm text-slate-300 mb-1">ルームID</p>
               <p className="text-2xl font-mono font-bold text-white tracking-widest">{roomInfo.roomId}</p>
             </div>
 
@@ -114,7 +114,7 @@ export default function JoinRoomPage() {
           </div>
 
           {error && (
-            <div className="bg-red-500/20 border border-red-500/50 text-red-200 px-4 py-3 rounded-xl">
+            <div className="bg-red-500/20 border border-red-500/50 text-red-200 px-4 py-3 rounded">
               {error}
             </div>
           )}
@@ -122,16 +122,16 @@ export default function JoinRoomPage() {
           <div className="flex gap-3">
             <button
               onClick={() => setShowConfirm(false)}
-              className="flex-1 bg-slate-700/50 hover:bg-slate-600/50 text-slate-200 font-medium py-3 px-4 rounded-xl border border-slate-600 transition-all duration-300"
+              className="flex-1 bg-slate-700/50 hover:bg-slate-600/50 text-slate-200 font-bold italic rounded-xl transition-all duration-300"
             >
-              戻る
+              BACK
             </button>
             <button
               onClick={handleJoinRoom}
               disabled={isLoading}
-              className="flex-1 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 disabled:from-slate-600 disabled:to-slate-700 text-white font-semibold py-3 px-4 rounded-xl shadow-lg transition-all duration-300 disabled:cursor-not-allowed"
+              className="flex-1 bg-emerald-700 hover:from-emerald-700 hover:to-emerald-800 disabled:from-slate-600 disabled:to-slate-700 text-white font-bold italic rounded-xl shadow-lg transition-all duration-300 disabled:cursor-not-allowed"
             >
-              {isLoading ? '参加中...' : '参加する'}
+              {isLoading ? 'JOINING...' : 'JOIN'}
             </button>
           </div>
         </div>
@@ -141,63 +141,63 @@ export default function JoinRoomPage() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8">
-      <div className="max-w-md w-full bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm rounded-2xl shadow-2xl border border-slate-700/50 p-8 space-y-6">
+      <div className="space-y-6">
         <div className="text-center">
-          <h1 className="text-4xl font-bold text-white mb-3 tracking-tight">
+          <h1 className="text-2xl font-bold text-white mb-3 tracking-tight">
             ルームに参加
           </h1>
         </div>
 
         <div>
-          <label htmlFor="roomId" className="block text-sm font-medium text-slate-300 mb-2">
-            ルームID
+          <label htmlFor="roomId" className="block text-sm font-medium italic text-slate-300 mb-2">
+            ROOM ID
           </label>
           <input
             id="roomId"
             type="text"
             value={roomId}
             onChange={(e) => setRoomId(e.target.value.toUpperCase())}
-            placeholder="ABC123"
+            placeholder="123456"
             maxLength={6}
-            className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-transparent uppercase text-center text-2xl font-mono tracking-widest transition-all"
+            className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded text-white placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-transparent uppercase text-center text-2xl font-mono tracking-widest transition-all"
           />
         </div>
 
         <div>
-          <label htmlFor="nickname" className="block text-sm font-medium text-slate-300 mb-2">
-            ニックネーム
-          </label>
+          <label htmlFor="nickname" className="block text-sm font-medium italic text-slate-300 mb-2">NICKNAME</label>
           <input
             id="nickname"
             type="text"
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}
-            placeholder="あなたの名前"
+            placeholder="あなたの代名詞は？"
             maxLength={20}
-            className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+            className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded text-white placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
           />
         </div>
 
         {error && (
-          <div className="bg-red-500/20 border border-red-500/50 text-red-200 px-4 py-3 rounded-xl">
+          <div className="bg-red-500/20 border border-red-500/50 text-red-200 px-4 py-3 rounded">
             {error}
           </div>
         )}
 
-        <button
-          onClick={handleCheckRoom}
-          disabled={isLoading || !roomId.trim() || !nickname.trim()}
-          className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 disabled:from-slate-600 disabled:to-slate-700 text-white font-semibold py-4 px-4 rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed"
-        >
-          {isLoading ? '確認中...' : '次へ'}
-        </button>
+        <div className="flex gap-4 justify-center">
+          <button
+            onClick={handleCheckRoom}
+            disabled={isLoading || !roomId.trim() || !nickname.trim()}
+            className="bg-emerald-700 hover:from-emerald-700 hover:to-emerald-800 disabled:bg-slate-600 text-white font-bold italic px-4 rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed"
+          >
+            {isLoading ? 'WAIT...' : 'NEXT'}
+          </button>
 
-        <button
-          onClick={() => router.push('/')}
-          className="w-full bg-slate-700/50 hover:bg-slate-600/50 text-slate-200 font-medium py-3 px-4 rounded-xl border border-slate-600 transition-all duration-300"
-        >
-          戻る
-        </button>
+          <button
+            onClick={() => router.push('/')}
+            className="bg-slate-700/50 hover:bg-slate-600/50 text-slate-200 font-bold italic px-4 rounded-xl border border-slate-600 transition-all duration-300"
+          >
+            BACK
+          </button>
+        </div>
       </div>
     </main>
   );

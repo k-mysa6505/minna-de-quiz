@@ -25,7 +25,7 @@ export function WaitingPhase({ roomId, players, currentPlayerId, isMaster }: Wai
       <h2 className="text-2xl font-bold text-white tracking-tight">プレイヤー待機中</h2>
 
       {/* プレイヤー一覧 */}
-      <div className="bg-gradient-to-br from-slate-800/70 to-slate-900/70 pb-4 rounded-2xl border border-slate-700/50">
+      <div className="bg-gradient-to-br from-slate-800/70 to-slate-900/70 pb-4 rounded border border-slate-700/50">
         <div className="font-bold text-slate-400 pt-3 px-8 italic">
           PLAYER
         </div>
@@ -48,7 +48,7 @@ export function WaitingPhase({ roomId, players, currentPlayerId, isMaster }: Wai
             return sortedPlayers.map((player, idx) => (
             <li
               key={player.playerId}
-              className={`flex items-center justify-between px-3 py-1 rounded- transition-all ${
+              className={`flex items-center justify-between px-3 py-1 rounded transition-all ${
                 player.playerId === currentPlayerId
                   ? 'bg-gradient-to-b from-blue-800/90 to-blue-500/10'
                   : ''
