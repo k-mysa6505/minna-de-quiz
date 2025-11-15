@@ -63,7 +63,7 @@ export default function Home() {
         <div className="mt-8">
           <Link
             href="/how-to-play"
-            className="inline-block text-slate-300 hover:text-white font-light py-3 px-6 rounded-xl border border-slate-600 hover:border-slate-400 transition-all duration-300"
+            className="inline-block text-slate-300 hover:text-white font-light py-3 px-6 rounded border border-slate-600 hover:border-slate-400 transition-all duration-300"
           >
             遊び方を見る
           </Link>

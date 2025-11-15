@@ -115,14 +115,14 @@ export default function CreateRoomPage() {
           <button
             onClick={handleCreateRoom}
             disabled={isCreating || !nickname.trim()}
-            className="bg-green-700 hover:from-blue-700 hover:to-blue-800 disabled:from-slate-600 disabled:to-slate-700 text-white font-bold italic px-3 rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed"
+            className="bg-green-700 hover:from-blue-700 hover:to-blue-800 disabled:from-slate-600 disabled:to-slate-700 text-white font-bold italic px-3 rounded shadow-lg transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed"
           >
             {isCreating ? 'CREATING...' : 'CREATE'}
           </button>
 
           <button
             onClick={() => router.push('/')}
-            className="bg-slate-700/50 hover:bg-slate-600/50 text-slate-200 font-medium italic px-4 rounded-xl border border-slate-600 transition-all duration-300"
+            className="bg-slate-700/50 hover:bg-slate-600/50 text-slate-200 font-medium italic px-4 rounded border border-slate-600 transition-all duration-300"
           >
             BACK
           </button>

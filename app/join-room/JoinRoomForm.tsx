@@ -94,7 +94,7 @@ export default function JoinRoomPage() {
             </h1>
           </div>
 
-          <div className="space-y-4 bg-slate-700/30 rounded-xl p-6 border border-slate-600/50">
+          <div className="space-y-4 bg-slate-700/30 rounded p-6 border border-slate-600/50">
             <div>
               <p className="text-sm text-slate-300 mb-1">ルームID</p>
               <p className="text-2xl font-mono font-bold text-white tracking-widest">{roomInfo.roomId}</p>
@@ -122,14 +122,14 @@ export default function JoinRoomPage() {
           <div className="flex gap-3">
             <button
               onClick={() => setShowConfirm(false)}
-              className="flex-1 bg-slate-700/50 hover:bg-slate-600/50 text-slate-200 font-bold italic rounded-xl transition-all duration-300"
+              className="flex-1 bg-slate-700/50 hover:bg-slate-600/50 text-slate-200 font-bold italic rounded transition-all duration-300"
             >
               BACK
             </button>
             <button
               onClick={handleJoinRoom}
               disabled={isLoading}
-              className="flex-1 bg-emerald-700 hover:from-emerald-700 hover:to-emerald-800 disabled:from-slate-600 disabled:to-slate-700 text-white font-bold italic rounded-xl shadow-lg transition-all duration-300 disabled:cursor-not-allowed"
+              className="flex-1 bg-emerald-700 hover:from-emerald-700 hover:to-emerald-800 disabled:from-slate-600 disabled:to-slate-700 text-white font-bold italic rounded shadow-lg transition-all duration-300 disabled:cursor-not-allowed"
             >
               {isLoading ? 'JOINING...' : 'JOIN'}
             </button>
@@ -186,14 +186,14 @@ export default function JoinRoomPage() {
           <button
             onClick={handleCheckRoom}
             disabled={isLoading || !roomId.trim() || !nickname.trim()}
-            className="bg-emerald-700 hover:from-emerald-700 hover:to-emerald-800 disabled:bg-slate-600 text-white font-bold italic px-4 rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed"
+            className="bg-emerald-700 hover:from-emerald-700 hover:to-emerald-800 disabled:bg-slate-600 text-white font-bold italic px-4 rounded shadow-lg transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed"
           >
             {isLoading ? 'WAIT...' : 'NEXT'}
           </button>
 
           <button
             onClick={() => router.push('/')}
-            className="bg-slate-700/50 hover:bg-slate-600/50 text-slate-200 font-bold italic px-4 rounded-xl border border-slate-600 transition-all duration-300"
+            className="bg-slate-700/50 hover:bg-slate-600/50 text-slate-200 font-bold italic px-4 rounded border border-slate-600 transition-all duration-300"
           >
             BACK
           </button>

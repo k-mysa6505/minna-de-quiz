@@ -23,7 +23,7 @@ export default function NotFound() {
         {/* ホームに戻るボタン */}
         <Link
           href="/"
-          className="inline-block w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-4 px-6 rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105"
+          className="inline-block w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-4 px-6 rounded shadow-lg transition-all duration-300 transform hover:scale-105"
         >
           ホームに戻る
         </Link>

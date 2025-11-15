@@ -99,13 +99,13 @@ export function GamePlayPhase({ roomId, players, currentPlayerId }: GamePlayPhas
       <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-8 space-y-6">
         <h3 className="text-2xl font-bold text-white text-center">{currentQuestion.text}</h3>
         {currentQuestion.imageUrl && (
-          <div className="w-full bg-slate-700/30 rounded-xl p-4">
+          <div className="w-full bg-slate-700/30 rounded p-4">
             <Image
               src={currentQuestion.imageUrl}
               alt="Question"
               width={1200}
               height={800}
-              className="max-w-full rounded-xl mx-auto"
+              className="max-w-full rounded mx-auto"
               priority={true}
             />
           </div>
@@ -123,7 +123,7 @@ export function GamePlayPhase({ roomId, players, currentPlayerId }: GamePlayPhas
                     key={index}
                     onClick={() => setSelectedAnswer(index)}
                     className={`
-                      relative p-6 rounded-xl border-4 transition-all duration-300 font-bold text-lg min-h-[120px] flex flex-col items-center justify-center
+                      relative p-6 rounded border-4 transition-all duration-300 font-bold text-lg min-h-[120px] flex flex-col items-center justify-center
                       ${selectedAnswer === index 
                         ? `${CHOICE_COLORS[index].selected} ${CHOICE_COLORS[index].border} shadow-2xl scale-105`
                         : `${CHOICE_COLORS[index].bg} ${CHOICE_COLORS[index].border} ${CHOICE_COLORS[index].hover} shadow-lg hover:scale-102`
@@ -142,7 +142,7 @@ export function GamePlayPhase({ roomId, players, currentPlayerId }: GamePlayPhas
               <button
                 onClick={handleAnswerSubmit}
                 disabled={selectedAnswer === null}
-                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-slate-600 disabled:to-slate-700 text-white font-semibold py-4 px-6 rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed"
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-slate-600 disabled:to-slate-700 text-white font-semibold py-4 px-6 rounded shadow-lg transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed"
               >
                 回答を送信
               </button>
@@ -152,7 +152,7 @@ export function GamePlayPhase({ roomId, players, currentPlayerId }: GamePlayPhas
           {/* 予想フォーム（出題者のみ） */}
           {isAuthor && !hasSubmittedPrediction && (
             <div className="space-y-6">
-              <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50">
+              <div className="bg-slate-800/50 rounded p-6 border border-slate-700/50">
                 <label className="block text-sm text-slate-300 mb-4 font-medium text-center">
                   正解者数を予想してください（0〜{otherPlayersCount}人）
                 </label>
@@ -162,12 +162,12 @@ export function GamePlayPhase({ roomId, players, currentPlayerId }: GamePlayPhas
                   max={otherPlayersCount}
                   value={predictedCorrectCount}
                   onChange={(e) => setPredictedCorrectCount(parseInt(e.target.value) || 0)}
-                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white text-center text-2xl font-bold focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded text-white text-center text-2xl font-bold focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                 />
               </div>
               <button
                 onClick={handlePredictionSubmit}
-                className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-semibold py-4 px-6 rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105"
+                className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-semibold py-4 px-6 rounded shadow-lg transition-all duration-300 transform hover:scale-105"
               >
                 予想を送信
               </button>
@@ -188,7 +188,7 @@ export function GamePlayPhase({ roomId, players, currentPlayerId }: GamePlayPhas
           <div className="space-y-6">
             <h4 className="font-bold text-white text-2xl text-center">結果発表</h4>
 
-            <div className="bg-gradient-to-br from-green-900/40 to-green-800/40 border-2 border-green-600/50 rounded-xl p-6">
+            <div className="bg-gradient-to-br from-green-900/40 to-green-800/40 border-2 border-green-600/50 rounded p-6">
               <p className="text-sm text-green-300 mb-2">正解</p>
               <p className="text-xl font-bold text-white">
                 {currentQuestion.correctAnswer + 1}. {currentQuestion.choices[currentQuestion.correctAnswer]}
@@ -198,7 +198,7 @@ export function GamePlayPhase({ roomId, players, currentPlayerId }: GamePlayPhas
             {/* 次へボタン */}
             <button
               onClick={handleNextQuestion}
-              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-4 px-6 rounded-xl shadow-lg transition-all duration-300"
+              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-4 px-6 rounded shadow-lg transition-all duration-300"
             >
               {gameState.currentQuestionIndex >= gameState.totalQuestions - 1
                 ? '結果を見る'

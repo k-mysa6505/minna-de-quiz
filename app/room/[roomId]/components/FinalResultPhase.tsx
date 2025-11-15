@@ -90,7 +90,7 @@ export function FinalResultPhase({ roomId, players }: FinalResultPhaseProps) {
             return (
               <div
                 key={player.playerId}
-                className={`flex items-center justify-between px-6 py-5 rounded-xl ${bgColor} transition-all`}
+                className={`flex items-center justify-between px-6 py-5 rounded ${bgColor} transition-all`}
               >
                 <div className="flex items-center space-x-6">
                   <span className={`text-2xl font-bold w-10 ${isWinner ? 'text-yellow-400' : 'text-slate-400'}`}>
