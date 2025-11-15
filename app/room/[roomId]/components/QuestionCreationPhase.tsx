@@ -227,7 +227,7 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
         </div>
 
         {/* 作成進捗 */}
-        <p className="text-sm text-slate-300 text-center">
+        <p className="text-sm text-slate-300 text-center italic">
           作成済みプレイヤー<span className="font-bold text-blue-400">{progress.created}/{progress.total}</span>
         </p>
 
