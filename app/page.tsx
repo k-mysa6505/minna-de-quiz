@@ -15,10 +15,10 @@ export default function Home() {
           onClick={() => setStarted(true)}
           className="group text-center transition-all duration-300"
         >
-          <h1 className="text-8xl font-bold text-white mb-8 tracking-tight drop-shadow-2xl">
+          <h1 className="text-5xl font-bold text-white mb-8 tracking-tight drop-shadow-2xl">
             みんクイ
           </h1>
-          <p className="text-2xl text-blue-400 font-light tracking-widest animate-pulse">
+          <p className="text-1xl text-blue-400 font-light tracking-widest animate-pulse">
             TAP TO START
           </p>
         </button>
@@ -31,7 +31,7 @@ export default function Home() {
       <div className="max-w-2xl w-full space-y-12 text-center">
         {/* タイトル */}
         <div className="space-y-4">
-          <h1 className="text-7xl font-bold text-white mb-4 tracking-tight drop-shadow-2xl">
+          <h1 className="text-4xl font-bold text-white mb-4 tracking-tight drop-shadow-2xl">
             みんクイ
           </h1>
         </div>
