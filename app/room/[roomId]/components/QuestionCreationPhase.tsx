@@ -8,6 +8,7 @@ import { uploadQuestionImage } from '@/lib/services/storageService';
 import { initializeGame } from '@/lib/services/gameService';
 import { updateRoomStatus } from '@/lib/services/roomService';
 import type { Player, QuestionFormData } from '@/types';
+import { randomInt } from 'crypto';
 
 interface QuestionCreationPhaseProps {
   roomId: string;
@@ -134,7 +135,7 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
   if (hasCreated) {
     return (
       <div className="space-y-8">
-        <h2 className="text-3xl font-bold text-center text-white tracking-tight">問題作成完了</h2>
+        <h2 className="text-2xl font-bold text-center text-white tracking-tight">問題作成完了</h2>
         <div className="text-center p-10 bg-gradient-to-br from-emerald-900/40 to-emerald-800/40 rounded-2xl border border-emerald-600/30 backdrop-blur-sm">
           <div className="text-7xl mb-6">✅</div>
           <p className="text-xl text-white font-semibold">問題を作成しました！</p>
