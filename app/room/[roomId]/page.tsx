@@ -187,7 +187,7 @@ export default function RoomPage() {
     <main className="min-h-screen p-4">
       <div className="max-w-6xl mx-auto">
         {/* メインコンテンツ: ゲーム状態に応じて切り替え */}
-        <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm rounded-2xl shadow-2xl border border-slate-700/50 p-8">
+        <div className="from-slate-800/90 to-slate-900/90 px-2 py-10">
           {room.status === 'waiting' && (
             <WaitingPhase
               roomId={roomId}
