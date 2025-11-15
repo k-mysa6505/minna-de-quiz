@@ -32,11 +32,11 @@ export default function CreateRoomPage() {
 
   const handleCreateRoom = async () => {
     if (nickname.trim() === '') {
-      setError('ニックネームを入力してください');
+      setError('名無しのごんべえはお断り');
       return;
     }
     if (nickname.length > 20) {
-      setError('ニックネームは20文字以内で入力してください');
+      setError('長い名前は覚えられないよ');
       return;
     }
     if (isCreating) return;
@@ -69,26 +69,26 @@ export default function CreateRoomPage() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8">
-      <div className="max-w-md w-full bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm rounded-2xl shadow-2xl border border-slate-700/50 p-8 space-y-6">
+      <div className="max-w-md w-full backdrop-blur-sm space-y-6">
         <div className="text-center">
-          <h1 className="text-4xl font-bold text-white mb-3 tracking-tight">
+          <h1 className="text-2xl font-bold text-white mb-3 tracking-tight">
             ルームを作成
           </h1>
         </div>
 
         {/* ニックネーム入力 */}
         <div>
-          <label htmlFor="nickname" className="block text-sm font-medium text-slate-300 mb-2">
-            ニックネーム
+          <label htmlFor="nickname" className="block text-sm font-medium italic text-slate-300 mb-2">
+            NICKNAME
           </label>
           <input
             id="nickname"
             type="text"
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}
-            placeholder="あなたの名前"
+            placeholder="ルームマスターの名前は？"
             maxLength={20}
-            className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+            className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
           />
         </div>
 
@@ -97,7 +97,7 @@ export default function CreateRoomPage() {
           <button
             type="button"
             onClick={() => setShowOptions(!showOptions)}
-            className="text-slate-200 text-sm underline underline-offset-2 px-2 py-1 transition-all duration-300"
+            className={`text-slate-200 text-sm underline underline-offset-2 px-2 py-1 transition-all duration-300 ${showOptions ? '' : 'italic'}`}
           >
             {showOptions ? 'オプションを閉じる' : 'オプション'}
           </button>
@@ -105,26 +105,28 @@ export default function CreateRoomPage() {
 
         {/* エラーメッセージ */}
         {error && (
-          <div className="bg-red-500/20 border border-red-500/50 text-red-200 px-4 py-3 rounded-xl">
+          <div className="bg-red-500/20 border border-red-500/50 text-red-200 px-4 py-3 rounded">
             {error}
           </div>
         )}
 
         {/* 作成ボタン */}
-        <button
-          onClick={handleCreateRoom}
-          disabled={isCreating || !nickname.trim()}
-          className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-slate-600 disabled:to-slate-700 text-white font-semibold py-4 px-4 rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed"
-        >
-          {isCreating ? '作成中...' : 'ルームを作成'}
-        </button>
+        <div className="flex gap-4 justify-center">
+          <button
+            onClick={handleCreateRoom}
+            disabled={isCreating || !nickname.trim()}
+            className="bg-green-700 hover:from-blue-700 hover:to-blue-800 disabled:from-slate-600 disabled:to-slate-700 text-white font-bold italic px-3 rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed"
+          >
+            {isCreating ? 'CREATING...' : 'CREATE'}
+          </button>
 
-        <button
-          onClick={() => router.push('/')}
-          className="w-full bg-slate-700/50 hover:bg-slate-600/50 text-slate-200 font-medium py-3 px-4 rounded-xl border border-slate-600 transition-all duration-300"
-        >
-          戻る
-        </button>
+          <button
+            onClick={() => router.push('/')}
+            className="bg-slate-700/50 hover:bg-slate-600/50 text-slate-200 font-medium italic px-4 rounded-xl border border-slate-600 transition-all duration-300"
+          >
+            BACK
+          </button>
+        </div>
       </div>
 
       {/* オプションモーダル */}
@@ -137,7 +139,7 @@ export default function CreateRoomPage() {
               {/* ルームの説明 */}
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
-                  ルームの説明<span className="text-slate-500 text-xs font-normal">（任意）</span>
+                  ルームの説明
                   <button onClick={() => showHelp('ルームの説明', 'このルームの目的やテーマを説明します。参加者が参加前に確認できます。')} className="w-5 h-5 rounded-full border border-slate-500 text-slate-400 hover:text-white text-xs flex items-center justify-center">?</button>
                 </label>
                 <input

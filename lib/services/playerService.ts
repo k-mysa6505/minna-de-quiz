@@ -25,7 +25,7 @@ export async function addPlayer(
   // ニックネームの重複チェック
   const isDuplicate = await isNicknameTaken(roomId, nickname);
   if (isDuplicate) {
-    throw new Error('Nickname is already taken in this room');
+    throw new Error('おっと、その名前はすでに使われているよ！');
   }
 
   // プレイヤー情報をFirestoreに追加
