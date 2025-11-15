@@ -1,8 +1,8 @@
 // lib/firebase.ts
-import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
-import { getDatabase } from 'firebase/database';
-import { getStorage } from 'firebase/storage';
+import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
+import { getFirestore, Firestore } from 'firebase/firestore';
+import { getDatabase, Database } from 'firebase/database';
+import { getStorage, FirebaseStorage } from 'firebase/storage';
 
 const firebaseConfig = {
 	apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -14,10 +14,15 @@ const firebaseConfig = {
 };
 
 // Firebaseアプリの初期化（複数回初期化を防ぐ）
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+let app: FirebaseApp;
+if (getApps().length === 0) {
+	app = initializeApp(firebaseConfig);
+} else {
+	app = getApps()[0];
+}
 
 // 各サービスのインスタンスをエクスポート
-export const db = getFirestore(app);
-export const rtdb = getDatabase(app);
-export const storage = getStorage(app);
+export const db: Firestore = getFirestore(app);
+export const rtdb: Database = getDatabase(app);
+export const storage: FirebaseStorage = getStorage(app);
 export default app;
