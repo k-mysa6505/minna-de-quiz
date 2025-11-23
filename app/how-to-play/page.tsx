@@ -54,7 +54,7 @@ export default function HowToPlay() {
         <div className="text-center">
           <Link
             href="/"
-            className="inline-block bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-4 px-8 rounded shadow-xl transition-all duration-300 transform hover:scale-105"
+            className="inline-block bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold py-4 px-8 rounded shadow-xl transition-all duration-300 transform hover:scale-105"
           >
             ホームに戻る
           </Link>

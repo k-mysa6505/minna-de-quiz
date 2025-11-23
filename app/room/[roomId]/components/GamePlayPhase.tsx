@@ -14,28 +14,28 @@ interface GamePlayPhaseProps {
 const CHOICE_COLORS = [
   { 
     bg: 'bg-blue-600/70', 
-    hover: 'hover:bg-blue-600/80', 
+    'hover:bg-blue-600/80', 
     border: 'border-blue-500/70', 
     selected: 'bg-blue-500/50 border-blue-400/80', 
     text: 'text-white' 
   },
   { 
     bg: 'bg-red-600/70', 
-    hover: 'hover:bg-red-600/80', 
+    'hover:bg-red-600/80', 
     border: 'border-red-500/70', 
     selected: 'bg-red-500/50 border-red-400/80', 
     text: 'text-white' 
   },
   { 
     bg: 'bg-green-600/70', 
-    hover: 'hover:bg-green-600/80', 
+    'hover:bg-green-600/80', 
     border: 'border-green-500/70', 
     selected: 'bg-green-500/50 border-green-400/80', 
     text: 'text-white' 
   },
   { 
     bg: 'bg-yellow-600/70', 
-    hover: 'hover:bg-yellow-600/80', 
+    'hover:bg-yellow-600/80', 
     border: 'border-yellow-500/70', 
     selected: 'bg-yellow-500/50 border-yellow-400/80', 
     text: 'text-white' 
@@ -142,7 +142,7 @@ export function GamePlayPhase({ roomId, players, currentPlayerId }: GamePlayPhas
               <button
                 onClick={handleAnswerSubmit}
                 disabled={selectedAnswer === null}
-                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-slate-600 disabled:to-slate-700 text-white font-semibold py-4 px-6 rounded shadow-lg transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed"
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 disabled:from-slate-600 disabled:to-slate-700 text-white font-semibold py-4 px-6 rounded shadow-lg transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed"
               >
                 回答を送信
               </button>
@@ -167,7 +167,7 @@ export function GamePlayPhase({ roomId, players, currentPlayerId }: GamePlayPhas
               </div>
               <button
                 onClick={handlePredictionSubmit}
-                className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-semibold py-4 px-6 rounded shadow-lg transition-all duration-300 transform hover:scale-105"
+                className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 text-white font-semibold py-4 px-6 rounded shadow-lg transition-all duration-300 transform hover:scale-105"
               >
                 予想を送信
               </button>
@@ -198,7 +198,7 @@ export function GamePlayPhase({ roomId, players, currentPlayerId }: GamePlayPhas
             {/* 次へボタン */}
             <button
               onClick={handleNextQuestion}
-              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-4 px-6 rounded shadow-lg transition-all duration-300"
+              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold py-4 px-6 rounded shadow-lg transition-all duration-300"
             >
               {gameState.currentQuestionIndex >= gameState.totalQuestions - 1
                 ? '結果を見る'

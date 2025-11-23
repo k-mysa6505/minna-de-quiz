@@ -78,9 +78,6 @@ export default function CreateRoomPage() {
 
         {/* ニックネーム入力 */}
         <div>
-          <label htmlFor="nickname" className="block text-sm font-medium italic text-slate-300 mb-2">
-            NICKNAME
-          </label>
           <input
             id="nickname"
             type="text"
@@ -99,7 +96,7 @@ export default function CreateRoomPage() {
             onClick={() => setShowOptions(!showOptions)}
             className={`text-slate-200 text-sm underline underline-offset-2 px-2 py-1 transition-all duration-300 ${showOptions ? '' : 'italic'}`}
           >
-            {showOptions ? 'オプションを閉じる' : 'オプション'}
+            {showOptions ? 'オプションを閉じる' : 'ルーム作成のオプション設定'}
           </button>
         </div>
 
@@ -115,14 +112,14 @@ export default function CreateRoomPage() {
           <button
             onClick={handleCreateRoom}
             disabled={isCreating || !nickname.trim()}
-            className="bg-green-700 hover:from-blue-700 hover:to-blue-800 disabled:from-slate-600 disabled:to-slate-700 text-white font-bold italic px-3 rounded shadow-lg transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed"
+            className="bg-green-700 disabled:from-slate-600 disabled:to-slate-700 text-white font-bold italic px-3 rounded shadow-lg transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed"
           >
             {isCreating ? 'CREATING...' : 'CREATE'}
           </button>
 
           <button
             onClick={() => router.push('/')}
-            className="bg-slate-700/50 hover:bg-slate-600/50 text-slate-200 font-medium italic px-4 rounded border border-slate-600 transition-all duration-300"
+            className="bg-slate-700/50 text-slate-200 font-medium italic px-4 rounded border border-slate-600 transition-all duration-300"
           >
             BACK
           </button>
@@ -140,7 +137,7 @@ export default function CreateRoomPage() {
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
                   ルームの説明
-                  <button onClick={() => showHelp('ルームの説明', 'このルームの目的やテーマを説明します。参加者が参加前に確認できます。')} className="w-5 h-5 rounded-full border border-slate-500 text-slate-400 hover:text-white text-xs flex items-center justify-center">?</button>
+                  <button onClick={() => showHelp('ルームの説明', 'このルームの目的やテーマを説明します。参加者が参加前に確認できます。')} className="w-5 h-5 rounded-full border border-slate-500 text-slate-400 text-xs flex items-center justify-center">?</button>
                 </label>
                 <input
                   type="text"
@@ -156,7 +153,7 @@ export default function CreateRoomPage() {
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
                   制限時間（秒）
-                  <button onClick={() => showHelp('制限時間', '各問題の回答制限時間を設定します。0に設定すると制限時間なしになります。')} className="w-5 h-5 rounded-full border border-slate-500 text-slate-400 hover:text-white text-xs flex items-center justify-center">?</button>
+                  <button onClick={() => showHelp('制限時間', '各問題の回答制限時間を設定します。0に設定すると制限時間なしになります。')} className="w-5 h-5 rounded-full border border-slate-500 text-slate-400 text-xs flex items-center justify-center">?</button>
                 </label>
                 <input
                   type="number"
@@ -172,7 +169,7 @@ export default function CreateRoomPage() {
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
                   点数加算方式
-                  <button onClick={() => showHelp('点数加算方式', '標準：正解で10pt / 1位ボーナス：1位は20pt、他は10pt / 正解率ボーナス：正解率が低いほど高得点')} className="w-5 h-5 rounded-full border border-slate-500 text-slate-400 hover:text-white text-xs flex items-center justify-center">?</button>
+                  <button onClick={() => showHelp('点数加算方式', '標準：正解で10pt / 1位ボーナス：1位は20pt、他は10pt / 正解率ボーナス：正解率が低いほど高得点')} className="w-5 h-5 rounded-full border border-slate-500 text-slate-400 text-xs flex items-center justify-center">?</button>
                 </label>
                 <select
                   value={scoringMode}
@@ -189,7 +186,7 @@ export default function CreateRoomPage() {
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
                   誤答ペナルティ（pt）
-                  <button onClick={() => showHelp('誤答ペナルティ', '不正解の場合に減点されるポイントです。0でペナルティなし。')} className="w-5 h-5 rounded-full border border-slate-500 text-slate-400 hover:text-white text-xs flex items-center justify-center">?</button>
+                  <button onClick={() => showHelp('誤答ペナルティ', '不正解の場合に減点されるポイントです。0でペナルティなし。')} className="w-5 h-5 rounded-full border border-slate-500 text-slate-400 text-xs flex items-center justify-center">?</button>
                 </label>
                 <input
                   type="number"
@@ -205,7 +202,7 @@ export default function CreateRoomPage() {
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
                   最大参加人数
-                  <button onClick={() => showHelp('最大参加人数', 'このルームに参加できる最大人数を設定します。')} className="w-5 h-5 rounded-full border border-slate-500 text-slate-400 hover:text-white text-xs flex items-center justify-center">?</button>
+                  <button onClick={() => showHelp('最大参加人数', 'このルームに参加できる最大人数を設定します。')} className="w-5 h-5 rounded-full border border-slate-500 text-slate-400 text-xs flex items-center justify-center">?</button>
                 </label>
                 <input
                   type="number"
@@ -221,13 +218,13 @@ export default function CreateRoomPage() {
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setShowOptions(false)}
-                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-medium py-2 px-4 rounded-lg transition-all"
+                className="flex-1 bg-slate-700 text-white font-medium py-2 px-4 rounded-lg transition-all"
               >
                 閉じる
               </button>
               <button
                 onClick={() => setShowOptions(false)}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-all"
+                className="flex-1 bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-all"
               >
                 変更する
               </button>
@@ -244,7 +241,7 @@ export default function CreateRoomPage() {
             <p className="text-slate-300 text-sm mb-4">{helpContent.content}</p>
             <button
               onClick={() => setShowHelpModal(false)}
-              className="w-full bg-slate-700 hover:bg-slate-600 text-white font-medium py-2 px-4 rounded-lg transition-all"
+              className="w-full bg-slate-700 text-white font-medium py-2 px-4 rounded-lg transition-all"
             >
               閉じる
             </button>

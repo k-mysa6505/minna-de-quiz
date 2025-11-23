@@ -8,7 +8,6 @@ import { uploadQuestionImage } from '@/lib/services/storageService';
 import { initializeGame } from '@/lib/services/gameService';
 import { updateRoomStatus } from '@/lib/services/roomService';
 import type { Player, QuestionFormData } from '@/types';
-import { randomInt } from 'crypto';
 
 interface QuestionCreationPhaseProps {
   roomId: string;
@@ -236,7 +235,7 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-slate-600 disabled:to-slate-700 text-white font-semibold py-4 px-6 rounded shadow-lg transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed"
+          className="w-full bg-gradient-to-r from-blue-600 to-blue-700 disabled:from-slate-600 disabled:to-slate-700 text-white font-semibold py-4 px-6 rounded shadow-lg transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed"
         >
           {isSubmitting ? '作成中...' : '問題を作成'}
         </button>
@@ -299,14 +298,14 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
             <div className="flex gap-3">
               <button
                 onClick={() => setShowConfirmModal(false)}
-                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-medium py-3 px-4 rounded transition-all"
+                className="flex-1 bg-slate-700 text-white font-medium py-3 px-4 rounded transition-all"
               >
                 戻る
               </button>
               <button
                 onClick={handleConfirmSubmit}
                 disabled={isSubmitting}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 text-white font-semibold py-3 px-4 rounded transition-all disabled:cursor-not-allowed"
+                className="flex-1 bg-blue-600 disabled:bg-slate-600 text-white font-semibold py-3 px-4 rounded transition-all disabled:cursor-not-allowed"
               >
                 {isSubmitting ? '作成中...' : '作成する'}
               </button>

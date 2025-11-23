@@ -76,7 +76,7 @@ export function WaitingPhase({ roomId, players, currentPlayerId, isMaster }: Wai
         <button
           disabled={players.length < 2}
           onClick={handleStartGame}
-          className="block mx-auto bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 disabled:from-slate-600 disabled:to-slate-700 text-white font-bold italic px-2 rounded-2xl shadow-2xl transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed disabled:text-slate-400"
+          className="block mx-auto bg-gradient-to-r from-emerald-600 to-emerald-700 disabled:from-slate-600 disabled:to-slate-700 text-white font-bold italic px-2 rounded-2xl shadow-2xl transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed disabled:text-slate-400"
         >
           START
         </button>

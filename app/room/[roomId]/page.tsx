@@ -77,7 +77,7 @@ export default function RoomPage() {
           <p className="text-gray-600">{error}</p>
           <button
             onClick={() => router.push('/')}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg"
+            className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg"
           >
             ホームに戻る
           </button>

@@ -115,7 +115,7 @@ export function FinalResultPhase({ roomId, players }: FinalResultPhaseProps) {
       {/* ホームに戻るボタン */}
       <button
         onClick={handleLeaveRoom}
-        className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-5 px-6 rounded-2xl shadow-2xl transition-all duration-300 transform hover:scale-105"
+        className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold py-5 px-6 rounded-2xl shadow-2xl transition-all duration-300 transform hover:scale-105"
       >
         ホームに戻る
       </button>
