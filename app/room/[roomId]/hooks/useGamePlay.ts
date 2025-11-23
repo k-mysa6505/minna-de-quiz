@@ -24,6 +24,7 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
 
   const prevQuestionIdRef = useRef<string | null>(null);
   const hasCalculatedScoreRef = useRef<boolean>(false);
+  const hasTriggeredNextQuestionRef = useRef<boolean>(false);
 
   // スコア計算関数（useCallbackで安定化）
   const calculateScores = useCallback(async (allAnswers: Answer[], pred: Prediction) => {
@@ -76,6 +77,7 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
             setIsReady(false);
             setWaitingForPlayers(false);
             hasCalculatedScoreRef.current = false;
+            hasTriggeredNextQuestionRef.current = false;
           }
 
           setCurrentQuestion(question || null);
@@ -86,6 +88,22 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
           setIsReady(amIReady);
 
           if (playersReady.length >= players.length && playersReady.length > 0) {
+            // 全員準備完了したら次の問題へ進む（最初のプレイヤーのみ実行、最後の問題でない場合のみ）
+            const isLastQuestion = state.currentQuestionIndex >= state.totalQuestions - 1;
+            const shouldProceed = playersReady.length === players.length && 
+                                  playersReady[0] === currentPlayerId &&
+                                  !isLastQuestion &&
+                                  !hasTriggeredNextQuestionRef.current;
+            if (shouldProceed && amIReady) {
+              hasTriggeredNextQuestionRef.current = true;
+              setTimeout(async () => {
+                try {
+                  await nextQuestion(roomId);
+                } catch (err) {
+                  console.error('Failed to proceed to next question:', err);
+                }
+              }, 500);
+            }
             setWaitingForPlayers(false);
           } else if (amIReady) {
             setWaitingForPlayers(true);
@@ -193,17 +211,6 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
         await markPlayerReady(roomId, currentPlayerId);
         setIsReady(true);
         setWaitingForPlayers(true);
-
-        // 全員が準備完了したら次の問題へ進む
-        setTimeout(async () => {
-          const state = await getGameState(roomId);
-          if (state) {
-            const playersReady = state.playersReady || [];
-            if (playersReady.length >= players.length) {
-              await nextQuestion(roomId);
-            }
-          }
-        }, 1000);
       }
     } catch (error) {
       console.error('Failed to go to next question:', error);
