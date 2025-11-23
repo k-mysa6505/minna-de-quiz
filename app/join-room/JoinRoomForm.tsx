@@ -12,7 +12,7 @@ export default function JoinRoomPage() {
   const searchParams = useSearchParams();
 
   const roomIdFromUrl = searchParams.get('roomId');
-  const [roomId, setRoomId] = useState(roomIdFromUrl ? roomIdFromUrl.toUpperCase() : '');
+  const roomId = roomIdFromUrl ? roomIdFromUrl : '';
   const [nickname, setNickname] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -154,7 +154,7 @@ export default function JoinRoomPage() {
           </label>
           <input
             id="roomId"
-            type="number"
+            type="text"
             value={roomId}
             placeholder="123456"
             maxLength={6}
