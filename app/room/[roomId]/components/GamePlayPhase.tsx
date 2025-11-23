@@ -293,40 +293,63 @@ export function GamePlayPhase({ roomId, players, currentPlayerId }: GamePlayPhas
                     正解者なし
                   </div>
                 ) : (
-                  answers
-                  .filter(a => a.isCorrect)
-                  .sort((a, b) => {
-                    const timeA = typeof a.answeredAt === 'object' && 'toDate' in a.answeredAt
-                      ? a.answeredAt.toDate().getTime()
-                      : 0;
-                    const timeB = typeof b.answeredAt === 'object' && 'toDate' in b.answeredAt
-                      ? b.answeredAt.toDate().getTime()
-                      : 0;
-                    return timeB - timeA;
-                  })
-                  .map((answer, idx, arr) => {
-                    const player = players.find(p => p.playerId === answer.playerId);
-                    const isFastest = idx === arr.length - 1;
-                    const isRevealed = revealedPlayers.includes(answer.playerId);
+                  (() => {
+                    const correctAnswers = answers
+                      .filter(a => a.isCorrect)
+                      .sort((a, b) => {
+                        const timeA = typeof a.answeredAt === 'object' && 'toDate' in a.answeredAt
+                          ? a.answeredAt.toDate().getTime()
+                          : 0;
+                        const timeB = typeof b.answeredAt === 'object' && 'toDate' in b.answeredAt
+                          ? b.answeredAt.toDate().getTime()
+                          : 0;
+                        return timeB - timeA;
+                      });
 
-                    if (!isRevealed) return null;
+                    // 全回答の中で最も早い時刻を問題開始時刻とする
+                    const allAnswerTimes = answers
+                      .map(a => typeof a.answeredAt === 'object' && 'toDate' in a.answeredAt
+                        ? a.answeredAt.toDate().getTime()
+                        : 0)
+                      .filter(t => t > 0);
+                    const questionStartTime = allAnswerTimes.length > 0 ? Math.min(...allAnswerTimes) : 0;
 
-                    return (
-                      <div
-                        key={answer.playerId}
-                        className="flex justify-between items-center px-4 py-1 animate-fade-in"
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className={`font-bold text-lg ${
-                            isFastest ? 'text-yellow-400' : 'text-white'
-                          }`}>
-                            {player?.nickname || '不明'}
-                          </span>
+                    return correctAnswers.map((answer, idx, arr) => {
+                      const player = players.find(p => p.playerId === answer.playerId);
+                      const isFastest = idx === arr.length - 1;
+                      const isRevealed = revealedPlayers.includes(answer.playerId);
+
+                      if (!isRevealed) return null;
+
+                      // 回答開始からの経過時間を計算
+                      const answerTime = typeof answer.answeredAt === 'object' && 'toDate' in answer.answeredAt
+                        ? answer.answeredAt.toDate().getTime()
+                        : 0;
+                      const elapsedMs = answerTime - questionStartTime;
+                      const seconds = Math.floor(elapsedMs / 1000);
+                      const centiseconds = Math.floor((elapsedMs % 1000) / 10);
+                      const timeDisplay = `${seconds}''${centiseconds.toString().padStart(2, '0')}`;
+
+                      return (
+                        <div
+                          key={answer.playerId}
+                          className="flex justify-between items-center px-4 py-1 animate-fade-in"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className={`font-bold text-lg ${
+                              isFastest ? 'text-yellow-400' : 'text-white'
+                            }`}>
+                              {player?.nickname || '不明'}
+                            </span>
+                            <span className="text-xs text-slate-400">
+                              {timeDisplay}
+                            </span>
+                          </div>
+                          <span className="text-emerald-400 font-bold">+10pt</span>
                         </div>
-                        <span className="text-emerald-400 font-bold">+10pt</span>
-                      </div>
-                    );
-                  })
+                      );
+                    });
+                  })()
                 )}
               </div>
 
