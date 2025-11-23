@@ -22,33 +22,52 @@ export function WaitingPhase({ roomId, players, currentPlayerId, isMaster }: Wai
 
   return (
     <div className="space-y-8">
-      <h2 className="text-3xl font-bold text-white tracking-tight">プレイヤー待機中</h2>
+      <h2 className="text-2xl font-bold text-white tracking-tight">プレイヤー待機中</h2>
 
       {/* プレイヤー一覧 */}
-      <div className="bg-gradient-to-br from-slate-800/70 to-slate-900/70 rounded-2xl border border-slate-700/50 p-6">
-        <div className="text-lg font-semibold mb-4 text-slate-300">
-          参加者 ({players.length}名)
+      <div className="bg-gradient-to-br from-slate-800/70 to-slate-900/70 pb-4 rounded border border-slate-700/50">
+        <div className="font-bold text-slate-400 pt-3 px-8 italic">
+          PLAYER
         </div>
-        <ul className="space-y-2">
-          {players.map((player) => (
+        <ul className="space-y-1">
+          {(() => {
+            const sortedPlayers = [...players].sort((a, b) => {
+              const getTime = (t: unknown): number => {
+                if (t == null) return 0;
+                if (typeof t === 'number') return t;
+                if (typeof t === 'string') return new Date(t).getTime();
+                const maybeTimestamp = t as { toDate?: () => Date };
+                if (typeof maybeTimestamp.toDate === 'function') return maybeTimestamp.toDate!().getTime();
+                if (t instanceof Date) return t.getTime();
+                return 0;
+              };
+
+              return getTime(a.joinedAt) - getTime(b.joinedAt);
+            });
+
+            return sortedPlayers.map((player, idx) => (
             <li
               key={player.playerId}
-              className={`flex items-center justify-between p-3 rounded-lg transition-all ${
+              className={`flex items-center justify-between px-3 py-1 rounded transition-all ${
                 player.playerId === currentPlayerId
-                  ? 'bg-blue-500/20 border border-blue-500/50'
-                  : 'bg-slate-700/30'
+                  ? 'bg-gradient-to-b from-blue-800/90 to-blue-500/10'
+                  : ''
               }`}
             >
               <div className="flex items-center gap-3">
-                <span className="font-semibold text-white">{player.nickname}</span>
+                <span className="font-semibold text-white">
+                  {idx + 1}．
+                  <span className="italic">{player.nickname}</span>
+                </span>
                 {player.isMaster && (
-                  <span className="text-xs text-slate-400 bg-slate-600 px-2 py-1 rounded">
+                  <span className="text-xs text-slate-400 bg-slate-600 px-1 rounded">
                     ホスト
                   </span>
                 )}
               </div>
             </li>
-          ))}
+            ));
+          })()}
         </ul>
       </div>
 
@@ -57,10 +76,17 @@ export function WaitingPhase({ roomId, players, currentPlayerId, isMaster }: Wai
         <button
           disabled={players.length < 2}
           onClick={handleStartGame}
-          className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 disabled:from-slate-600 disabled:to-slate-700 text-white font-bold py-5 px-6 rounded-2xl text-xl shadow-2xl transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed"
+          className="block mx-auto bg-gradient-to-b from-emerald-700 to-emerald-800 disabled:from-slate-600 disabled:to-slate-700 text-white font-bold italic px-4 rounded-2xl shadow-2xl transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed disabled:text-slate-400"
         >
-          ゲーム開始
+          START
         </button>
+      )}
+
+      {/* ホスト以外向けのメッセージ */}
+      {!isMaster && (
+        <p className="text-center text-slate-400 italic">
+          ホストがゲームを開始するのをお待ちください...
+        </p>
       )}
     </div>
   );

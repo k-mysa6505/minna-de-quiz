@@ -6,46 +6,46 @@ import Link from 'next/link';
 export default function HowToPlay() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8">
-      <div className="max-w-3xl w-full space-y-8">
+      <div className="max-w-md w-full space-y-6">
         {/* タイトル */}
-        <h1 className="text-5xl font-bold text-white text-center mb-8 tracking-tight">
-          遊び方
+        <h1 className="text-2xl font-bold text-white mb-6 tracking-tight text-center">
+          HOW TO PLAY
         </h1>
 
         {/* ルール説明 */}
-        <div className="space-y-6 bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-8">
-          <section className="space-y-3">
-            <h2 className="text-2xl font-semibold text-blue-400">1. ルームを作成または参加</h2>
-            <p className="text-slate-300 leading-relaxed">
-              ルームを作成して友達を招待するか、ルームIDを使って既存のルームに参加しましょう。
+        <div className="space-y-4 bg-slate-800/50 rounded-lg border border-slate-700/50 p-6">
+          <section className="space-y-2">
+            <h2 className="text-sm font-semibold text-slate-300 italic">1. ルーム作成 / 参加</h2>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              ルームを作って友達を招待するか、IDで参加しよう
             </p>
           </section>
 
-          <section className="space-y-3">
-            <h2 className="text-2xl font-semibold text-blue-400">2. 問題を作成</h2>
-            <p className="text-slate-300 leading-relaxed">
-              全員がそれぞれ1問ずつクイズを作成します。問題文、画像（任意）、4つの選択肢を設定しましょう。
+          <section className="space-y-2">
+            <h2 className="text-sm font-semibold text-slate-300 italic">2. 問題作成</h2>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              みんなで1問ずつクイズを作ります（問題文、画像、選択肢4つ）
             </p>
           </section>
 
-          <section className="space-y-3">
-            <h2 className="text-2xl font-semibold text-blue-400">3. クイズに挑戦</h2>
-            <p className="text-slate-300 leading-relaxed">
-              他のプレイヤーが作った問題に回答します。正解すると10ポイント獲得！
+          <section className="space-y-2">
+            <h2 className="text-sm font-semibold text-slate-300 italic">3. 回答</h2>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              他の人の問題に挑戦しよう（正解で10pt）
             </p>
           </section>
 
-          <section className="space-y-3">
-            <h2 className="text-2xl font-semibold text-blue-400">4. 出題者は正解者数を予想</h2>
-            <p className="text-slate-300 leading-relaxed">
-              自分が出題した問題では、何人が正解するかを予想します。予想が的中すると20ポイント獲得！
+          <section className="space-y-2">
+            <h2 className="text-sm font-semibold text-slate-300 italic">4. 正解者数予想</h2>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              出題者は何人正解するか予想します（的中で20pt）
             </p>
           </section>
 
-          <section className="space-y-3">
-            <h2 className="text-2xl font-semibold text-blue-400">5. 結果発表</h2>
-            <p className="text-slate-300 leading-relaxed">
-              各問題の正解と正解者が発表されます。全問題終了後、最も得点の高いプレイヤーが優勝です！
+          <section className="space-y-2">
+            <h2 className="text-sm font-semibold text-slate-300 italic">5. 結果発表</h2>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              全問終了後、最高得点の人が優勝です
             </p>
           </section>
         </div>
@@ -54,9 +54,9 @@ export default function HowToPlay() {
         <div className="text-center">
           <Link
             href="/"
-            className="inline-block bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-4 px-8 rounded-xl shadow-xl transition-all duration-300 transform hover:scale-105"
+            className="text-slate-400 hover:text-slate-300 italic underline underline-offset-2 transition-all"
           >
-            ホームに戻る
+            back to home
           </Link>
         </div>
       </div>

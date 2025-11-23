@@ -10,62 +10,68 @@ export default function Home() {
 
   if (!started) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center p-8">
-        <button
-          onClick={() => setStarted(true)}
-          className="group text-center transition-all duration-300"
-        >
-          <h1 className="text-8xl font-bold text-white mb-8 tracking-tight drop-shadow-2xl">
-            みんクイ
-          </h1>
-          <p className="text-2xl text-blue-400 font-light tracking-widest animate-pulse">
+      <main
+        onClick={() => setStarted(true)}
+        className="flex min-h-screen flex-col items-center justify-center p-8 cursor-pointer"
+      >
+        <div className="text-center transition-all duration-300">
+          <div className="mb-8">
+            <h1 className="text-5xl font-bold text-white tracking-tight drop-shadow-2xl">
+              みんクイ
+            </h1>
+            <h2 className="p-2 text-white font-light tracking-wide italic">
+              ～みんなでクイズ～
+            </h2>
+          </div>
+          <p className="text-xl text-blue-400 font-light tracking-widest animate-pulse">
             TAP TO START
           </p>
-        </button>
+        </div>
       </main>
     );
   }
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8">
-      <div className="max-w-2xl w-full space-y-12 text-center">
+      <div className="max-w-md w-full space-y-6">
         {/* タイトル */}
-        <div className="space-y-4">
-          <h1 className="text-7xl font-bold text-white mb-4 tracking-tight drop-shadow-2xl">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-white tracking-tight">
             みんクイ
           </h1>
+          <p className="text-sm text-slate-400 italic">
+            ～みんなでクイズ～
+          </p>
         </div>
 
         {/* アクションボタン */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12">
+        <div className="space-y-5">
           {/* ルーム作成ボタン */}
           <Link
             href="/create-room"
-            className="group relative bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-8 px-8 rounded-2xl shadow-2xl transition-all duration-300 transform hover:scale-105 hover:shadow-blue-500/50 border border-blue-500/30"
+            className="block bg-emerald-900 hover:bg-emerald-800 text-white py-3 px-4 rounded-lg border border-emerald-700/30 text-center"
           >
-            <div className="text-2xl mb-2">ルームを作成</div>
-            <div className="text-sm text-blue-100 font-light">新しいゲームを始める</div>
-            <div className="absolute inset-0 rounded-2xl bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
+            <div className="font-semibold">CREATE ROOM</div>
+            <div className="text-sm text-slate-400 mt-1 italic">ルームを作成</div>
           </Link>
 
           {/* ルーム参加ボタン */}
           <Link
             href="/join-room"
-            className="group relative bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-semibold py-8 px-8 rounded-2xl shadow-2xl transition-all duration-300 transform hover:scale-105 hover:shadow-emerald-500/50 border border-emerald-500/30"
+            className="block bg-blue-900 hover:bg-blue-800 text-white py-3 px-4 rounded-lg border border-blue-700/30 text-center"
           >
-            <div className="text-2xl mb-2">ルームに参加</div>
-            <div className="text-sm text-emerald-100 font-light">友達と一緒に遊ぶ</div>
-            <div className="absolute inset-0 rounded-2xl bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
+            <div className="font-semibold">JOIN ROOM</div>
+            <div className="text-sm text-slate-400 mt-1 italic">ルームに参加</div>
           </Link>
         </div>
 
         {/* 遊び方ボタン */}
-        <div className="mt-8">
+        <div className="text-center mt-6">
           <Link
             href="/how-to-play"
-            className="inline-block text-slate-300 hover:text-white font-light py-3 px-6 rounded-xl border border-slate-600 hover:border-slate-400 transition-all duration-300"
+            className="text-sm text-slate-400 italic underline underline-offset-2"
           >
-            遊び方を見る
+            how to play
           </Link>
         </div>
       </div>
