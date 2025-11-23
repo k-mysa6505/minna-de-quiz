@@ -10,9 +10,10 @@ import type { Player } from '@/types';
 interface FinalResultPhaseProps {
   roomId: string;
   players: Player[];
+  currentPlayerId: string;
 }
 
-export function FinalResultPhase({ roomId, players }: FinalResultPhaseProps) {
+export function FinalResultPhase({ roomId, players, currentPlayerId }: FinalResultPhaseProps) {
   const router = useRouter();
   const [hasLeft, setHasLeft] = useState(false);
   const [displayPlayers] = useState<Player[]>(players);
@@ -73,51 +74,49 @@ export function FinalResultPhase({ roomId, players }: FinalResultPhaseProps) {
 
   return (
     <div className="space-y-8">
-      <h2 className="text-4xl font-bold text-center text-white tracking-tight mb-8">
-        最終結果
-      </h2>
+      <h2 className="text-2xl font-bold text-white tracking-tight">総合結果</h2>
 
-      {/* 最終順位 */}
-      <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm rounded-2xl p-8 border border-slate-700/50 shadow-2xl">
-        <div className="space-y-4">
-          {sortedPlayers.map((player, index) => {
-            // 1位の背景を強調
-            const isWinner = index === 0;
-            const bgColor = isWinner 
-              ? 'bg-gradient-to-r from-yellow-600/30 to-yellow-700/30 border-2 border-yellow-500/50 shadow-lg shadow-yellow-500/20' 
-              : 'bg-slate-700/40 border border-slate-600/50';
-
+      {/* プレイヤー一覧 */}
+      <div className="bg-gradient-to-br from-slate-800/70 to-slate-900/70 pb-4 rounded border border-slate-700/50">
+        <div className="font-bold text-slate-400 pt-3 px-8 italic">
+          PLAYER
+        </div>
+        <ul className="space-y-1">
+          {sortedPlayers.map((player, idx) => {
+            const isWinner = idx === 0;
             return (
-              <div
+              <li
                 key={player.playerId}
-                className={`flex items-center justify-between px-6 py-5 rounded ${bgColor} transition-all`}
+                className={`flex items-center justify-between px-3 py-1 rounded transition-all ${
+                  player.playerId === currentPlayerId
+                    ? 'bg-gradient-to-b from-blue-800/90 to-blue-500/10'
+                    : ''
+                }`}
               >
-                <div className="flex items-center space-x-6">
-                  <span className={`text-2xl font-bold w-10 ${isWinner ? 'text-yellow-400' : 'text-slate-400'}`}>
-                    {index === 0 ? '🏆' : `${index + 1}.`}
-                  </span>
-                  <span className={`text-xl font-semibold ${isWinner ? 'text-white' : 'text-slate-200'}`}>
-                    {player.nickname}
+                <div className="flex items-center gap-3">
+                  <span className="font-semibold text-white">
+                    {idx + 1}．
+                    <span className={`italic ${isWinner ? 'text-yellow-400' : ''}`}>
+                      {player.nickname}
+                    </span>
                   </span>
                 </div>
-                <div className="text-right">
-                  <p className={`text-2xl font-bold ${isWinner ? 'text-yellow-400' : 'text-white'}`}>
-                    {player.score.toLocaleString()}
-                    <span className="text-sm ml-1">pt</span>
-                  </p>
+                <div className="text-white font-semibold">
+                  {player.score.toLocaleString()}
+                  <span className="text-xs ml-1">pt</span>
                 </div>
-              </div>
+              </li>
             );
           })}
-        </div>
+        </ul>
       </div>
 
       {/* ホームに戻るボタン */}
       <button
         onClick={handleLeaveRoom}
-        className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold py-5 px-6 rounded-2xl shadow-2xl transition-all duration-300 transform hover:scale-105"
+        className="block mx-auto bg-gradient-to-b from-emerald-700 to-emerald-800 text-white font-bold italic px-4 rounded-2xl shadow-2xl transition-all duration-300 transform hover:scale-105"
       >
-        ホームに戻る
+        HOME
       </button>
     </div>
   );

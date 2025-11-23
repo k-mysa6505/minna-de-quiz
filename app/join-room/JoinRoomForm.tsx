@@ -89,12 +89,12 @@ export default function JoinRoomPage() {
       <main className="flex min-h-screen flex-col items-center justify-center p-8">
         <div className="max-w-md w-full bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm rounded-2xl shadow-2xl border border-slate-700/50 p-8 space-y-6">
           <div className="text-center">
-            <h1 className="text-1xl font-bold text-white mb-3 tracking-tight">
+            <h1 className="text-xl font-bold text-white mb-3 tracking-tight">
               このルームに参加しますか？
             </h1>
           </div>
 
-          <div className="space-y-4 bg-slate-700/30 rounded p-6 border border-slate-600/50">
+          <div className="space-y-4 bg-slate-700/30 rounded-md p-6 border border-slate-600/50">
             <div>
               <p className="text-sm text-slate-300 mb-1">ルームID</p>
               <p className="text-2xl font-mono font-bold text-white tracking-widest">{roomInfo.roomId}</p>
@@ -119,19 +119,19 @@ export default function JoinRoomPage() {
             </div>
           )}
 
-          <div className="flex gap-3">
-            <button
-              onClick={() => setShowConfirm(false)}
-              className="flex-1 bg-slate-700/50 text-slate-200 font-bold italic rounded transition-all duration-300"
-            >
-              BACK
-            </button>
+          <div className="flex gap-3 justify-center">
             <button
               onClick={handleJoinRoom}
               disabled={isLoading}
-              className="flex-1 bg-emerald-700 disabled:from-slate-600 disabled:to-slate-700 text-white font-bold italic rounded shadow-lg transition-all duration-300 disabled:cursor-not-allowed"
+              className="bg-gradient-to-b from-emerald-700 to-emerald-800 px-4 disabled:from-slate-600 disabled:to-slate-700 text-white font-bold italic rounded-xl shadow-lg transition-all duration-300 disabled:cursor-not-allowed"
             >
               {isLoading ? 'JOINING...' : 'JOIN'}
+            </button>
+            <button
+              onClick={() => setShowConfirm(false)}
+              className="bg-slate-700/50 px-4 text-slate-200 font-bold italic rounded-xl transition-all duration-300"
+            >
+              BACK
             </button>
           </div>
         </div>
@@ -159,7 +159,7 @@ export default function JoinRoomPage() {
             onChange={(e) => setRoomId(e.target.value.toUpperCase())}
             placeholder="123456"
             maxLength={6}
-            className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded text-white placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-transparent uppercase text-center text-2xl font-mono tracking-widest transition-all"
+            className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-transparent uppercase text-center text-2xl font-mono tracking-widest transition-all"
           />
         </div>
 
@@ -172,12 +172,12 @@ export default function JoinRoomPage() {
             onChange={(e) => setNickname(e.target.value)}
             placeholder="あなたの代名詞は？"
             maxLength={20}
-            className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded text-white placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+            className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
           />
         </div>
 
         {error && (
-          <div className="bg-red-500/20 border border-red-500/50 text-red-200 px-4 py-3 rounded">
+          <div className="text-red-400 italic">
             {error}
           </div>
         )}
@@ -186,14 +186,14 @@ export default function JoinRoomPage() {
           <button
             onClick={handleCheckRoom}
             disabled={isLoading || !roomId.trim() || !nickname.trim()}
-            className="bg-emerald-700 disabled:bg-slate-600 text-white font-bold italic px-4 rounded shadow-lg transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed"
+            className="bg-emerald-700 disabled:bg-slate-600 text-white font-bold italic px-4 rounded-xl shadow-lg transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed"
           >
             {isLoading ? 'WAIT...' : 'NEXT'}
           </button>
 
           <button
             onClick={() => router.push('/')}
-            className="bg-slate-700/50 text-slate-200 font-bold italic px-4 rounded border border-slate-600 transition-all duration-300"
+            className="bg-slate-700/50 text-slate-200 font-bold italic px-4 rounded-xl border border-slate-600 transition-all duration-300"
           >
             BACK
           </button>

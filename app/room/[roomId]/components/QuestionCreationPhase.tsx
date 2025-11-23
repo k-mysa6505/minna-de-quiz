@@ -133,16 +133,13 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
 
   if (hasCreated) {
     return (
-      <div className="space-y-8">
-        <h2 className="text-2xl font-bold text-center text-white tracking-tight">問題作成完了</h2>
-        <div className="text-center p-10 bg-gradient-to-br from-emerald-900/40 to-emerald-800/40 rounded-2xl border border-emerald-600/30 backdrop-blur-sm">
-          <div className="text-7xl mb-6">✅</div>
-          <p className="text-xl text-white font-semibold">問題を作成しました！</p>
-          <p className="text-slate-300 mt-3 font-light">他のプレイヤーが作成するまでお待ちください...</p>
-        </div>
-        <div className="text-center bg-slate-800/50 rounded p-6 border border-slate-700/50">
-          <p className="text-sm text-slate-400 mb-2">作成済み</p>
-          <p className="text-4xl font-bold text-blue-400">{progress.created} / {progress.total}</p>
+      <div className="flex items-center justify-center min-h-[90vh]">
+        <div className="text-center p-4">
+          <p className="text-white mb-3">ほかのプレイヤーが問題を作成するまでお待ちください...</p>
+          <p className="text-sm text-slate-400 mb-2"></p>
+          <p className="text-sm text-slate-300 italic">
+            作成済みプレイヤー <span className="font-bold text-blue-400">{progress.created}/{progress.total}</span>
+          </p>
         </div>
       </div>
     );
@@ -150,7 +147,7 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
 
   return (
     <div className="space-y-8">
-      <h2 className="text-2xl font-bold text-center text-white tracking-tight">問題作成</h2>
+      <h2 className="text-2xl font-bold text-center text-white tracking-tight">問題を作りましょう</h2>
 
       <form onSubmit={handleSubmitClick} className="space-y-6">
         {/* 問題文入力 */}
@@ -159,7 +156,7 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
           <textarea
             value={questionText}
             onChange={(e) => setQuestionText(e.target.value)}
-            className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+            className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
             rows={3}
             placeholder="問題文を入力してください"
             required
@@ -173,7 +170,7 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
             type="file"
             accept="image/*"
             onChange={handleImageChange}
-            className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded text-slate-300 file:mr-4 file:py-1 file:px-2 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 file:cursor-pointer"
+            className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-md text-slate-300 file:mr-4 file:py-1 file:px-2 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 file:cursor-pointer"
           />
           {imagePreview && (
             <div className="mt-4 p-4 bg-slate-800/50 rounded border border-slate-700/50">
@@ -196,7 +193,7 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
             {choices.map((choice, index) => (
               <div
                 key={index}
-                className={`flex items-center space-x-3 p-2 rounded border-2 transition-all ${
+                className={`flex items-center space-x-3 p-2 rounded-md border-2 transition-all ${
                   correctAnswer === index
                     ? `${CHOICE_COLORS[index].bgSelected} ${CHOICE_COLORS[index].borderSelected}`
                     : `${CHOICE_COLORS[index].bg} ${CHOICE_COLORS[index].border}`
@@ -214,7 +211,7 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
                   type="text"
                   value={choice}
                   onChange={(e) => handleChoiceChange(index, e.target.value)}
-                  className="flex-1 px-4 py-2 bg-slate-900/50 border border-slate-600 rounded text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="flex-1 px-4 py-2 bg-slate-900/50 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   placeholder={`選択肢 ${index + 1}`}
                   required
                 />
@@ -222,23 +219,23 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
             ))}
           </div>
           <p className="text-xs text-slate-400 mt-3 font-light">
-            ラジオボタンで正解を選択してください
+            左のボタンで正解を選択してください
           </p>
         </div>
-
-        {/* 作成進捗 */}
-        <p className="text-sm text-slate-300 text-center italic">
-          作成済みプレイヤー<span className="font-bold text-blue-400">{progress.created}/{progress.total}</span>
-        </p>
 
         {/* 送信ボタン */}
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full bg-gradient-to-r from-blue-600 to-blue-700 disabled:from-slate-600 disabled:to-slate-700 text-white font-semibold py-4 px-6 rounded shadow-lg transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed"
+          className="w-full bg-gradient-to-r from-blue-600 to-blue-700 disabled:from-slate-600 disabled:to-slate-700 text-white font-semibold py-4 px-6 rounded-md shadow-lg transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed"
         >
           {isSubmitting ? '作成中...' : '問題を作成'}
         </button>
+
+        {/* 作成進捗 */}
+        <p className="text-sm text-slate-300 text-center italic">
+          作成済みプレイヤー <span className="font-bold text-blue-400">{progress.created}/{progress.total}</span>
+        </p>
       </form>
 
       {/* 確認モーダル */}
@@ -298,14 +295,14 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
             <div className="flex gap-3">
               <button
                 onClick={() => setShowConfirmModal(false)}
-                className="flex-1 bg-slate-700 text-white font-medium py-3 px-4 rounded transition-all"
+                className="flex-1 bg-slate-700 text-white font-medium py-3 px-4 rounded-md transition-all"
               >
                 戻る
               </button>
               <button
                 onClick={handleConfirmSubmit}
                 disabled={isSubmitting}
-                className="flex-1 bg-blue-600 disabled:bg-slate-600 text-white font-semibold py-3 px-4 rounded transition-all disabled:cursor-not-allowed"
+                className="flex-1 bg-blue-600 disabled:bg-slate-600 text-white font-semibold py-3 px-4 rounded-md transition-all disabled:cursor-not-allowed"
               >
                 {isSubmitting ? '作成中...' : '作成する'}
               </button>

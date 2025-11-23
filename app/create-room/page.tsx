@@ -85,7 +85,7 @@ export default function CreateRoomPage() {
             onChange={(e) => setNickname(e.target.value)}
             placeholder="ルームマスターの名前は？"
             maxLength={20}
-            className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+            className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
           />
         </div>
 
@@ -96,7 +96,7 @@ export default function CreateRoomPage() {
             onClick={() => setShowOptions(!showOptions)}
             className={`text-slate-200 text-sm underline underline-offset-2 px-2 py-1 transition-all duration-300 ${showOptions ? '' : 'italic'}`}
           >
-            {showOptions ? 'オプションを閉じる' : 'ルーム作成のオプション設定'}
+            {showOptions ? '閉じる' : 'ルーム作成のオプション'}
           </button>
         </div>
 
@@ -112,14 +112,14 @@ export default function CreateRoomPage() {
           <button
             onClick={handleCreateRoom}
             disabled={isCreating || !nickname.trim()}
-            className="bg-green-700 disabled:from-slate-600 disabled:to-slate-700 text-white font-bold italic px-3 rounded shadow-lg transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed"
+            className="bg-gradient-to-b from-green-700 to-green-800 disabled:bg-slate-600 text-white font-bold italic px-3 rounded-xl shadow-lg transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed"
           >
             {isCreating ? 'CREATING...' : 'CREATE'}
           </button>
 
           <button
             onClick={() => router.push('/')}
-            className="bg-slate-700/50 text-slate-200 font-medium italic px-4 rounded border border-slate-600 transition-all duration-300"
+            className="bg-slate-700/50 text-slate-200 font-medium italic px-4 rounded-xl border border-slate-600 transition-all duration-300"
           >
             BACK
           </button>
@@ -130,7 +130,7 @@ export default function CreateRoomPage() {
       {showOptions && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50" onClick={() => setShowOptions(false)}>
           <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border border-slate-700 p-6 max-w-md w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-2xl font-bold text-white mb-6">オプション設定</h2>
+            <h2 className="text-2xl font-bold text-white mb-6 text-center">オプション</h2>
 
             <div className="space-y-5">
               {/* ルームの説明 */}

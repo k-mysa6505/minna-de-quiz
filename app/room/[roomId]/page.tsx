@@ -69,17 +69,16 @@ export default function RoomPage() {
   if (error || !room) {
     return (
       <div className="flex min-h-screen items-center justify-center p-8">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 space-y-4 text-center">
-          <div className="text-6xl">😢</div>
-          <h1 className="text-2xl font-bold text-gray-800">
+        <div className="max-w-md w-full bg-slate-800/50 rounded-lg border border-slate-700/50 p-6 space-y-4 text-center">
+          <h1 className="text-lg font-semibold text-white italic">
             ルームが見つかりません
           </h1>
-          <p className="text-gray-600">{error}</p>
+          <p className="text-sm text-slate-400">{error}</p>
           <button
             onClick={() => router.push('/')}
-            className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg"
+            className="text-xs text-slate-400 hover:text-slate-300 italic underline underline-offset-2 transition-all"
           >
-            ホームに戻る
+            back to home
           </button>
         </div>
       </div>
@@ -121,6 +120,7 @@ export default function RoomPage() {
             <FinalResultPhase
               roomId={roomId}
               players={players}
+              currentPlayerId={currentPlayerId}
             />
           )}
         </div>
