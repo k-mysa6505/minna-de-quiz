@@ -1,12 +1,12 @@
 // lib/utils/generateRoomId.ts
 // ルームID生成ユーティリティ
 
-const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+const CHARS = '0123456789';
 const LENGTH = 6;
-const ROOM_ID_PATTERN = /^[A-Z0-9]{6}$/;
+const ROOM_ID_PATTERN = /^[0-9]{6}$/;
 
 /**
- * 6桁の英数字ルームIDを生成
+ * 6桁の数字ルームIDを生成
  */
 export function generateRoomId(): string {
   return Array.from({ length: LENGTH }, () =>

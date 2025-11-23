@@ -154,12 +154,11 @@ export default function JoinRoomPage() {
           </label>
           <input
             id="roomId"
-            type="text"
+            type="number"
             value={roomId}
-            onChange={(e) => setRoomId(e.target.value.toUpperCase())}
             placeholder="123456"
             maxLength={6}
-            className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-transparent uppercase text-center text-2xl font-mono tracking-widest transition-all"
+            className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-center text-2xl font-mono tracking-widest transition-all"
           />
         </div>
 
