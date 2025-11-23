@@ -20,6 +20,8 @@ export function WaitingPhase({ roomId, players, currentPlayerId, isMaster }: Wai
     ? `${window.location.origin}/join-room?roomId=${roomId}`
     : '';
 
+  const shareMessage = `[みんクイ] お友達から招待が届きました。下記リンクから一緒に遊びましょう！\n\n${shareUrl}`;
+
   const handleStartGame = async () => {
     try {
       await updateRoomStatus(roomId, 'creating');
@@ -30,7 +32,7 @@ export function WaitingPhase({ roomId, players, currentPlayerId, isMaster }: Wai
 
   const handleCopyLink = async () => {
     try {
-      await navigator.clipboard.writeText(shareUrl);
+      await navigator.clipboard.writeText(shareMessage);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
@@ -165,12 +167,12 @@ export function WaitingPhase({ roomId, players, currentPlayerId, isMaster }: Wai
             {/* 共有リンク */}
             <div className="bg-slate-700/30 rounded-lg p-4 mb-4">
               <p className="text-xs text-slate-400 mb-2">共有リンク</p>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={shareUrl}
+              <div className="flex items-start gap-2">
+                <textarea
+                  value={shareMessage}
                   readOnly
-                  className="flex-1 bg-slate-900/50 text-white px-3 py-2 rounded text-xs border border-slate-600"
+                  className="flex-1 bg-slate-900/50 text-white px-3 py-2 rounded text-xs border border-slate-600 resize-none"
+                  rows={3}
                 />
                 <button
                   onClick={handleCopyLink}
