@@ -2,6 +2,7 @@
 'use client';
 
 import { useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { updateRoomStatus } from '@/lib/services/roomService';
 import type { Player } from '@/types';
 
@@ -144,7 +145,11 @@ export function WaitingPhase({ roomId, players, currentPlayerId, isMaster }: Wai
             <div className="bg-slate-700/30 rounded-lg p-4 mb-4 text-center">
               <p className="text-xs text-slate-400 mb-2">QRコード</p>
               <div className="bg-white p-4 rounded inline-block">
-                <p className="text-slate-800 text-xs">QRコード表示予定</p>
+                <QRCodeSVG
+                  value={shareUrl}
+                  size={160}
+                  level="M"
+                />
               </div>
             </div>
 
