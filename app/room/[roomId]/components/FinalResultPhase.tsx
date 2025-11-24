@@ -72,6 +72,25 @@ export function FinalResultPhase({ roomId, players, currentPlayerId }: FinalResu
   const playersToShow = displayPlayers.length > 0 ? displayPlayers : players;
   const sortedPlayers = [...playersToShow].sort((a, b) => b.score - a.score);
 
+  // スコアに基づいて順位を計算する関数
+  const calculateRank = (playerIndex: number): number => {
+    if (playerIndex === 0) return 1;
+    
+    const currentScore = sortedPlayers[playerIndex].score;
+    const previousScore = sortedPlayers[playerIndex - 1].score;
+    
+    if (currentScore === previousScore) {
+      // 同じスコアなら前のプレイヤーと同じ順位
+      return calculateRank(playerIndex - 1);
+    } else {
+      // スコアが異なる場合は、実際の位置 + 1
+      return playerIndex + 1;
+    }
+  };
+
+  // 1位のスコアを取得
+  const topScore = sortedPlayers.length > 0 ? sortedPlayers[0].score : 0;
+
   return (
     <div className="space-y-8">
       <h2 className="text-2xl font-bold text-white tracking-tight">総合結果</h2>
@@ -83,7 +102,8 @@ export function FinalResultPhase({ roomId, players, currentPlayerId }: FinalResu
         </div>
         <ul className="space-y-1">
           {sortedPlayers.map((player, idx) => {
-            const isWinner = idx === 0;
+            const rank = calculateRank(idx);
+            const isWinner = player.score === topScore && topScore > 0;
             return (
               <li
                 key={player.playerId}
@@ -95,7 +115,7 @@ export function FinalResultPhase({ roomId, players, currentPlayerId }: FinalResu
               >
                 <div className="flex items-center gap-3">
                   <span className="font-semibold text-white">
-                    {idx + 1}．
+                    {rank}．
                     <span className={`italic ${isWinner ? 'text-yellow-400' : ''}`}>
                       {player.nickname}
                     </span>
