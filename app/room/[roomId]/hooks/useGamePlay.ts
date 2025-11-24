@@ -3,7 +3,7 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { getGameState, getAnswers, getPrediction, submitAnswer, submitPrediction, markPlayerReady, nextQuestion } from '@/lib/services/gameService';
+import { getGameState, getAnswers, getPrediction, submitAnswer, submitPrediction, markPlayerReady, nextQuestion, updatePredictionResult } from '@/lib/services/gameService';
 import { getQuestions } from '@/lib/services/questionService';
 import { updatePlayerScore } from '@/lib/services/playerService';
 import { updateRoomStatus } from '@/lib/services/roomService';
@@ -32,6 +32,15 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
     if (!currentQuestion) return;
 
     const correctAnswersCount = allAnswers.filter(a => a.isCorrect).length;
+    const isCorrect = pred.predictedCount === correctAnswersCount;
+
+    // 予想結果をデータベースに更新
+    await updatePredictionResult(
+      roomId,
+      currentQuestion.questionId,
+      correctAnswersCount,
+      isCorrect
+    ).catch(console.error);
 
     // 正解者にポイント付与（10点）
     for (const answer of allAnswers) {
@@ -44,7 +53,7 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
     }
 
     // 出題者の予想が的中した場合にポイント付与（20点）
-    if (pred.predictedCount === correctAnswersCount) {
+    if (isCorrect) {
       const author = players.find(p => p.playerId === currentQuestion.authorId);
       if (author) {
         await updatePlayerScore(roomId, currentQuestion.authorId, author.score + 20).catch(console.error);

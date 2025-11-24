@@ -64,7 +64,7 @@ export function ResultDisplayPhase({
           const timeB = typeof b.answeredAt === 'object' && 'toDate' in b.answeredAt
             ? b.answeredAt.toDate().getTime()
             : 0;
-          return timeB - timeA; // 遅い順
+          return timeA - timeB; // 速い順（1位から表示）
         });
 
       if (correctAnswers.length === 0) {
@@ -158,7 +158,7 @@ export function ResultDisplayPhase({
                     const timeB = typeof b.answeredAt === 'object' && 'toDate' in b.answeredAt
                       ? b.answeredAt.toDate().getTime()
                       : 0;
-                    return timeB - timeA;
+                    return timeA - timeB; // 速い順（1位が上）
                   });
 
                 // 問題開始時刻を取得
@@ -166,9 +166,9 @@ export function ResultDisplayPhase({
                   ? gameState.questionStartedAt.toDate().getTime()
                   : 0;
 
-                return correctAnswers.map((answer, idx, arr) => {
+                return correctAnswers.map((answer, idx) => {
                   const player = players.find(p => p.playerId === answer.playerId);
-                  const isFastest = idx === arr.length - 1;
+                  const isFastest = idx === 0; // 1位（最速）
                   const isRevealed = revealedPlayers.includes(answer.playerId);
 
                   if (!isRevealed) return null;
@@ -191,7 +191,7 @@ export function ResultDisplayPhase({
                         <span className={`font-bold text-lg ${
                           isFastest ? 'text-yellow-400' : 'text-white'
                         }`}>
-                          {player?.nickname || '不明'}
+                          {idx + 1}．{player?.nickname || 'unknown'}
                         </span>
                         <span className="text-ms text-slate-300 italic">
                           {timeDisplay}
@@ -212,7 +212,7 @@ export function ResultDisplayPhase({
               <div className="flex justify-between items-center px-4 py-1">
                 <div className="flex items-center gap-10">
                   <p className="text-white font-bold">
-                    {players.find(p => p.playerId === currentQuestion.authorId)?.nickname || '不明'}
+                    {players.find(p => p.playerId === currentQuestion.authorId)?.nickname || 'unknown'}
                   </p>
                   <p className="text-sm text-slate-300 italic">
                     予想: {prediction.predictedCount}人 / 実際: {answers.filter(a => a.isCorrect).length}人
@@ -229,7 +229,7 @@ export function ResultDisplayPhase({
           {showNextButton && (
             <button
               onClick={handleNextQuestion}
-              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold py-4 px-6 rounded-md shadow-lg transition-all duration-300 animate-fade-in"
+              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold py-4 px-6 rounded-md shadow-lg transition-all duration-300"
             >
               {gameState.currentQuestionIndex >= gameState.totalQuestions - 1
                 ? '結果を見る'

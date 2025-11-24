@@ -193,6 +193,31 @@ export async function getPrediction(
 }
 
 /**
+ * 作問者の予想結果を更新
+ */
+export async function updatePredictionResult(
+  roomId: string,
+  questionId: string,
+  actualCount: number,
+  isCorrect: boolean
+): Promise<void> {
+  const predictionsRef = collection(db, 'rooms', roomId, 'predictions');
+  const predictionsQuery = query(
+    predictionsRef,
+    where('questionId', '==', questionId)
+  );
+  const predictionsSnapshot = await getDocs(predictionsQuery);
+
+  if (!predictionsSnapshot.empty) {
+    const predictionDoc = predictionsSnapshot.docs[0];
+    await updateDoc(predictionDoc.ref, {
+      actualCount,
+      isCorrect
+    });
+  }
+}
+
+/**
  * 全員が回答/予想を送信したかチェック
  */
 export async function areAllResponsesSubmitted(
