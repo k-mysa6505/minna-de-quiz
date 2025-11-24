@@ -191,6 +191,7 @@ export default function RoomPage() {
           {room.status === 'waiting' && (
             <WaitingPhase
               roomId={roomId}
+              room={room}
               players={players}
               currentPlayerId={currentPlayerId}
               isMaster={room.masterId === currentPlayerId}
