@@ -56,7 +56,7 @@ export default function HowToPlay() {
             href="/"
             className="text-slate-400 hover:text-slate-300 italic underline underline-offset-2 transition-all"
           >
-            back to home
+            ホームへ戻る
           </Link>
         </div>
       </div>

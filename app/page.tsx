@@ -71,7 +71,7 @@ export default function Home() {
             href="/how-to-play"
             className="text-sm text-slate-400 italic underline underline-offset-2"
           >
-            how to play
+            HOW TO PLAY
           </Link>
         </div>
       </div>
