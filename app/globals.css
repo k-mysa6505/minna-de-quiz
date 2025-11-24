@@ -23,6 +23,19 @@ body {
   min-height: 100vh;
 }
 
+/* モバイルでも太字・斜体を確実に表示 */
+strong, b, .font-bold {
+  font-weight: 700 !important;
+}
+
+.font-semibold {
+  font-weight: 600 !important;
+}
+
+em, i, .italic {
+  font-style: italic !important;
+}
+
 /* GeoGuessr風のカスタムスクロールバー */
 ::-webkit-scrollbar {
   width: 10px;
