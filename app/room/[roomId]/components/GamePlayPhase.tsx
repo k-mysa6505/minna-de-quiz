@@ -129,23 +129,6 @@ export function GamePlayPhase({ roomId, players, currentPlayerId }: GamePlayPhas
         )}
       </div>
 
-      {/* 問題表示 */}
-      <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-8 space-y-6">
-        <h3 className="text-2xl font-bold text-white text-center">{currentQuestion.text}</h3>
-        {currentQuestion.imageUrl && (
-          <div className="w-full bg-slate-700/30 rounded p-4">
-            <Image
-              src={currentQuestion.imageUrl}
-              alt="Question"
-              width={1200}
-              height={800}
-              className="max-w-full rounded mx-auto"
-              priority={true}
-            />
-          </div>
-        )}
-      </div>
-
       {/* 回答フォーム（出題者以外）- 2×2グリッド */}
       {!isAuthor && !hasSubmittedAnswer && (
         <div className="space-y-6">
