@@ -306,13 +306,10 @@ export function GamePlayPhase({ roomId, players, currentPlayerId }: GamePlayPhas
                         return timeB - timeA;
                       });
 
-                    // 全回答の中で最も早い時刻を問題開始時刻とする
-                    const allAnswerTimes = answers
-                      .map(a => typeof a.answeredAt === 'object' && 'toDate' in a.answeredAt
-                        ? a.answeredAt.toDate().getTime()
-                        : 0)
-                      .filter(t => t > 0);
-                    const questionStartTime = allAnswerTimes.length > 0 ? Math.min(...allAnswerTimes) : 0;
+                    // 問題開始時刻を取得
+                    const questionStartTime = gameState.questionStartedAt && typeof gameState.questionStartedAt === 'object' && 'toDate' in gameState.questionStartedAt
+                      ? gameState.questionStartedAt.toDate().getTime()
+                      : 0;
 
                     return correctAnswers.map((answer, idx, arr) => {
                       const player = players.find(p => p.playerId === answer.playerId);
@@ -325,7 +322,7 @@ export function GamePlayPhase({ roomId, players, currentPlayerId }: GamePlayPhas
                       const answerTime = typeof answer.answeredAt === 'object' && 'toDate' in answer.answeredAt
                         ? answer.answeredAt.toDate().getTime()
                         : 0;
-                      const elapsedMs = answerTime - questionStartTime;
+                      const elapsedMs = questionStartTime > 0 ? answerTime - questionStartTime : 0;
                       const seconds = Math.floor(elapsedMs / 1000);
                       const centiseconds = Math.floor((elapsedMs % 1000) / 10);
                       const timeDisplay = `${seconds}''${centiseconds.toString().padStart(2, '0')}`;

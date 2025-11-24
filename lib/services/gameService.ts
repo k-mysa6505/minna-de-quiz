@@ -3,7 +3,7 @@
 
 import {
   collection, doc, setDoc, addDoc, getDoc,
-  getDocs, updateDoc, query, where, Timestamp
+  getDocs, updateDoc, query, where, Timestamp, serverTimestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { GameState, Answer, Prediction } from '@/types';
@@ -24,7 +24,8 @@ export async function initializeGame(
     currentQuestionIndex: 0,
     questionOrder: shuffledOrder,
     totalQuestions: questionIds.length,
-    playersReady: [] // 初期化時は誰も準備完了していない
+    playersReady: [], // 初期化時は誰も準備完了していない
+    questionStartedAt: serverTimestamp() // 最初の問題の開始時刻
   });
 }
 
@@ -60,7 +61,8 @@ export async function nextQuestion(roomId: string): Promise<void> {
   // インデックスを進めて、準備完了状態をリセット
   await updateDoc(gameStateRef, {
     currentQuestionIndex: gameState.currentQuestionIndex + 1,
-    playersReady: [] // 準備完了プレイヤーをリセット
+    playersReady: [], // 準備完了プレイヤーをリセット
+    questionStartedAt: serverTimestamp() // 新しい問題の開始時刻を記録
   });
 }
 
