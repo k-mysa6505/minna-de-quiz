@@ -142,6 +142,7 @@ export function ResultDisplayPhase({
 
           {/* 正解者リスト */}
           <div className="bg-gradient-to-br from-slate-800/70 to-slate-900/70 rounded-xl border border-slate-700/50 p-6 space-y-3">
+            <p className="text-sm text-slate-300 mb-3 text-center">正解者一覧</p>
             {answers.filter(a => a.isCorrect).length === 0 ? (
               <div className="text-center text-slate-400 italic py-4">
                 正解者なし
@@ -186,13 +187,13 @@ export function ResultDisplayPhase({
                       key={answer.playerId}
                       className="flex justify-between items-center px-4 py-1 animate-fade-in"
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-10">
                         <span className={`font-bold text-lg ${
                           isFastest ? 'text-yellow-400' : 'text-white'
                         }`}>
                           {player?.nickname || '不明'}
                         </span>
-                        <span className="text-xs text-slate-400">
+                        <span className="text-ms text-slate-300 italic">
                           {timeDisplay}
                         </span>
                       </div>
@@ -206,20 +207,20 @@ export function ResultDisplayPhase({
 
           {/* 出題者の予想結果 */}
           {prediction && showPredictionResult && (
-            <div className="bg-gradient-to-br from-purple-900/30 to-purple-800/30 rounded-xl border border-purple-600/50 p-6 animate-fade-in">
+            <div className="bg-gradient-to-br from-purple-900/20 to-purple-800/30 rounded-xl border border-purple-600/50 p-6 animate-fade-in">
               <p className="text-sm text-purple-300 mb-3 text-center">出題者の予想</p>
-              <div className="flex justify-between items-center">
-                <div>
+              <div className="flex justify-between items-center px-4 py-1">
+                <div className="flex items-center gap-10">
                   <p className="text-white font-bold">
                     {players.find(p => p.playerId === currentQuestion.authorId)?.nickname || '不明'}
                   </p>
-                  <p className="text-sm text-slate-300">
+                  <p className="text-sm text-slate-300 italic">
                     予想: {prediction.predictedCount}人 / 実際: {answers.filter(a => a.isCorrect).length}人
                   </p>
                 </div>
-                {prediction.isCorrect && (
-                  <span className="text-emerald-400 font-bold">+20pt</span>
-                )}
+                <span className={prediction.isCorrect ? "text-emerald-400 font-bold" : "text-gray-400 font-bold"}>
+                  {prediction.isCorrect ? '+20pt' : '+0pt'}
+                </span>
               </div>
             </div>
           )}

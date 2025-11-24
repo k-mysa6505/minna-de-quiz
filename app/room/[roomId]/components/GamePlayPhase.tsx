@@ -55,6 +55,7 @@ export function GamePlayPhase({ roomId, players, currentPlayerId }: GamePlayPhas
     hasSubmittedPrediction,
     showResults,
     answers,
+    currentAnswerCount,
     prediction,
     waitingForPlayers,
     handleAnswerSubmit,
@@ -194,7 +195,7 @@ export function GamePlayPhase({ roomId, players, currentPlayerId }: GamePlayPhas
         <div className="text-center p-30">
           <p className="text-lg text-slate-300 font-medium italic">他のプレイヤーの回答を待っています...</p>
           <p className="text-sm text-slate-400 mt-2">
-            解答済みプレイヤー {answers.length} / {players.length}
+            解答済みプレイヤー {currentAnswerCount} / {players.length}
           </p>
         </div>
       )}

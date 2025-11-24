@@ -18,6 +18,7 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
   const [hasSubmittedPrediction, setHasSubmittedPrediction] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [answers, setAnswers] = useState<Answer[]>([]);
+  const [currentAnswerCount, setCurrentAnswerCount] = useState(0);
   const [prediction, setPrediction] = useState<Prediction | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [waitingForPlayers, setWaitingForPlayers] = useState(false);
@@ -73,6 +74,7 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
             setHasSubmittedPrediction(false);
             setShowResults(false);
             setAnswers([]);
+            setCurrentAnswerCount(0);
             setPrediction(null);
             setIsReady(false);
             setWaitingForPlayers(false);
@@ -129,6 +131,14 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
 
         const allAnswers = await getAnswers(roomId, currentQuestion.questionId);
 
+        const pred = await getPrediction(roomId, currentQuestion.questionId);
+        setHasSubmittedPrediction(!!pred);
+        setPrediction(pred);
+
+        // 現在の回答数を更新（出題者の予想も含める）
+        const totalSubmissions = allAnswers.length + (pred ? 1 : 0);
+        setCurrentAnswerCount(totalSubmissions);
+
         // 出題者は回答を送信しないので、回答者の場合のみチェック
         if (!isAuthor) {
           const myAnswer = allAnswers.find(a => a.playerId === currentPlayerId);
@@ -137,10 +147,6 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
           // 出題者の場合は常にfalse
           setHasSubmittedAnswer(false);
         }
-
-        const pred = await getPrediction(roomId, currentQuestion.questionId);
-        setHasSubmittedPrediction(!!pred);
-        setPrediction(pred);
 
         const otherPlayersCount = players.length - 1;
 
@@ -228,6 +234,7 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
     hasSubmittedPrediction,
     showResults,
     answers,
+    currentAnswerCount,
     prediction,
     isReady,
     waitingForPlayers,
