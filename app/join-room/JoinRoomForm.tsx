@@ -12,7 +12,7 @@ export default function JoinRoomPage() {
   const searchParams = useSearchParams();
 
   const roomIdFromUrl = searchParams.get('roomId');
-  const [roomId, setRoomId] = useState(roomIdFromUrl ? roomIdFromUrl.toUpperCase() : '');
+  const [roomId, setRoomId] = useState(roomIdFromUrl || '');
   const [nickname, setNickname] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -156,10 +156,10 @@ export default function JoinRoomPage() {
             id="roomId"
             type="text"
             value={roomId}
-            onChange={(e) => setRoomId(e.target.value.toUpperCase())}
+            onChange={(e) => setRoomId(e.target.value)}
             placeholder="123456"
             maxLength={6}
-            className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-transparent uppercase text-center text-2xl font-mono tracking-widest transition-all"
+            className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-center text-2xl font-mono tracking-widest transition-all"
           />
         </div>
 

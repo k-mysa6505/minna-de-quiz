@@ -3,7 +3,7 @@
 
 import {
   collection, doc, setDoc, addDoc, getDoc,
-  getDocs, updateDoc, query, where, Timestamp
+  getDocs, updateDoc, query, where, Timestamp, serverTimestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { GameState, Answer, Prediction } from '@/types';
@@ -24,7 +24,8 @@ export async function initializeGame(
     currentQuestionIndex: 0,
     questionOrder: shuffledOrder,
     totalQuestions: questionIds.length,
-    playersReady: [] // 初期化時は誰も準備完了していない
+    playersReady: [], // 初期化時は誰も準備完了していない
+    questionStartedAt: serverTimestamp() // 最初の問題の開始時刻
   });
 }
 
@@ -60,7 +61,8 @@ export async function nextQuestion(roomId: string): Promise<void> {
   // インデックスを進めて、準備完了状態をリセット
   await updateDoc(gameStateRef, {
     currentQuestionIndex: gameState.currentQuestionIndex + 1,
-    playersReady: [] // 準備完了プレイヤーをリセット
+    playersReady: [], // 準備完了プレイヤーをリセット
+    questionStartedAt: serverTimestamp() // 新しい問題の開始時刻を記録
   });
 }
 
@@ -188,6 +190,31 @@ export async function getPrediction(
   }
 
   return predictionsSnapshot.docs[0].data() as Prediction;
+}
+
+/**
+ * 作問者の予想結果を更新
+ */
+export async function updatePredictionResult(
+  roomId: string,
+  questionId: string,
+  actualCount: number,
+  isCorrect: boolean
+): Promise<void> {
+  const predictionsRef = collection(db, 'rooms', roomId, 'predictions');
+  const predictionsQuery = query(
+    predictionsRef,
+    where('questionId', '==', questionId)
+  );
+  const predictionsSnapshot = await getDocs(predictionsQuery);
+
+  if (!predictionsSnapshot.empty) {
+    const predictionDoc = predictionsSnapshot.docs[0];
+    await updateDoc(predictionDoc.ref, {
+      actualCount,
+      isCorrect
+    });
+  }
 }
 
 /**

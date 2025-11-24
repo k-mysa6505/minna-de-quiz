@@ -96,7 +96,7 @@ export default function CreateRoomPage() {
             onClick={() => setShowOptions(!showOptions)}
             className={`text-slate-200 text-sm underline underline-offset-2 px-2 py-1 transition-all duration-300 ${showOptions ? '' : 'italic'}`}
           >
-            {showOptions ? '閉じる' : 'ルーム作成のオプション'}
+            {showOptions ? '閉じる' : 'ルームのオプション'}
           </button>
         </div>
 

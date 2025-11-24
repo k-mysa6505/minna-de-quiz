@@ -3,6 +3,7 @@
 
 import Image from 'next/image';
 import { useGamePlay } from '../hooks/useGamePlay';
+import { ResultDisplayPhase } from './ResultDisplayPhase';
 import type { Player } from '@/types';
 
 interface GamePlayPhaseProps {
@@ -53,6 +54,9 @@ export function GamePlayPhase({ roomId, players, currentPlayerId }: GamePlayPhas
     hasSubmittedAnswer,
     hasSubmittedPrediction,
     showResults,
+    answers,
+    currentAnswerCount,
+    prediction,
     waitingForPlayers,
     handleAnswerSubmit,
     handlePredictionSubmit,
@@ -85,13 +89,27 @@ export function GamePlayPhase({ roomId, players, currentPlayerId }: GamePlayPhas
     );
   }
 
+  // 結果表示フェーズ
+  if (showResults) {
+    return (
+      <ResultDisplayPhase
+        gameState={gameState}
+        currentQuestion={currentQuestion}
+        players={players}
+        answers={answers}
+        prediction={prediction}
+        handleNextQuestion={handleNextQuestion}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* 進捗表示 */}
       <div className="flex justify-between px-3 items-center text-slate-200">
         <p>問題 {gameState.currentQuestionIndex + 1} / {gameState.totalQuestions}</p>
         <p className="italic">
-          作成者：{players.find(p => p.playerId === currentQuestion.authorId)?.nickname || '不明'}
+          作成者：{players.find(p => p.playerId === currentQuestion.authorId)?.nickname || 'unknown'}
         </p>
       </div>
 
@@ -112,103 +130,74 @@ export function GamePlayPhase({ roomId, players, currentPlayerId }: GamePlayPhas
         )}
       </div>
 
-      {!showResults ? (
-        <>
-          {/* 回答フォーム（出題者以外）- 2×2グリッド */}
-          {!isAuthor && !hasSubmittedAnswer && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                {currentQuestion.choices.map((choice, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setSelectedAnswer(index)}
-                    className={`
-                      relative p-6 rounded-xl border-4 transition-all duration-300 font-bold text-lg min-h-[120px] flex flex-col items-center justify-center
-                      ${selectedAnswer === index
-                        ? `${CHOICE_COLORS[index].selected} ${CHOICE_COLORS[index].border} shadow-2xl scale-105`
-                        : `${CHOICE_COLORS[index].bg} ${CHOICE_COLORS[index].border} ${CHOICE_COLORS[index].hover} shadow-lg hover:scale-102`
-                      }
-                      ${CHOICE_COLORS[index].text}
-                    `}
-                  >
-                    <div className="text-sm opacity-80 mb-2">{index + 1}</div>
-                    <div className="break-words text-center">{choice}</div>
-                    {selectedAnswer === index && (
-                      <div className="absolute top-2 right-2 text-2xl">✓</div>
-                    )}
-                  </button>
-                ))}
-              </div>
+      {/* 回答フォーム（出題者以外）- 2×2グリッド */}
+      {!isAuthor && !hasSubmittedAnswer && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 gap-4">
+            {currentQuestion.choices.map((choice, index) => (
               <button
-                onClick={handleAnswerSubmit}
-                disabled={selectedAnswer === null}
-                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 disabled:from-slate-600 disabled:to-slate-700 text-white font-semibold py-4 px-6 rounded-md shadow-lg transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed"
+                key={index}
+                onClick={() => setSelectedAnswer(index)}
+                className={`
+                  relative p-6 rounded-xl border-4 transition-all duration-300 font-bold text-lg min-h-[120px] flex flex-col items-center justify-center
+                  ${selectedAnswer === index
+                    ? `${CHOICE_COLORS[index].selected} ${CHOICE_COLORS[index].border} shadow-2xl scale-105`
+                    : `${CHOICE_COLORS[index].bg} ${CHOICE_COLORS[index].border} ${CHOICE_COLORS[index].hover} shadow-lg hover:scale-102`
+                  }
+                  ${CHOICE_COLORS[index].text}
+                `}
               >
-                回答を送信
+                <div className="text-sm opacity-80 mb-2">{index + 1}</div>
+                <div className="break-words text-center">{choice}</div>
+                {selectedAnswer === index && (
+                  <div className="absolute top-2 right-2 text-2xl">✓</div>
+                )}
               </button>
-            </div>
-          )}
-
-          {/* 予想フォーム（出題者のみ） */}
-          {isAuthor && !hasSubmittedPrediction && (
-            <div className="space-y-6">
-              <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50">
-                <label className="block text-sm text-slate-300 mb-4 font-medium text-center">
-                  正解者数を予想してください（0〜{otherPlayersCount}人）
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max={otherPlayersCount}
-                  value={predictedCorrectCount}
-                  onChange={(e) => setPredictedCorrectCount(parseInt(e.target.value) || 0)}
-                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-md text-white text-center text-2xl font-bold focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                />
-              </div>
-              <button
-                onClick={handlePredictionSubmit}
-                className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 text-white font-semibold py-4 px-6 rounded-md shadow-lg"
-              >
-                予想を送信
-              </button>
-            </div>
-          )}
-
-          {/* 待機中 */}
-          {(hasSubmittedAnswer || (isAuthor && hasSubmittedPrediction)) && (
-            <div className="text-center p-30">
-              <p className="text-lg text-slate-300 font-medium italic">他のプレイヤーの回答を待っています...</p>
-              <p className="text-sm text-slate-400 mt-2">
-                解答済みプレイヤー {(gameState.playersReady?.length || 0)} / {players.length}
-              </p>
-            </div>
-          )}
-        </>
-      ) : (
-        <>
-          {/* 結果表示 - 簡略版（後で詳細実装） */}
-          <div className="space-y-6">
-            <h4 className="font-bold text-white text-2xl text-center">結果発表</h4>
-
-            <div className="bg-gradient-to-br from-green-900/40 to-green-800/40 border-2 border-green-600/50 rounded-xl p-6">
-              <p className="text-sm text-green-300 mb-2">正解</p>
-              <p className="text-xl font-bold text-white">
-                {currentQuestion.correctAnswer + 1}. {currentQuestion.choices[currentQuestion.correctAnswer]}
-              </p>
-            </div>
-
-            {/* 次へボタン */}
-            <button
-              onClick={handleNextQuestion}
-              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold py-4 px-6 rounded-md shadow-lg transition-all duration-300"
-            >
-              {gameState.currentQuestionIndex >= gameState.totalQuestions - 1
-                ? '結果を見る'
-                : '次の問題へ'
-              }
-            </button>
+            ))}
           </div>
-        </>
+          <button
+            onClick={handleAnswerSubmit}
+            disabled={selectedAnswer === null}
+            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 disabled:from-slate-600 disabled:to-slate-700 text-white font-semibold py-4 px-6 rounded-md shadow-lg transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed"
+          >
+            回答を送信
+          </button>
+        </div>
+      )}
+
+      {/* 予想フォーム（出題者のみ） */}
+      {isAuthor && !hasSubmittedPrediction && (
+        <div className="space-y-6">
+          <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50">
+            <label className="block text-sm text-slate-300 mb-4 font-medium text-center">
+              正解者数を予想してください（0〜{otherPlayersCount}人）
+            </label>
+            <input
+              type="number"
+              min="0"
+              max={otherPlayersCount}
+              value={predictedCorrectCount}
+              onChange={(e) => setPredictedCorrectCount(parseInt(e.target.value) || 0)}
+              className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-md text-white text-center text-2xl font-bold focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            />
+          </div>
+          <button
+            onClick={handlePredictionSubmit}
+            className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 text-white font-semibold py-4 px-6 rounded-md shadow-lg"
+          >
+            予想を送信
+          </button>
+        </div>
+      )}
+
+      {/* 待機中 */}
+      {(hasSubmittedAnswer || (isAuthor && hasSubmittedPrediction)) && (
+        <div className="text-center p-30">
+          <p className="text-lg text-slate-300 font-medium italic">他のプレイヤーの回答を待っています...</p>
+          <p className="text-sm text-slate-400 mt-2">
+            解答済みプレイヤー {currentAnswerCount} / {players.length}
+          </p>
+        </div>
       )}
     </div>
   );

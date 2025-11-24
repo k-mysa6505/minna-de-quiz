@@ -3,7 +3,7 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { getGameState, getAnswers, getPrediction, submitAnswer, submitPrediction, markPlayerReady, nextQuestion } from '@/lib/services/gameService';
+import { getGameState, getAnswers, getPrediction, submitAnswer, submitPrediction, markPlayerReady, nextQuestion, updatePredictionResult } from '@/lib/services/gameService';
 import { getQuestions } from '@/lib/services/questionService';
 import { updatePlayerScore } from '@/lib/services/playerService';
 import { updateRoomStatus } from '@/lib/services/roomService';
@@ -18,18 +18,29 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
   const [hasSubmittedPrediction, setHasSubmittedPrediction] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [answers, setAnswers] = useState<Answer[]>([]);
+  const [currentAnswerCount, setCurrentAnswerCount] = useState(0);
   const [prediction, setPrediction] = useState<Prediction | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [waitingForPlayers, setWaitingForPlayers] = useState(false);
 
   const prevQuestionIdRef = useRef<string | null>(null);
   const hasCalculatedScoreRef = useRef<boolean>(false);
+  const hasTriggeredNextQuestionRef = useRef<boolean>(false);
 
   // スコア計算関数（useCallbackで安定化）
   const calculateScores = useCallback(async (allAnswers: Answer[], pred: Prediction) => {
     if (!currentQuestion) return;
 
     const correctAnswersCount = allAnswers.filter(a => a.isCorrect).length;
+    const isCorrect = pred.predictedCount === correctAnswersCount;
+
+    // 予想結果をデータベースに更新
+    await updatePredictionResult(
+      roomId,
+      currentQuestion.questionId,
+      correctAnswersCount,
+      isCorrect
+    ).catch(console.error);
 
     // 正解者にポイント付与（10点）
     for (const answer of allAnswers) {
@@ -42,7 +53,7 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
     }
 
     // 出題者の予想が的中した場合にポイント付与（20点）
-    if (pred.predictedCount === correctAnswersCount) {
+    if (isCorrect) {
       const author = players.find(p => p.playerId === currentQuestion.authorId);
       if (author) {
         await updatePlayerScore(roomId, currentQuestion.authorId, author.score + 20).catch(console.error);
@@ -72,10 +83,12 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
             setHasSubmittedPrediction(false);
             setShowResults(false);
             setAnswers([]);
+            setCurrentAnswerCount(0);
             setPrediction(null);
             setIsReady(false);
             setWaitingForPlayers(false);
             hasCalculatedScoreRef.current = false;
+            hasTriggeredNextQuestionRef.current = false;
           }
 
           setCurrentQuestion(question || null);
@@ -86,6 +99,22 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
           setIsReady(amIReady);
 
           if (playersReady.length >= players.length && playersReady.length > 0) {
+            // 全員準備完了したら次の問題へ進む（最初のプレイヤーのみ実行、最後の問題でない場合のみ）
+            const isLastQuestion = state.currentQuestionIndex >= state.totalQuestions - 1;
+            const shouldProceed = playersReady.length === players.length && 
+                                  playersReady[0] === currentPlayerId &&
+                                  !isLastQuestion &&
+                                  !hasTriggeredNextQuestionRef.current;
+            if (shouldProceed && amIReady) {
+              hasTriggeredNextQuestionRef.current = true;
+              setTimeout(async () => {
+                try {
+                  await nextQuestion(roomId);
+                } catch (err) {
+                  console.error('Failed to proceed to next question:', err);
+                }
+              }, 500);
+            }
             setWaitingForPlayers(false);
           } else if (amIReady) {
             setWaitingForPlayers(true);
@@ -111,6 +140,14 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
 
         const allAnswers = await getAnswers(roomId, currentQuestion.questionId);
 
+        const pred = await getPrediction(roomId, currentQuestion.questionId);
+        setHasSubmittedPrediction(!!pred);
+        setPrediction(pred);
+
+        // 現在の回答数を更新（出題者の予想も含める）
+        const totalSubmissions = allAnswers.length + (pred ? 1 : 0);
+        setCurrentAnswerCount(totalSubmissions);
+
         // 出題者は回答を送信しないので、回答者の場合のみチェック
         if (!isAuthor) {
           const myAnswer = allAnswers.find(a => a.playerId === currentPlayerId);
@@ -119,10 +156,6 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
           // 出題者の場合は常にfalse
           setHasSubmittedAnswer(false);
         }
-
-        const pred = await getPrediction(roomId, currentQuestion.questionId);
-        setHasSubmittedPrediction(!!pred);
-        setPrediction(pred);
 
         const otherPlayersCount = players.length - 1;
 
@@ -193,17 +226,6 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
         await markPlayerReady(roomId, currentPlayerId);
         setIsReady(true);
         setWaitingForPlayers(true);
-
-        // 全員が準備完了したら次の問題へ進む
-        setTimeout(async () => {
-          const state = await getGameState(roomId);
-          if (state) {
-            const playersReady = state.playersReady || [];
-            if (playersReady.length >= players.length) {
-              await nextQuestion(roomId);
-            }
-          }
-        }, 1000);
       }
     } catch (error) {
       console.error('Failed to go to next question:', error);
@@ -221,6 +243,7 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
     hasSubmittedPrediction,
     showResults,
     answers,
+    currentAnswerCount,
     prediction,
     isReady,
     waitingForPlayers,

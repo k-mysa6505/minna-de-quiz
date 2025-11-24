@@ -12,6 +12,7 @@ export interface GameState {
   questionOrder: string[];
   totalQuestions: number;
   playersReady?: string[]; // 次の問題への準備が完了したプレイヤーIDのリスト
+  questionStartedAt?: Timestamp; // 現在の問題が開始された時刻
 }
 
 /**
