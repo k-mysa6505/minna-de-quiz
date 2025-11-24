@@ -4,16 +4,17 @@
 import { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { updateRoomStatus } from '@/lib/services/roomService';
-import type { Player } from '@/types';
+import type { Player, Room } from '@/types';
 
 interface WaitingPhaseProps {
   roomId: string;
+  room: Room;
   players: Player[];
   currentPlayerId: string;
   isMaster: boolean;
 }
 
-export function WaitingPhase({ roomId, players, currentPlayerId, isMaster }: WaitingPhaseProps) {
+export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster }: WaitingPhaseProps) {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -62,6 +63,49 @@ export function WaitingPhase({ roomId, players, currentPlayerId, isMaster }: Wai
         >
           招待
         </button>
+      </div>
+
+      {/* ルーム情報 */}
+      <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-lg border border-slate-700/50 p-4 mb-2 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-slate-400 text-sm italic">ROOM ID</span>
+            <code className="bg-slate-700/50 text-white px-2 py-1 rounded font-mono text-sm">
+              {roomId}
+            </code>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-slate-400 text-sm italic">PLAYERS</span>
+            <span className="text-white font-bold">{players.length}</span>
+          </div>
+        </div>
+
+        {/* ルームの説明 */}
+        <div className="pt-2 border-t border-slate-700/50">
+          <p className="text-xs text-slate-400 mb-1 italic">DESCRIPTION</p>
+          <p className="text-sm text-slate-200">{room.description || 'なし'}</p>
+        </div>
+
+        {/* その他のオプション */}
+        <div className="pt-2 border-t border-slate-700/50 flex flex-wrap gap-3">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-400 italic">TIME LIMIT</span>
+            <span className="text-xs text-white font-semibold">{room.timeLimit ? `${room.timeLimit}s` : 'なし'}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-400 italic">SCORING</span>
+            <span className="text-xs text-white font-semibold">
+              {room.scoringMode === 'standard' ? '標準' :
+               room.scoringMode === 'firstBonus' ? '1位ボーナス' : '正解率ボーナス'}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-400 italic">PENALTY</span>
+            <span className={`text-xs font-semibold ${room.wrongAnswerPenalty !== 0 ? 'text-red-400' : 'text-slate-400'}`}>
+              {room.wrongAnswerPenalty !== 0 ? `${room.wrongAnswerPenalty}pt` : 'なし'}
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* プレイヤー一覧 */}
