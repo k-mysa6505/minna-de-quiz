@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "firebase": "^12.5.0",
-    "next": "16.0.10",
+    "next": "^16.1.6",
     "qrcode.react": "^4.2.0",
     "react": "19.2.0",
     "react-dom": "19.2.0"
@@ -21,8 +21,8 @@
     "@types/qrcode.react": "^1.0.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.0.1",
+    "eslint": "^10.0.2",
+    "eslint-config-next": "^0.2.4",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
