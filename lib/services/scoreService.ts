@@ -18,14 +18,24 @@ export async function updateAnswerScore(
   isCorrect: boolean,
   correctAnswerCount: number
 ): Promise<void> {
-  if (!isCorrect) return;
+  if (!isCorrect) {
+    console.log(`Player ${playerId} answered incorrectly. No score update.`);
+    return;
+  }
 
   const points = calculateAnswerPoints(correctAnswerCount);
+  console.log(`Player ${playerId} correct. Correct count: ${correctAnswerCount}, Points: ${points}`);
 
-  const playerRef = doc(db, 'rooms', roomId, 'players', playerId);
-  await updateDoc(playerRef, {
-    score: increment(points)
-  });
+  try {
+    const playerRef = doc(db, 'rooms', roomId, 'players', playerId);
+    await updateDoc(playerRef, {
+      score: increment(points)
+    });
+    console.log(`Updated score for player ${playerId} by +${points}`);
+  } catch (error) {
+    console.error(`Error updating score for player ${playerId}:`, error);
+    throw error;
+  }
 }
 
 /**

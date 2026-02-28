@@ -15,55 +15,85 @@ export async function initializeGame(
   roomId: string,
   questionIds: string[]
 ): Promise<void> {
-  // 問題の出題順序をシャッフル
-  const shuffledOrder = shuffleArray(questionIds);
-  const gameStateRef = doc(db, 'rooms', roomId, 'gameState', 'state');
+  console.log(`Initializing game for room ${roomId} with ${questionIds.length} questions`);
+  try {
+    // 問題の出題順序をシャッフル
+    const shuffledOrder = shuffleArray(questionIds);
+    const gameStateRef = doc(db, 'rooms', roomId, 'gameState', 'state');
 
-  // Firestoreにゲーム状態を設定
-  await setDoc(gameStateRef, {
-    currentQuestionIndex: 0,
-    questionOrder: shuffledOrder,
-    totalQuestions: questionIds.length,
-    playersReady: [], // 初期化時は誰も準備完了していない
-    questionStartedAt: serverTimestamp() // 最初の問題の開始時刻
-  });
+    // Firestoreにゲーム状態を設定
+    const initialState = {
+      currentQuestionIndex: 0,
+      questionOrder: shuffledOrder,
+      totalQuestions: questionIds.length,
+      playersReady: [], // 初期化時は誰も準備完了していない
+      questionStartedAt: serverTimestamp() // 最初の問題の開始時刻
+    };
+
+    console.log('Setting initial game state:', initialState);
+    await setDoc(gameStateRef, initialState);
+    console.log('Game initialized successfully');
+  } catch (error) {
+    console.error(`Error initializing game for room ${roomId}:`, error);
+    throw error;
+  }
 }
 
 /**
  * 現在のゲーム状態を取得
  */
 export async function getGameState(roomId: string): Promise<GameState | null> {
-  const gameStateRef = doc(db, 'rooms', roomId, 'gameState', 'state');
-  const gameStateDoc = await getDoc(gameStateRef);
-  return gameStateDoc.exists()
-    ? (gameStateDoc.data() as GameState)
-    : null;
+  console.log(`Getting game state for room ${roomId}`);
+  try {
+    const gameStateRef = doc(db, 'rooms', roomId, 'gameState', 'state');
+    const gameStateDoc = await getDoc(gameStateRef);
+    if (gameStateDoc.exists()) {
+      const state = gameStateDoc.data() as GameState;
+      // console.log(`Game state retrieved:`, state); // Potentially noisy if polled
+      return state;
+    } else {
+      console.warn(`Game state not found for room ${roomId}`);
+      return null;
+    }
+  } catch (error) {
+    console.error(`Error getting game state for room ${roomId}:`, error);
+    return null;
+  }
 }
 
 /**
  * 次の問題へ進む（全員の準備が整った場合のみ）
  */
 export async function nextQuestion(roomId: string): Promise<void> {
-  const gameStateRef = doc(db, 'rooms', roomId, 'gameState', 'state');
-  const gameStateDoc = await getDoc(gameStateRef);
+  console.log(`Moving to next question in room ${roomId}`);
+  try {
+    const gameStateRef = doc(db, 'rooms', roomId, 'gameState', 'state');
+    const gameStateDoc = await getDoc(gameStateRef);
 
-  if (!gameStateDoc.exists()) {
-    throw new Error('Game state not found');
+    if (!gameStateDoc.exists()) {
+      throw new Error('Game state not found');
+    }
+
+    const gameState = gameStateDoc.data() as GameState;
+    console.log(`Current question index: ${gameState.currentQuestionIndex}, Total: ${gameState.totalQuestions}`);
+
+    // 最後の問題かチェック
+    if (gameState.currentQuestionIndex >= gameState.totalQuestions - 1) {
+      console.warn('Already at the last question. Cannot proceed.');
+      throw new Error('Already at the last question');
+    }
+
+    // インデックスを進めて、準備完了状態をリセット
+    await updateDoc(gameStateRef, {
+      currentQuestionIndex: gameState.currentQuestionIndex + 1,
+      playersReady: [], // 準備完了プレイヤーをリセット
+      questionStartedAt: serverTimestamp() // 新しい問題の開始時刻を記録
+    });
+    console.log(`Moved to question index ${gameState.currentQuestionIndex + 1}`);
+  } catch (error) {
+    console.error(`Error moving to next question in room ${roomId}:`, error);
+    throw error;
   }
-
-  const gameState = gameStateDoc.data() as GameState;
-
-  // 最後の問題かチェック
-  if (gameState.currentQuestionIndex >= gameState.totalQuestions - 1) {
-    throw new Error('Already at the last question');
-  }
-
-  // インデックスを進めて、準備完了状態をリセット
-  await updateDoc(gameStateRef, {
-    currentQuestionIndex: gameState.currentQuestionIndex + 1,
-    playersReady: [], // 準備完了プレイヤーをリセット
-    questionStartedAt: serverTimestamp() // 新しい問題の開始時刻を記録
-  });
 }
 
 /**
@@ -73,25 +103,33 @@ export async function markPlayerReady(
   roomId: string,
   playerId: string
 ): Promise<void> {
-  const gameStateRef = doc(db, 'rooms', roomId, 'gameState', 'state');
-  const gameStateDoc = await getDoc(gameStateRef);
+  console.log(`Marking player ${playerId} ready in room ${roomId}`);
+  try {
+    const gameStateRef = doc(db, 'rooms', roomId, 'gameState', 'state');
+    const gameStateDoc = await getDoc(gameStateRef);
 
-  if (!gameStateDoc.exists()) {
-    throw new Error('Game state not found');
+    if (!gameStateDoc.exists()) {
+      throw new Error('Game state not found');
+    }
+
+    const gameState = gameStateDoc.data() as GameState;
+    const playersReady = gameState.playersReady || [];
+
+    // 既に準備完了の場合は何もしない
+    if (playersReady.includes(playerId)) {
+      console.log(`Player ${playerId} is already ready.`);
+      return;
+    }
+
+    // プレイヤーを準備完了リストに追加
+    await updateDoc(gameStateRef, {
+      playersReady: [...playersReady, playerId]
+    });
+    console.log(`Player ${playerId} marked as ready.`);
+  } catch (error) {
+    console.error(`Error marking player ${playerId} ready in room ${roomId}:`, error);
+    throw error;
   }
-
-  const gameState = gameStateDoc.data() as GameState;
-  const playersReady = gameState.playersReady || [];
-
-  // 既に準備完了の場合は何もしない
-  if (playersReady.includes(playerId)) {
-    return;
-  }
-
-  // プレイヤーを準備完了リストに追加
-  await updateDoc(gameStateRef, {
-    playersReady: [...playersReady, playerId]
-  });
 }
 
 /**
