@@ -22,36 +22,55 @@ export async function addPlayer(
   nickname: string,
   isMaster: boolean = false
 ): Promise<string> {
-  // ニックネームの重複チェック
-  const isDuplicate = await isNicknameTaken(roomId, nickname);
-  if (isDuplicate) {
-    throw new Error('おっと、その名前はすでに使われているよ！');
+  console.log(`Adding player: ${nickname} (Master: ${isMaster}) to room: ${roomId}`);
+  try {
+    // ニックネームの重複チェック
+    const isDuplicate = await isNicknameTaken(roomId, nickname);
+    if (isDuplicate) {
+      console.warn(`Nickname duplicate: ${nickname} in room ${roomId}`);
+      throw new Error('おっと、その名前はすでに使われているよ！');
+    }
+
+    // プレイヤー情報をFirestoreに追加
+    const playersRef = collection(db, 'rooms', roomId, 'players');
+    const playerData = {
+      nickname,
+      isOnline: true,
+      isMaster,
+      score: 0,
+      joinedAt: Timestamp.now(),
+    };
+
+    console.log('Writing player to Firestore:', playerData);
+    const playerDoc = await addDoc(playersRef, playerData);
+    console.log(`Player added successfully. ID: ${playerDoc.id}`);
+
+    return playerDoc.id;
+  } catch (error) {
+    console.error('Error adding player:', error);
+    throw error;
   }
-
-  // プレイヤー情報をFirestoreに追加
-  const playersRef = collection(db, 'rooms', roomId, 'players');
-  const playerDoc = await addDoc(playersRef, {
-    nickname,
-    isOnline: true,
-    isMaster,
-    score: 0,
-    joinedAt: Timestamp.now(),
-  });
-
-  return playerDoc.id;
 }
 
 /**
  * ルーム内の全プレイヤーを取得
  */
 export async function getPlayers(roomId: string): Promise<Player[]> {
-  const playersRef = collection(db, 'rooms', roomId, 'players');
-  const playersSnapshot = await getDocs(playersRef);
-  const players: Player[] = playersSnapshot.docs.map(doc => ({
-    playerId: doc.id,
-    ...(doc.data() as Omit<Player, 'playerId'>)
-  }));
-  return players;
+  console.log(`Getting players for room: ${roomId}`);
+  try {
+    const playersRef = collection(db, 'rooms', roomId, 'players');
+    const playersSnapshot = await getDocs(playersRef);
+    console.log(`Found ${playersSnapshot.size} players`);
+
+    const players: Player[] = playersSnapshot.docs.map(doc => ({
+      playerId: doc.id,
+      ...(doc.data() as Omit<Player, 'playerId'>)
+    }));
+    return players;
+  } catch (error) {
+    console.error(`Error getting players for room ${roomId}:`, error);
+    throw error;
+  }
 }
 
 /**

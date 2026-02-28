@@ -15,22 +15,32 @@ export function setupPresence(
   roomId: string,
   playerId: string
 ): () => void {
+  console.log(`Setting up presence for player ${playerId} in room ${roomId}`);
   const presenceRef = ref(rtdb, `rooms/${roomId}/players/${playerId}/presence`);
 
   // オンライン状態を設定
   set(presenceRef, {
     isOnline: true,
     lastChanged: serverTimestamp()
+  }).then(() => {
+    console.log(`Presence set to online for ${playerId}`);
+  }).catch((error) => {
+    console.error(`Error setting presence for ${playerId}:`, error);
   });
 
   // 切断時にオフライン状態を設定
   onDisconnect(presenceRef).set({
     isOnline: false,
     lastChanged: serverTimestamp()
+  }).then(() => {
+    console.log(`onDisconnect handler set for ${playerId}`);
+  }).catch((error) => {
+    console.error(`Error setting onDisconnect for ${playerId}:`, error);
   });
 
   // クリーンアップ関数を返す
   return () => {
+    console.log(`Cleaning up presence for ${playerId}`);
     (async () => {
       try {
         await onDisconnect(presenceRef).cancel();
@@ -39,6 +49,7 @@ export function setupPresence(
           lastChanged: serverTimestamp()
         });
         await updatePlayerOnlineStatus(roomId, playerId, false);
+        console.log(`Presence cleaned up for ${playerId}`);
       } catch (error) {
         console.error('Failed to cleanup presence:', error);
       }
