@@ -125,6 +125,12 @@ export function GamePlayPhase({ roomId, players, currentPlayerId }: GamePlayPhas
               height={800}
               className="max-w-full rounded mx-auto"
               priority={true}
+              onError={() => {
+                console.error('Failed to load question image:', currentQuestion.imageUrl);
+              }}
+              onLoad={() => {
+                console.log('Question image loaded successfully');
+              }}
             />
           </div>
         )}
