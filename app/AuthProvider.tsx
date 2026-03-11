@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { signInAnonymouslyIfNeeded } from '@/lib/services/authService';
+import LoadingSpinner from '@/app/common/LoadingSpinner';
 
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
     const [isAuthReady, setIsAuthReady] = useState(false);
@@ -23,9 +24,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     // 認証完了まで待機
     if (!isAuthReady) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-pink-900">
-                <div className="text-white text-xl font-semibold">認証中...</div>
-            </div>
+            <LoadingSpinner message="認証中..." />
         );
     }
 
