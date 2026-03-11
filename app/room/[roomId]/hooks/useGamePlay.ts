@@ -97,27 +97,29 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
           const playersReady = state.playersReady || [];
           const amIReady = playersReady.includes(currentPlayerId);
           setIsReady(amIReady);
+          setWaitingForPlayers(amIReady);
 
           if (playersReady.length >= players.length && playersReady.length > 0) {
-            // 全員準備完了したら次の問題へ進む（最初のプレイヤーのみ実行、最後の問題でない場合のみ）
+            // 全員準備完了したら次のアクション（次の問題 or 終了）へ進む（一番目の完了プレイヤーのみ実行）
             const isLastQuestion = state.currentQuestionIndex >= state.totalQuestions - 1;
             const shouldProceed = playersReady.length === players.length && 
                                   playersReady[0] === currentPlayerId &&
-                                  !isLastQuestion &&
                                   !hasTriggeredNextQuestionRef.current;
             if (shouldProceed && amIReady) {
               hasTriggeredNextQuestionRef.current = true;
               setTimeout(async () => {
                 try {
-                  await nextQuestion(roomId);
+                  if (isLastQuestion) {
+                    console.log('Moving to finished state...');
+                    await updateRoomStatus(roomId, 'finished');
+                  } else {
+                    await nextQuestion(roomId);
+                  }
                 } catch (err) {
-                  console.error('Failed to proceed to next question:', err);
+                  console.error('Failed to proceed to next question/finish:', err);
                 }
               }, 500);
             }
-            setWaitingForPlayers(false);
-          } else if (amIReady) {
-            setWaitingForPlayers(true);
           }
         }
       } catch (error) {
@@ -206,29 +208,12 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
     if (!gameState) return;
 
     try {
-      if (gameState.currentQuestionIndex >= gameState.totalQuestions - 1) {
-        // 最後の問題：スコア計算完了を待つ
-        console.log('Last question. Waiting for score calculation...');
-
-        let waitTime = 0;
-        const maxWait = 5000;
-        const checkInterval = 500;
-
-        while (waitTime < maxWait && !hasCalculatedScoreRef.current) {
-          await new Promise(resolve => setTimeout(resolve, checkInterval));
-          waitTime += checkInterval;
-        }
-
-        console.log('Moving to finished state...');
-        await updateRoomStatus(roomId, 'finished');
-      } else {
-        // 次の問題へ
-        await markPlayerReady(roomId, currentPlayerId);
-        setIsReady(true);
-        setWaitingForPlayers(true);
-      }
+      // 次の問題（または終了）へ。全員準備完了になるまで待機画面を表示するためマーク。
+      await markPlayerReady(roomId, currentPlayerId);
+      setIsReady(true);
+      setWaitingForPlayers(true);
     } catch (error) {
-      console.error('Failed to go to next question:', error);
+      console.error('Failed to go to next question/finish:', error);
     }
   };
 
