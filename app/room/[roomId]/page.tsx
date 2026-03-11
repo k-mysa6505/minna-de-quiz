@@ -2,10 +2,11 @@
 // ゲームルームページ - メイン画面（リファクタリング版）
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useRoomData } from './hooks/useRoomData';
 import { usePlayerStatus } from './hooks/usePlayerStatus';
+import { setupPresence } from '@/lib/services/presenceService';
 import { WaitingPhase } from './components/WaitingPhase';
 import { QuestionCreationPhase } from './components/QuestionCreationPhase';
 import { GamePlayPhase } from './components/GamePlayPhase';
@@ -52,6 +53,26 @@ export default function RoomPage() {
 
   // プレイヤーのオンライン状態を管理
   usePlayerStatus(roomId, currentPlayerId);
+
+  // プレゼンス管理のクリーンアップ関数
+  const presenceCleanupRef = useRef<(() => void) | null>(null);
+
+  // プレゼンス設定とクリーンアップ
+  useEffect(() => {
+    if (currentPlayerId && roomId) {
+      console.log('Setting up presence for player:', currentPlayerId);
+      presenceCleanupRef.current = setupPresence(roomId, currentPlayerId);
+    }
+
+    // クリーンアップ関数
+    return () => {
+      if (presenceCleanupRef.current) {
+        console.log('Cleaning up presence on unmount');
+        presenceCleanupRef.current();
+        presenceCleanupRef.current = null;
+      }
+    };
+  }, [currentPlayerId, roomId]);
 
   const error = initialState.error || roomError;
   const loading = !room && !error;

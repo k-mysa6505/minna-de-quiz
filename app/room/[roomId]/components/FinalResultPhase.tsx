@@ -3,8 +3,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { deleteRoom, removePlayerFromRoom } from '@/lib/services/roomService';
-import { updatePlayerOnlineStatus } from '@/lib/services/playerService';
+import { deleteRoom, removePlayerFromRoom, resetRoomForReplay } from '@/lib/services/roomService';
+import { updatePlayerOnlineStatus, resetAllPlayersScores } from '@/lib/services/playerService';
+import { resetGameState, clearQuestionsAndAnswers } from '@/lib/services/gameService';
 import type { Player } from '@/types';
 
 interface FinalResultPhaseProps {
@@ -16,6 +17,7 @@ interface FinalResultPhaseProps {
 export function FinalResultPhase({ roomId, players, currentPlayerId }: FinalResultPhaseProps) {
   const router = useRouter();
   const [hasLeft, setHasLeft] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const [displayPlayers] = useState<Player[]>(players);
 
   // プレイヤー数を監視し、0になったらルームを削除
@@ -32,6 +34,7 @@ export function FinalResultPhase({ roomId, players, currentPlayerId }: FinalResu
       if (!hasLeft) {
         const currentPlayerId = localStorage.getItem('currentPlayerId');
         if (currentPlayerId) {
+          console.log('FinalResultPhase cleanup for player:', currentPlayerId);
           updatePlayerOnlineStatus(roomId, currentPlayerId, false).catch(console.error);
         }
       }
@@ -42,30 +45,71 @@ export function FinalResultPhase({ roomId, players, currentPlayerId }: FinalResu
     try {
       const currentPlayerId = localStorage.getItem('currentPlayerId');
       if (!currentPlayerId) {
+        // セッションクリア
+        localStorage.clear();
         router.push('/');
         return;
       }
 
-      console.log(`Player ${currentPlayerId} leaving room`);
+      console.log(`Player ${currentPlayerId} leaving room ${roomId}`);
       setHasLeft(true);
 
+      // 段階的なクリーンアップ
+      console.log('Setting player offline...');
       await updatePlayerOnlineStatus(roomId, currentPlayerId, false);
+
+      console.log('Removing player from room...');
       const remainingPlayers = await removePlayerFromRoom(roomId, currentPlayerId);
 
-      localStorage.removeItem('currentPlayerId');
-      localStorage.removeItem('currentRoomId');
+      // 完全なセッションクリア
+      console.log('Clearing session data...');
+      localStorage.clear();
+      sessionStorage.clear();
 
       if (remainingPlayers === 0) {
         console.log('Last player leaving. Deleting room...');
         await deleteRoom(roomId);
       }
 
+      console.log('Redirecting to home...');
       router.push('/');
     } catch (error) {
       console.error('Failed to leave room:', error);
-      localStorage.removeItem('currentPlayerId');
-      localStorage.removeItem('currentRoomId');
+      // エラーが発生してもセッションはクリア
+      localStorage.clear();
+      sessionStorage.clear();
       router.push('/');
+    }
+  };
+
+  const handlePlayAgain = async () => {
+    try {
+      setIsResetting(true);
+      console.log(`Starting play-again for room ${roomId}`);
+
+      // 1. ゲーム状態をリセット
+      console.log('Resetting game state...');
+      await resetGameState(roomId);
+
+      // 2. 問題と回答データをクリア
+      console.log('Clearing questions and answers...');
+      await clearQuestionsAndAnswers(roomId);
+
+      // 3. 全プレイヤーのスコアをリセット
+      console.log('Resetting player scores...');
+      await resetAllPlayersScores(roomId);
+
+      // 4. ルームステータスを待機状態に戻す
+      console.log('Resetting room status...');
+      await resetRoomForReplay(roomId);
+
+      console.log('Play-again reset completed successfully');
+      // リロードせずに状態変更を待つ（useRoomDataが状態変更を検知）
+    } catch (error) {
+      console.error('Failed to reset room for play-again:', error);
+      alert('リセットに失敗しました。ページをリロードしてください。');
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -75,10 +119,10 @@ export function FinalResultPhase({ roomId, players, currentPlayerId }: FinalResu
   // スコアに基づいて順位を計算する関数
   const calculateRank = (playerIndex: number): number => {
     if (playerIndex === 0) return 1;
-    
+
     const currentScore = sortedPlayers[playerIndex].score;
     const previousScore = sortedPlayers[playerIndex - 1].score;
-    
+
     if (currentScore === previousScore) {
       // 同じスコアなら前のプレイヤーと同じ順位
       return calculateRank(playerIndex - 1);
@@ -107,11 +151,10 @@ export function FinalResultPhase({ roomId, players, currentPlayerId }: FinalResu
             return (
               <li
                 key={player.playerId}
-                className={`flex items-center justify-between px-3 py-1 rounded transition-all ${
-                  player.playerId === currentPlayerId
+                className={`flex items-center justify-between px-3 py-1 rounded transition-all ${player.playerId === currentPlayerId
                     ? 'bg-gradient-to-b from-blue-800/90 to-blue-500/10'
                     : ''
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   <span className="font-semibold text-white">
@@ -131,13 +174,45 @@ export function FinalResultPhase({ roomId, players, currentPlayerId }: FinalResu
         </ul>
       </div>
 
-      {/* ホームに戻るボタン */}
-      <button
-        onClick={handleLeaveRoom}
-        className="block mx-auto bg-gradient-to-b from-emerald-700 to-emerald-800 text-white font-bold italic px-4 rounded-2xl shadow-2xl transition-all duration-300 transform hover:scale-105"
-      >
-        HOME
-      </button>
+      {/* ボタン群 */}
+      <div className="space-y-4">
+        {/* もう一度遊ぶボタン */}
+        <button
+          onClick={handlePlayAgain}
+          disabled={isResetting || hasLeft}
+          className={`
+            w-full font-bold py-4 px-6 rounded-2xl shadow-2xl transition-all duration-300 transform
+            ${isResetting || hasLeft
+              ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+              : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 hover:scale-105'
+            }
+          `}
+        >
+          {isResetting ? (
+            <div className="flex items-center justify-center gap-2">
+              <div className="animate-spin h-5 w-5 border-b-2 border-white rounded-full"></div>
+              <span>リセット中...</span>
+            </div>
+          ) : (
+            'もう一度遊ぶ'
+          )}
+        </button>
+
+        {/* ホームに戻るボタン */}
+        <button
+          onClick={handleLeaveRoom}
+          disabled={isResetting}
+          className={`
+            block mx-auto font-bold italic px-6 py-3 rounded-2xl shadow-2xl transition-all duration-300 transform
+            ${isResetting
+              ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+              : 'bg-gradient-to-b from-emerald-700 to-emerald-800 text-white hover:scale-105'
+            }
+          `}
+        >
+          HOME
+        </button>
+      </div>
     </div>
   );
 }

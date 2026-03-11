@@ -9,6 +9,7 @@ import {
   getDocs,
   getDoc,
   onSnapshot,
+  serverTimestamp,
   Timestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -140,6 +141,33 @@ export async function updatePlayerScore(
   } catch (error) {
     console.error(`Failed to update score for player ${playerId}:`, error);
     // エラーを投げずに処理を続行
+  }
+}
+
+/**
+ * Reset all players' scores to zero
+ */
+export async function resetAllPlayersScores(roomId: string): Promise<void> {
+  console.log(`Resetting all players' scores for room ${roomId}`);
+  try {
+    const playersRef = collection(db, 'rooms', roomId, 'players');
+    const playerDocs = await getDocs(playersRef);
+
+    const updatePromises = [];
+    for (const playerDoc of playerDocs.docs) {
+      updatePromises.push(
+        updateDoc(playerDoc.ref, {
+          score: 0,
+          lastUpdated: serverTimestamp()
+        })
+      );
+    }
+
+    await Promise.all(updatePromises);
+    console.log('All players scores reset successfully');
+  } catch (error) {
+    console.error('Error resetting all players scores:', error);
+    throw error;
   }
 }
 

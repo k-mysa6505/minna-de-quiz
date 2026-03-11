@@ -1,0 +1,67 @@
+rules_version = '2';
+
+// Firestore Security Rules for Minna de Quiz
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ルームドキュメントのルール
+    match /rooms/{roomId} {
+      // 誰でも読み取り可能（ルーム参加用）
+      allow read: if true;
+      // 認証済みユーザーが作成・更新可能
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      // 認証済みユーザーが削除可能
+      allow delete: if request.auth != null;
+      
+      // プレイヤーサブコレクション
+      match /players/{playerId} {
+        // 誰でも読み取り可能（プレイヤーリスト表示用）
+        allow read: if true;
+        // 認証済みユーザーが作成・更新・削除可能
+        allow create, update, delete: if request.auth != null;
+      }
+      
+      // 問題サブコレクション
+      match /questions/{questionId} {
+        // 誰でも読み取り可能（問題表示用）
+        allow read: if true;
+        // 認証済みユーザーが作成・更新・削除可能
+        allow create, update, delete: if request.auth != null;
+      }
+      
+      // 回答サブコレクション（roomレベル）
+      match /answers/{answerId} {
+        allow read, write: if request.auth != null;
+      }
+      
+      // 予想サブコレクション（roomレベル）
+      match /predictions/{predictionId} {
+        allow read, write: if request.auth != null;
+      }
+      
+      // ゲーム状態サブコレクション
+      match /gameState/{stateId} {
+        // 誰でも読み取り可能（ゲーム進行用）
+        allow read: if true;
+        // 認証済みユーザーが更新可能
+        allow create, update, delete: if request.auth != null;
+      }
+    }
+    
+    // 回答コレクション（ルートレベル）
+    match /answers/{answerId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // 予想コレクション（ルートレベル）
+    match /predictions/{predictionId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // その他全てのドキュメントへのアクセスを拒否
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

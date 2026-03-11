@@ -57,6 +57,7 @@ export function GamePlayPhase({ roomId, players, currentPlayerId }: GamePlayPhas
     answers,
     currentAnswerCount,
     prediction,
+    isReady,
     waitingForPlayers,
     handleAnswerSubmit,
     handlePredictionSubmit,
@@ -98,6 +99,9 @@ export function GamePlayPhase({ roomId, players, currentPlayerId }: GamePlayPhas
         players={players}
         answers={answers}
         prediction={prediction}
+        currentPlayerId={currentPlayerId}
+        isReady={isReady}
+        waitingForPlayers={waitingForPlayers}
         handleNextQuestion={handleNextQuestion}
       />
     );

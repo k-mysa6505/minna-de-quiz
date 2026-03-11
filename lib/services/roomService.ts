@@ -299,3 +299,23 @@ export async function removePlayerFromRoom(
     throw error;
   }
 }
+
+/**
+ * Reset room for replay (keep participants, reset game data)
+ */
+export async function resetRoomForReplay(roomId: string): Promise<void> {
+  console.log('Resetting room for replay:', roomId);
+  try {
+    const roomRef = doc(db, 'rooms', roomId);
+
+    // Reset room status to waiting
+    await updateDoc(roomRef, {
+      status: 'waiting'
+    });
+
+    console.log('Room reset successfully for replay');
+  } catch (error) {
+    console.error('Error resetting room for replay:', error);
+    throw error;
+  }
+}

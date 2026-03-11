@@ -3,7 +3,7 @@
 
 import {
   collection, doc, setDoc, addDoc, getDoc,
-  getDocs, updateDoc, query, where, Timestamp, serverTimestamp
+  getDocs, updateDoc, deleteDoc, query, where, Timestamp, serverTimestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { GameState, Answer, Prediction } from '@/types';
@@ -294,4 +294,59 @@ function shuffleArray<T>(array: T[]): T[] {
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
   return shuffled;
+}
+
+/**
+ * Reset game state for replay
+ */
+export async function resetGameState(roomId: string): Promise<void> {
+  console.log(`Resetting game state for room ${roomId}`);
+  try {
+    const gameStateRef = doc(db, 'rooms', roomId, 'gameState', 'state');
+
+    // Delete the game state document to completely reset
+    await deleteDoc(gameStateRef);
+
+    console.log('Game state reset successfully');
+  } catch (error) {
+    console.error(`Error resetting game state for room ${roomId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Clear all questions and related data for replay
+ */
+export async function clearQuestionsAndAnswers(roomId: string): Promise<void> {
+  console.log(`Clearing questions and answers for room ${roomId}`);
+  try {
+    const deletePromises = [];
+
+    // Clear all questions
+    const questionsRef = collection(db, 'rooms', roomId, 'questions');
+    const questionDocs = await getDocs(questionsRef);
+    for (const questionDoc of questionDocs.docs) {
+      deletePromises.push(deleteDoc(questionDoc.ref));
+    }
+
+    // Clear all answers (room level)
+    const answersRef = collection(db, 'rooms', roomId, 'answers');
+    const answerDocs = await getDocs(answersRef);
+    for (const answerDoc of answerDocs.docs) {
+      deletePromises.push(deleteDoc(answerDoc.ref));
+    }
+
+    // Clear all predictions (room level)
+    const predictionsRef = collection(db, 'rooms', roomId, 'predictions');
+    const predictionDocs = await getDocs(predictionsRef);
+    for (const predictionDoc of predictionDocs.docs) {
+      deletePromises.push(deleteDoc(predictionDoc.ref));
+    }
+
+    await Promise.all(deletePromises);
+    console.log('Questions and answers cleared successfully');
+  } catch (error) {
+    console.error(`Error clearing questions and answers for room ${roomId}:`, error);
+    throw error;
+  }
 }

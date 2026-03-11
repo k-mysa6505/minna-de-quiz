@@ -9,6 +9,9 @@ interface ResultDisplayPhaseProps {
   players: Player[];
   answers: Answer[];
   prediction: { predictedCount: number; isCorrect: boolean } | null;
+  currentPlayerId: string;
+  isReady: boolean;
+  waitingForPlayers: boolean;
   handleNextQuestion: () => void;
 }
 
@@ -41,6 +44,9 @@ export function ResultDisplayPhase({
   players,
   answers,
   prediction,
+  currentPlayerId,
+  isReady,
+  waitingForPlayers,
   handleNextQuestion,
 }: ResultDisplayPhaseProps) {
   const [showAnswerReveal, setShowAnswerReveal] = useState(false);
@@ -92,13 +98,19 @@ export function ResultDisplayPhase({
     }
   }, [showAnswerReveal, answers]);
 
-  // 出題者の予想が表示されたら3秒後に次へボタンを表示
+  // 出題者の予想が表示されたら3秒後に準備完了ボタンを表示
   useEffect(() => {
     if (showPredictionResult) {
       const timer = setTimeout(() => setShowNextButton(true), 3000);
       return () => clearTimeout(timer);
     }
   }, [showPredictionResult]);
+
+  // 準備完了状態を管理
+  const playersReady = gameState.playersReady || [];
+  const readyCount = playersReady.length;
+  const totalPlayers = players.length;
+  const allReady = readyCount >= totalPlayers && totalPlayers > 0;
 
   return (
     <div className="space-y-6">
@@ -188,9 +200,8 @@ export function ResultDisplayPhase({
                       className="flex justify-between items-center px-4 py-1 animate-fade-in"
                     >
                       <div className="flex items-center gap-10">
-                        <span className={`font-bold text-lg ${
-                          isFastest ? 'text-yellow-400' : 'text-white'
-                        }`}>
+                        <span className={`font-bold text-lg ${isFastest ? 'text-yellow-400' : 'text-white'
+                          }`}>
                           {idx + 1}．{player?.nickname || 'unknown'}
                         </span>
                         <span className="text-ms text-slate-300 italic">
@@ -225,17 +236,80 @@ export function ResultDisplayPhase({
             </div>
           )}
 
-          {/* 次へボタン */}
+          {/* 準備完了システム */}
           {showNextButton && (
-            <button
-              onClick={handleNextQuestion}
-              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold py-4 px-6 rounded-md shadow-lg transition-all duration-300"
-            >
-              {gameState.currentQuestionIndex >= gameState.totalQuestions - 1
-                ? '結果を見る'
-                : '次の問題へ'
-              }
-            </button>
+            <div className="space-y-4">
+              {/* 準備状況表示 */}
+              <div className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-slate-300">
+                    準備完了
+                  </span>
+                  <span className={`font-bold text-lg ${allReady ? 'text-green-400' : 'text-yellow-400'
+                    }`}>
+                    {readyCount}/{totalPlayers}人
+                  </span>
+                </div>
+
+                {/* 準備完了プレイヤーリスト */}
+                {readyCount > 0 && (
+                  <div className="mt-3 space-y-1">
+                    <div className="text-xs text-slate-400 mb-2">準備完了プレイヤー:</div>
+                    <div className="flex flex-wrap gap-2">
+                      {playersReady.map(playerId => {
+                        const player = players.find(p => p.playerId === playerId);
+                        return (
+                          <span
+                            key={playerId}
+                            className="text-xs bg-green-600/20 text-green-400 px-2 py-1 rounded border border-green-600/30"
+                          >
+                            {player?.nickname || 'unknown'}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 準備完了ボタン */}
+              <button
+                onClick={handleNextQuestion}
+                disabled={allReady}
+                className={`
+                  w-full font-bold py-4 px-6 rounded-md shadow-lg transition-all duration-300
+                  ${isReady
+                    ? 'bg-green-600 text-white cursor-default'
+                    : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800'
+                  }
+                  ${allReady ? 'opacity-75 cursor-not-allowed' : ''
+                  }
+                `}
+              >
+                {allReady ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <span>全員準備完了 - 自動で進みます...</span>
+                    <div className="animate-spin h-4 w-4 border-b-2 border-white rounded-full"></div>
+                  </div>
+                ) : isReady ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <span>準備完了 - 他のプレイヤーを待っています...</span>
+                    {waitingForPlayers && (
+                      <div className="animate-pulse h-2 w-2 bg-yellow-400 rounded-full"></div>
+                    )}
+                  </div>
+                ) : (
+                  `準備完了 (${gameState.currentQuestionIndex >= gameState.totalQuestions - 1 ? '結果を見る' : '次の問題へ'})`
+                )}
+              </button>
+
+              {/* 全員準備完了時のメッセージ */}
+              {!allReady && readyCount > 0 && (
+                <p className="text-center text-sm text-slate-400 italic">
+                  あと{totalPlayers - readyCount}人が準備完了すると自動で進みます
+                </p>
+              )}
+            </div>
           )}
         </div>
       )}
