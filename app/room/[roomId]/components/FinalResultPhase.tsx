@@ -12,9 +12,11 @@ interface FinalResultPhaseProps {
   roomId: string;
   players: Player[];
   currentPlayerId: string;
+  isRoomReset?: boolean;
+  onPlayAgain?: () => void;
 }
 
-export function FinalResultPhase({ roomId, players, currentPlayerId }: FinalResultPhaseProps) {
+export function FinalResultPhase({ roomId, players, currentPlayerId, isRoomReset, onPlayAgain }: FinalResultPhaseProps) {
   const router = useRouter();
   const [hasLeft, setHasLeft] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
@@ -87,24 +89,31 @@ export function FinalResultPhase({ roomId, players, currentPlayerId }: FinalResu
       setIsResetting(true);
       console.log(`Starting play-again for room ${roomId}`);
 
-      // 1. ゲーム状態をリセット
-      console.log('Resetting game state...');
-      await resetGameState(roomId);
+      if (!isRoomReset) {
+        // 1. ゲーム状態をリセット
+        console.log('Resetting game state...');
+        await resetGameState(roomId);
 
-      // 2. 問題と回答データをクリア
-      console.log('Clearing questions and answers...');
-      await clearQuestionsAndAnswers(roomId);
+        // 2. 問題と回答データをクリア
+        console.log('Clearing questions and answers...');
+        await clearQuestionsAndAnswers(roomId);
 
-      // 3. 全プレイヤーのスコアをリセット
-      console.log('Resetting player scores...');
-      await resetAllPlayersScores(roomId);
+        // 3. 全プレイヤーのスコアをリセット
+        console.log('Resetting player scores...');
+        await resetAllPlayersScores(roomId);
 
-      // 4. ルームステータスを待機状態に戻す
-      console.log('Resetting room status...');
-      await resetRoomForReplay(roomId);
+        // 4. ルームステータスを待機状態に戻す
+        console.log('Resetting room status...');
+        await resetRoomForReplay(roomId);
+      } else {
+        console.log('Room is already reset by another player.');
+      }
 
       console.log('Play-again reset completed successfully');
-      // リロードせずに状態変更を待つ（useRoomDataが状態変更を検知）
+      
+      if (onPlayAgain) {
+        onPlayAgain();
+      }
     } catch (error) {
       console.error('Failed to reset room for play-again:', error);
       alert('リセットに失敗しました。ページをリロードしてください。');

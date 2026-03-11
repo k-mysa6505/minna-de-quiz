@@ -52,6 +52,29 @@ export default function RoomPage() {
   // カスタムフックでルームデータを取得
   const { room, players, error: roomError } = useRoomData(roomId, currentPlayerId);
 
+  // ルームのステータスとは別に、このプレイヤーの画面状態を管理するローカルステート
+  const [localPhase, setLocalPhase] = useState<string | null>(null);
+  const [hasClickedPlayAgain, setHasClickedPlayAgain] = useState(false);
+
+  // room.status の変更を監視して、localPhase を更新する
+  useEffect(() => {
+    if (!room) return;
+
+    if (room.status === 'finished') {
+      setLocalPhase('finished');
+      setHasClickedPlayAgain(false); // 次回の終了時のためにリセット
+    } else if (room.status === 'waiting') {
+      if (localPhase === 'finished' && !hasClickedPlayAgain) {
+        // 誰かが再スタートを押したために待機状態に戻ったが、自分はまだ結果画面を見ている場合
+        // localPhase は 'finished' のまま維持する
+      } else {
+        setLocalPhase('waiting');
+      }
+    } else {
+      setLocalPhase(room.status);
+    }
+  }, [room?.status, localPhase, hasClickedPlayAgain]);
+
   // プレイヤーのオンライン状態を管理
   usePlayerStatus(roomId, currentPlayerId);
 
@@ -107,9 +130,9 @@ export default function RoomPage() {
   return (
     <main className="min-h-screen p-4">
       <div className="max-w-6xl mx-auto">
-        {/* メインコンテンツ: ゲーム状態に応じて切り替え */}
+        {/* メインコンテンツ: ローカルの画面状態に応じて切り替え */}
         <div className="shadow py-6">
-          {room.status === 'waiting' && (
+          {localPhase === 'waiting' && (
             <WaitingPhase
               roomId={roomId}
               room={room}
@@ -119,7 +142,7 @@ export default function RoomPage() {
             />
           )}
 
-          {room.status === 'creating' && (
+          {localPhase === 'creating' && (
             <QuestionCreationPhase
               roomId={roomId}
               players={players}
@@ -127,7 +150,7 @@ export default function RoomPage() {
             />
           )}
 
-          {room.status === 'playing' && (
+          {localPhase === 'playing' && (
             <GamePlayPhase
               roomId={roomId}
               players={players}
@@ -135,11 +158,16 @@ export default function RoomPage() {
             />
           )}
 
-          {room.status === 'finished' && (
+          {localPhase === 'finished' && (
             <FinalResultPhase
               roomId={roomId}
               players={players}
               currentPlayerId={currentPlayerId}
+              isRoomReset={room.status !== 'finished'}
+              onPlayAgain={() => {
+                setHasClickedPlayAgain(true);
+                setLocalPhase('waiting');
+              }}
             />
           )}
         </div>
