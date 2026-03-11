@@ -11,6 +11,7 @@ import { WaitingPhase } from './components/WaitingPhase';
 import { QuestionCreationPhase } from './components/QuestionCreationPhase';
 import { GamePlayPhase } from './components/GamePlayPhase';
 import { FinalResultPhase } from './components/FinalResultPhase';
+import LoadingSpinner from '@/app/common/LoadingSpinner';
 
 // 初期状態を取得するヘルパー関数
 function getInitialPlayerState(roomId: string) {
@@ -79,11 +80,7 @@ export default function RoomPage() {
 
   // ローディング中
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-2xl font-bold text-gray-600">読み込み中...</div>
-      </div>
-    );
+    return <LoadingSpinner message="読み込み中..." />;
   }
 
   // エラー表示

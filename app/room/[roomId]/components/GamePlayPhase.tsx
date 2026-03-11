@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useGamePlay } from '../hooks/useGamePlay';
 import { ResultDisplayPhase } from './ResultDisplayPhase';
 import type { Player } from '@/types';
+import LoadingSpinner from '@/app/common/LoadingSpinner';
 
 interface GamePlayPhaseProps {
   roomId: string;
@@ -65,11 +66,7 @@ export function GamePlayPhase({ roomId, players, currentPlayerId }: GamePlayPhas
   } = useGamePlay(roomId, currentPlayerId, players);
 
   if (!gameState || !currentQuestion) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="text-2xl font-bold text-slate-300 animate-pulse">読み込み中...</div>
-      </div>
-    );
+    return <LoadingSpinner message="読み込み中..." />;
   }
 
   const isAuthor = currentQuestion.authorId === currentPlayerId;
