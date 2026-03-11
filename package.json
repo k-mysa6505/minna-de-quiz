@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "firebase:deploy": "firebase deploy --only firestore:rules,database,storage"
   },
   "dependencies": {
     "firebase": "^12.5.0",
