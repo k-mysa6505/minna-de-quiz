@@ -44,7 +44,6 @@ export function ResultDisplayPhase({
   players,
   answers,
   prediction,
-  currentPlayerId,
   isReady,
   waitingForPlayers,
   handleNextQuestion,

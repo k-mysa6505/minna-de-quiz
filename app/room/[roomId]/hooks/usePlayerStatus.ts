@@ -25,7 +25,7 @@ export function usePlayerStatus(roomId: string, currentPlayerId: string) {
     };
 
     // ブラウザを閉じる時の処理（同期的にNavigator.sendBeaconを試行）
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+    const handleBeforeUnload = () => {
       if (navigator.sendBeacon) {
         // sendBeaconを使用して確実に送信
         navigator.sendBeacon('/api/player-offline', JSON.stringify({
