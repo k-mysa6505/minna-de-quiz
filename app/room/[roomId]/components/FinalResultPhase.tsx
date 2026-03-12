@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { deleteRoom, removePlayerFromRoom, resetRoomForReplay } from '@/lib/services/roomService';
+import { removePlayerFromRoom, resetRoomForReplay } from '@/lib/services/roomService';
 import { updatePlayerOnlineStatus, resetAllPlayersScores } from '@/lib/services/playerService';
 import { resetGameState, clearQuestionsAndAnswers } from '@/lib/services/gameService';
 import type { Player } from '@/types';
@@ -22,13 +22,6 @@ export function FinalResultPhase({ roomId, players, currentPlayerId, isRoomReset
   const [isResetting, setIsResetting] = useState(false);
   const [displayPlayers] = useState<Player[]>(players);
 
-  // プレイヤー数を監視し、0になったらルームを削除
-  useEffect(() => {
-    if (players.length === 0) {
-      console.log('No players left. Deleting room...');
-      deleteRoom(roomId).catch(console.error);
-    }
-  }, [players.length, roomId]);
 
   // コンポーネントアンマウント時の処理
   useEffect(() => {
@@ -63,10 +56,12 @@ export function FinalResultPhase({ roomId, players, currentPlayerId, isRoomReset
       console.log('Removing player from room...');
       const remainingPlayers = await removePlayerFromRoom(roomId, currentPlayerId);
 
-      // 完全なセッションクリア
+      // 自分のセッションキーのみ削除（他タブのデータを消さないよう clear() は使わない）
       console.log('Clearing session data...');
-      localStorage.clear();
-      sessionStorage.clear();
+      localStorage.removeItem('currentPlayerId');
+      localStorage.removeItem('currentRoomId');
+      sessionStorage.removeItem('currentPlayerId');
+      sessionStorage.removeItem('currentRoomId');
 
       if (remainingPlayers === 0) {
         console.log('Last player leaving. Deleting room...');

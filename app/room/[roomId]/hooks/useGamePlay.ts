@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { doc, collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import {
@@ -49,50 +49,55 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
   }, [roomId]);
 
   // ────────────────────────────────────────────
-  // スコア計算（useCallbackで安定化）
+  // スコア計算関数を useRef に入れる
+  // 理由: useCallback([currentQuestion, players]) にすると players が更新されるたびに
+  //         関数が再生成 → useEffect が再実行 → onSnapshot 再購読 → ループの原因になるため
   // ────────────────────────────────────────────
-  const calculateScores = useCallback(
-    async (allAnswers: Answer[], pred: Prediction) => {
-      if (!currentQuestion) return;
+  // 最新の currentQuestion / players を ref で保持→関数を再生成せずとも常に最新値を参照できる
+  const currentQuestionRef = useRef<Question | null>(null);
+  const playersRef = useRef<Player[]>([]);
+  currentQuestionRef.current = currentQuestion;
+  playersRef.current = players;
 
-      const correctAnswersCount = allAnswers.filter((a) => a.isCorrect).length;
-      const isCorrect = pred.predictedCount === correctAnswersCount;
+  const calculateScores = useRef(async (allAnswers: Answer[], pred: Prediction) => {
+    const q = currentQuestionRef.current;
+    const ps = playersRef.current;
+    if (!q) return;
 
-      await updatePredictionResult(
-        roomId,
-        currentQuestion.questionId,
-        correctAnswersCount,
-        isCorrect
-      ).catch(console.error);
+    const correctAnswersCount = allAnswers.filter((a) => a.isCorrect).length;
+    const isCorrect = pred.predictedCount === correctAnswersCount;
 
-      // 正解者にポイント付与
-      for (const answer of allAnswers) {
-        if (answer.isCorrect) {
-          const player = players.find((p) => p.playerId === answer.playerId);
-          if (player) {
-            await updatePlayerScore(
-              roomId,
-              answer.playerId,
-              player.score + 10
-            ).catch(console.error);
-          }
-        }
-      }
+    await updatePredictionResult(
+      roomId,
+      q.questionId,
+      correctAnswersCount,
+      isCorrect
+    ).catch(console.error);
 
-      // 出題者の予想的中でポイント付与
-      if (isCorrect) {
-        const author = players.find((p) => p.playerId === currentQuestion.authorId);
-        if (author) {
+    for (const answer of allAnswers) {
+      if (answer.isCorrect) {
+        const player = ps.find((p) => p.playerId === answer.playerId);
+        if (player) {
           await updatePlayerScore(
             roomId,
-            currentQuestion.authorId,
-            author.score + 20
+            answer.playerId,
+            player.score + 10
           ).catch(console.error);
         }
       }
-    },
-    [currentQuestion, players, roomId]
-  );
+    }
+
+    if (isCorrect) {
+      const author = ps.find((p) => p.playerId === q.authorId);
+      if (author) {
+        await updatePlayerScore(
+          roomId,
+          q.authorId,
+          author.score + 20
+        ).catch(console.error);
+      }
+    }
+  });
 
   // ────────────────────────────────────────────
   // gameState をリアルタイム監視（onSnapshot）
@@ -129,10 +134,11 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
 
       setCurrentQuestion(question);
 
-      // ────── phase が 'answering' → 'revealing' に変わったとき ──────
-      // Functionsが全員の回答を確認して phase を更新する
+      // ────── phase が 'revealing' に変わったとき ──────
+      // 「直前の phase が 'revealing' でない」ときに発火。
+      // 初回起動時に phase が undefined または 'answering' であっても正しく検知できる。
       const phase = state.phase;
-      if (phase === 'revealing' && prevPhaseRef.current === 'answering') {
+      if (phase === 'revealing' && prevPhaseRef.current !== 'revealing') {
         // 結果を取得して表示
         if (question && !hasCalculatedScoreRef.current) {
           (async () => {
@@ -147,7 +153,7 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
 
                 if (!hasCalculatedScoreRef.current) {
                   hasCalculatedScoreRef.current = true;
-                  await calculateScores(allAnswers, pred);
+                  await calculateScores.current(allAnswers, pred);
                 }
               }
             } catch (err) {
@@ -166,7 +172,7 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
     });
 
     return () => unsubscribe();
-  }, [roomId, allQuestions, currentPlayerId, calculateScores]);
+  }, [roomId, allQuestions, currentPlayerId]);
 
   // ────────────────────────────────────────────
   // 自分の回答提出状態をリアルタイム監視

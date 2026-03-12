@@ -27,7 +27,8 @@ export async function initializeGame(
       questionOrder: shuffledOrder,
       totalQuestions: questionIds.length,
       playersReady: [], // 初期化時は誰も準備完了していない
-      questionStartedAt: serverTimestamp() // 最初の問題の開始時刻
+      questionStartedAt: serverTimestamp(), // 最初の問題の開始時刻
+      phase: 'answering' as const, // 初期フェーズを明示設定（Functionsの遷移検知に必要）
     };
 
     console.log('Setting initial game state:', initialState);
