@@ -5,6 +5,8 @@ service cloud.firestore {
   match /databases/{database}/documents {
     match /rooms/{roomId} {
       allow read: if true;
+      // Firebase Admin SDK (Functions) からの書き込みは rules を無視するため、
+      // クライアントからの書き込みのみルールで制御する
       allow create, update, delete: if request.auth != null;
 
       match /players/{playerId} {
@@ -27,6 +29,8 @@ service cloud.firestore {
 
       match /gameState/{stateId} {
         allow read: if true;
+        // クライアントは markPlayerReady, initializeGame のみ書き込み可
+        // Functionsによる phase/onlinePlayerIds 更新は admin SDK 経由で rules をバイパス
         allow create, update, delete: if request.auth != null;
       }
     }

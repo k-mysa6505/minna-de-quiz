@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "firebase:deploy": "firebase deploy --only firestore:rules,database,storage"
+    "firebase:deploy": "firebase deploy --only firestore:rules,database,storage,functions"
   },
   "dependencies": {
     "@types/qrcode": "^1.5.6",
