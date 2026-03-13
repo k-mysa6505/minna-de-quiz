@@ -6,3 +6,4 @@
 
 export { syncPresenceToFirestore } from './presence';
 export { onAnswerWritten, onPredictionWritten, onPlayerReadyChanged } from './gameFlow';
+export { onRoomCleanupRequested, runScheduledRoomCleanup } from './roomCleanup';

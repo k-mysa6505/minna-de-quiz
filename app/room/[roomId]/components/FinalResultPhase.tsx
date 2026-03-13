@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { removePlayerFromRoom, resetRoomForReplay } from '@/lib/services/roomService';
+import { removePlayerFromRoom, requestRoomCleanup, resetRoomForReplay } from '@/lib/services/roomService';
 import { updatePlayerOnlineStatus, resetAllPlayersScores } from '@/lib/services/playerService';
 import { resetGameState, clearQuestionsAndAnswers } from '@/lib/services/gameService';
 import type { Player } from '@/types';
@@ -54,7 +54,8 @@ export function FinalResultPhase({ roomId, players, currentPlayerId, isRoomReset
       await updatePlayerOnlineStatus(roomId, currentPlayerId, false);
 
       console.log('Removing player from room...');
-      const remainingPlayers = await removePlayerFromRoom(roomId, currentPlayerId);
+      await removePlayerFromRoom(roomId, currentPlayerId);
+      requestRoomCleanup(roomId).catch(console.error);
 
       // 自分のセッションキーのみ削除（他タブのデータを消さないよう clear() は使わない）
       console.log('Clearing session data...');
@@ -62,11 +63,6 @@ export function FinalResultPhase({ roomId, players, currentPlayerId, isRoomReset
       localStorage.removeItem('currentRoomId');
       sessionStorage.removeItem('currentPlayerId');
       sessionStorage.removeItem('currentRoomId');
-
-      if (remainingPlayers === 0) {
-        console.log('Last player leaving. Deleting room...');
-        await deleteRoom(roomId);
-      }
 
       console.log('Redirecting to home...');
       router.push('/');
@@ -105,7 +101,7 @@ export function FinalResultPhase({ roomId, players, currentPlayerId, isRoomReset
       }
 
       console.log('Play-again reset completed successfully');
-      
+
       if (onPlayAgain) {
         onPlayAgain();
       }
@@ -156,8 +152,8 @@ export function FinalResultPhase({ roomId, players, currentPlayerId, isRoomReset
               <li
                 key={player.playerId}
                 className={`flex items-center justify-between px-3 py-1 rounded transition-all ${player.playerId === currentPlayerId
-                    ? 'bg-gradient-to-b from-blue-800/90 to-blue-500/10'
-                    : ''
+                  ? 'bg-gradient-to-b from-blue-800/90 to-blue-500/10'
+                  : ''
                   }`}
               >
                 <div className="flex items-center gap-3">

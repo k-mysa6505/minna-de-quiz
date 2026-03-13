@@ -2,8 +2,8 @@
 // ルームとプレイヤー情報を管理するカスタムフック
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
-import { subscribeToRoom, deleteRoom } from '@/lib/services/roomService';
+import { useEffect, useState } from 'react';
+import { subscribeToRoom } from '@/lib/services/roomService';
 import { subscribeToPlayers, updatePlayerOnlineStatus } from '@/lib/services/playerService';
 import type { Room, Player } from '@/types';
 
@@ -11,38 +11,6 @@ export function useRoomData(roomId: string, currentPlayerId: string) {
   const [room, setRoom] = useState<Room | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [error, setError] = useState<string>('');
-  const deleteRoomTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // 自動削除ロジック
-  const handleAutoDelete = useCallback((playerList: Player[], currentRoom: Room | null) => {
-    if (!currentRoom || currentRoom.status === 'finished' || currentRoom.status === 'waiting') {
-      return;
-    }
-
-    if (playerList.length > 0) {
-      const allOffline = playerList.every(p => !p.isOnline);
-
-      if (allOffline) {
-        // 既存のタイムアウトをクリア
-        if (deleteRoomTimeoutRef.current) {
-          clearTimeout(deleteRoomTimeoutRef.current);
-        }
-
-        console.log('All players offline. Scheduling room deletion...');
-        deleteRoomTimeoutRef.current = setTimeout(() => {
-          deleteRoom(roomId).catch(console.error);
-          deleteRoomTimeoutRef.current = null;
-        }, 10000);
-      } else {
-        // 誰かがオンラインになったらキャンセル
-        if (deleteRoomTimeoutRef.current) {
-          clearTimeout(deleteRoomTimeoutRef.current);
-          deleteRoomTimeoutRef.current = null;
-          console.log('Player online. Cancelling deletion.');
-        }
-      }
-    }
-  }, [roomId]);
 
   useEffect(() => {
     if (!currentPlayerId) return;
@@ -77,22 +45,14 @@ export function useRoomData(roomId: string, currentPlayerId: string) {
         });
       }
 
-      // 自動削除ロジック
-      setRoom(currentRoom => {
-        handleAutoDelete(playerList, currentRoom);
-        return currentRoom;
-      });
     });
 
     return () => {
       clearTimeout(setOnlineTimeout);
-      if (deleteRoomTimeoutRef.current) {
-        clearTimeout(deleteRoomTimeoutRef.current);
-      }
       unsubscribeRoom();
       unsubscribePlayers();
     };
-  }, [roomId, currentPlayerId, handleAutoDelete]);
+  }, [roomId, currentPlayerId]);
 
   return { room, players, error };
 }

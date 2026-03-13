@@ -3,10 +3,10 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { updateRoomStatus, removePlayerFromRoom } from '@/lib/services/roomService';
+import { updateRoomStatus, removePlayerFromRoom, requestRoomCleanup } from '@/lib/services/roomService';
 import type { Player, Room } from '@/types';
-import { InviteModal } from './InviteModal';
-import { LeaveRoomModal } from './LeaveRoomModal';
+import { InviteModal } from '@/app/room/[roomId]/components/InviteModal';
+import { LeaveRoomModal } from '@/app/room/[roomId]/components/LeaveRoomModal';
 
 interface WaitingPhaseProps {
   roomId: string;
@@ -34,6 +34,7 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
     try {
       setIsLeaving(true);
       await removePlayerFromRoom(roomId, currentPlayerId);
+      requestRoomCleanup(roomId).catch(console.error);
       router.push('/');
     } catch (error) {
       console.error('Failed to leave room:', error);

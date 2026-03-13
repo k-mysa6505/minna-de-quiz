@@ -15,7 +15,7 @@ export type RoomStatus =
 /**
  * 点数加算方式
  */
-export type ScoringMode = 
+export type ScoringMode =
   | 'standard'        // 標準（正解で10pt）
   | 'firstBonus'      // 1位ボーナス（1位は倍の得点）
   | 'rateBonus';      // 正解率ボーナス（正解率が低いほど高得点）
@@ -36,6 +36,11 @@ export interface Room {
   timeLimit?: number;          // 制限時間（秒）
   scoringMode: ScoringMode;    // 点数加算方式
   wrongAnswerPenalty: number;  // 誤答ペナルティ
+  cleanupRequestedAt?: Timestamp;
+  deleteEligibleAt?: Timestamp;
+  cleanupState?: 'scheduled' | 'deferred' | 'deleted' | 'skipped';
+  cleanupReason?: string;
+  lastCleanupDecisionAt?: Timestamp;
 }
 
 /**

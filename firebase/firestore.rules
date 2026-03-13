@@ -7,7 +7,15 @@ service cloud.firestore {
       allow read: if true;
       // Firebase Admin SDK (Functions) からの書き込みは rules を無視するため、
       // クライアントからの書き込みのみルールで制御する
-      allow create, update, delete: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'deleteEligibleAt',
+          'cleanupState',
+          'cleanupReason',
+          'lastCleanupDecisionAt'
+        ]);
+      allow delete: if false;
 
       match /players/{playerId} {
         allow read: if true;

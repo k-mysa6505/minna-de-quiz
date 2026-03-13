@@ -10,7 +10,8 @@ import {
   updateDoc,
   deleteDoc,
   onSnapshot,
-  Timestamp
+  Timestamp,
+  serverTimestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Room, CreateRoomParams, JoinRoomParams } from '@/types';
@@ -297,6 +298,20 @@ export async function removePlayerFromRoom(
   } catch (error) {
     console.error('Failed to remove player from room:', error);
     throw error;
+  }
+}
+
+/**
+ * ルーム削除をサーバー側に依頼
+ */
+export async function requestRoomCleanup(roomId: string): Promise<void> {
+  try {
+    const roomRef = doc(db, 'rooms', roomId);
+    await updateDoc(roomRef, {
+      cleanupRequestedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.warn('Room cleanup request skipped:', error);
   }
 }
 
