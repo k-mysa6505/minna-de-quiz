@@ -2,9 +2,11 @@
 'use client';
 
 import { useState } from 'react';
-import { QRCodeSVG } from 'qrcode.react';
-import { updateRoomStatus } from '@/lib/services/roomService';
+import { useRouter } from 'next/navigation';
+import { updateRoomStatus, removePlayerFromRoom } from '@/lib/services/roomService';
 import type { Player, Room } from '@/types';
+import { InviteModal } from './InviteModal';
+import { LeaveRoomModal } from './LeaveRoomModal';
 
 interface WaitingPhaseProps {
   roomId: string;
@@ -15,14 +17,10 @@ interface WaitingPhaseProps {
 }
 
 export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster }: WaitingPhaseProps) {
+  const router = useRouter();
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  const shareUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/join-room?roomId=${roomId}`
-    : '';
-
-  const shareMessage = `[みんクイ] お友達から招待が届きました。下記リンクから一緒に遊びましょう！\n\n${shareUrl}`;
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
 
   const handleStartGame = async () => {
     try {
@@ -32,37 +30,38 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
     }
   };
 
-  const handleCopyLink = async () => {
+  const handleLeaveRoom = async () => {
     try {
-      await navigator.clipboard.writeText(shareMessage);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setIsLeaving(true);
+      await removePlayerFromRoom(roomId, currentPlayerId);
+      router.push('/');
     } catch (error) {
-      console.error('Failed to copy:', error);
-    }
-  };
-
-  const handleCopyRoomId = async () => {
-    try {
-      await navigator.clipboard.writeText(roomId);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
-      console.error('Failed to copy:', error);
+      console.error('Failed to leave room:', error);
+      alert('退室処理に失敗しました。');
+    } finally {
+      setIsLeaving(false);
     }
   };
 
   return (
     <div className="space-y-8">
-      {/* タイトルと招待ボタン */}
+      {/* タイトルとボタン群 */}
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-white tracking-tight">プレイヤー待機中</h2>
-        <button
-          onClick={() => setShowInviteModal(true)}
-          className="bg-gradient-to-b from-blue-500 to-blue-700 text-slate-200 font-semibold px-3 py-1 mr-3 rounded-md"
-        >
-          招待
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowInviteModal(true)}
+            className="bg-gradient-to-b from-blue-500 to-blue-700 text-slate-200 font-semibold px-3 py-1 rounded-md"
+          >
+            招待
+          </button>
+          <button
+            onClick={() => setShowLeaveModal(true)}
+            className="bg-gradient-to-b from-red-600 to-red-800 text-slate-200 font-semibold px-3 py-1 mr-3 rounded-md"
+          >
+            ルームを退室
+          </button>
+        </div>
       </div>
 
       {/* ルーム情報 */}
@@ -96,7 +95,7 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
             <span className="text-xs text-slate-400 italic">SCORING</span>
             <span className="text-xs text-white font-semibold">
               {room.scoringMode === 'standard' ? '標準' :
-               room.scoringMode === 'firstBonus' ? '1位ボーナス' : '正解率ボーナス'}
+                room.scoringMode === 'firstBonus' ? '1位ボーナス' : '正解率ボーナス'}
             </span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -130,26 +129,25 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
             });
 
             return sortedPlayers.map((player, idx) => (
-            <li
-              key={player.playerId}
-              className={`flex items-center justify-between px-3 py-1 rounded transition-all ${
-                player.playerId === currentPlayerId
+              <li
+                key={player.playerId}
+                className={`flex items-center justify-between px-3 py-1 rounded transition-all ${player.playerId === currentPlayerId
                   ? 'bg-gradient-to-b from-blue-800/90 to-blue-500/10'
                   : ''
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <span className="font-semibold text-white">
-                  {idx + 1}．
-                  <span className="italic">{player.nickname}</span>
-                </span>
-                {player.isMaster && (
-                  <span className="text-xs text-slate-400 bg-slate-600 px-1 rounded">
-                    ホスト
+                  }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="font-semibold text-white">
+                    {idx + 1}．
+                    <span className="italic">{player.nickname}</span>
                   </span>
-                )}
-              </div>
-            </li>
+                  {player.isMaster && (
+                    <span className="text-xs text-slate-400 bg-slate-600 px-1 rounded">
+                      ホスト
+                    </span>
+                  )}
+                </div>
+              </li>
             ));
           })()}
         </ul>
@@ -175,71 +173,19 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
 
       {/* 招待モーダル */}
       {showInviteModal && (
-        <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50"
-          onClick={() => setShowInviteModal(false)}
-        >
-          <div
-            className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border border-slate-700 p-6 max-w-md w-full"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-xl text-center font-bold text-white mb-4">友達を招待</h3>
+        <InviteModal
+          roomId={roomId}
+          onClose={() => setShowInviteModal(false)}
+        />
+      )}
 
-            {/* QRコード */}
-            <div className="bg-slate-700/30 rounded-lg p-4 mb-4 text-center">
-              <p className="text-xs text-slate-400 mb-2">QRコード</p>
-              <div className="bg-white p-4 rounded inline-block">
-                <QRCodeSVG
-                  value={shareUrl}
-                  size={160}
-                  level="M"
-                />
-              </div>
-            </div>
-
-            {/* ルームID表示 */}
-            <div className="bg-slate-700/30 rounded-lg p-4 mb-4">
-              <p className="text-xs text-slate-400 mb-2">ルームID</p>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 bg-slate-900/50 text-white px-3 py-2 rounded font-mono text-sm">
-                  {roomId}
-                </code>
-                <button
-                  onClick={handleCopyRoomId}
-                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-2 rounded transition-all"
-                >
-                  {copied ? 'コピー済み' : 'コピー'}
-                </button>
-              </div>
-            </div>
-
-            {/* 共有リンク */}
-            <div className="bg-slate-700/30 rounded-lg p-4 mb-4">
-              <p className="text-xs text-slate-400 mb-2">共有リンク</p>
-              <div className="flex items-start gap-2">
-                <textarea
-                  value={shareMessage}
-                  readOnly
-                  className="flex-1 bg-slate-900/50 text-white px-3 py-2 rounded text-xs border border-slate-600 resize-none"
-                  rows={3}
-                />
-                <button
-                  onClick={handleCopyLink}
-                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-2 rounded transition-all"
-                >
-                  {copied ? 'コピー済み' : 'コピー'}
-                </button>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setShowInviteModal(false)}
-              className="w-full bg-slate-700 hover:bg-slate-600 text-white font-medium py-2 px-4 rounded-lg transition-all"
-            >
-              閉じる
-            </button>
-          </div>
-        </div>
+      {/* 退室モーダル */}
+      {showLeaveModal && (
+        <LeaveRoomModal
+          isLeaving={isLeaving}
+          onCancel={() => setShowLeaveModal(false)}
+          onConfirm={handleLeaveRoom}
+        />
       )}
     </div>
   );

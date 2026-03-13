@@ -47,7 +47,12 @@ export const syncPresenceToFirestore = onValueWritten(
 
       const playerSnap = await playerRef.get();
       if (!playerSnap.exists) {
-        console.warn(`[presence] Player ${playerId} not found in Firestore. Skipping.`);
+        console.warn(`[presence] Player ${playerId} not found in Firestore. This might be an explicit leave.`);
+        // ドキュメントがない＝すでに削除された（明示的な退室）ためオンライン状態の更新は不要だが、
+        // マスター移譲のチェック自体は行う
+        if (!isOnline) {
+          await handleMasterHandoverIfNeeded(roomId, playerId);
+        }
         return;
       }
 
@@ -81,8 +86,8 @@ async function handleMasterHandoverIfNeeded(
   // 離脱したのがマスターでなければスキップ
   if (room.masterId !== offlinePlayerId) return;
 
-  // waiting 状態のときのみマスター移譲を実施（ゲーム中は行わない）
-  if (room.status !== 'waiting') {
+  // waiting または finished 状態のときのみマスター移譲を実施（ゲーム中は行わない）
+  if (room.status !== 'waiting' && room.status !== 'finished') {
     console.log(
       `[masterHandover] Room ${roomId} is in status=${room.status}. Handover skipped.`
     );
@@ -93,13 +98,12 @@ async function handleMasterHandoverIfNeeded(
     `[masterHandover] Master ${offlinePlayerId} went offline. Searching for new master...`
   );
 
-  // オンライン中のプレイヤーを joinedAt 昇順で取得
+  // オンライン中のプレイヤーを取得
   const playersSnap = await db
     .collection('rooms')
     .doc(roomId)
     .collection('players')
     .where('isOnline', '==', true)
-    .orderBy('joinedAt', 'asc')
     .get();
 
   if (playersSnap.empty) {
@@ -107,11 +111,20 @@ async function handleMasterHandoverIfNeeded(
     return;
   }
 
-  const newMasterDoc = playersSnap.docs[0];
+  // ランダムに新しいマスターを選択（離脱したプレイヤーを除く）
+  const candidates = playersSnap.docs.filter(doc => doc.id !== offlinePlayerId);
+  
+  if (candidates.length === 0) {
+    console.log(`[masterHandover] No other online players found. No handover performed.`);
+    return;
+  }
+
+  const randomIndex = Math.floor(Math.random() * candidates.length);
+  const newMasterDoc = candidates[randomIndex];
   const newMasterId = newMasterDoc.id;
   const newMasterNickname = newMasterDoc.data().nickname as string;
 
-  console.log(`[masterHandover] Handing over to: ${newMasterId} (${newMasterNickname})`);
+  console.log(`[masterHandover] Handing over to: ${newMasterId} (${newMasterNickname}) (randomly selected)`);
 
   // バッチで一括更新
   const batch = db.batch();
@@ -119,10 +132,14 @@ async function handleMasterHandoverIfNeeded(
     masterId: newMasterId,
     masterNickname: newMasterNickname,
   });
-  batch.update(
-    db.collection('rooms').doc(roomId).collection('players').doc(offlinePlayerId),
-    { isMaster: false }
-  );
+
+  // 離脱したプレイヤーのドキュメントが存在するか確認
+  const offlinePlayerRef = db.collection('rooms').doc(roomId).collection('players').doc(offlinePlayerId);
+  const offlinePlayerSnap = await offlinePlayerRef.get();
+  if (offlinePlayerSnap.exists) {
+    batch.update(offlinePlayerRef, { isMaster: false });
+  }
+
   batch.update(
     db.collection('rooms').doc(roomId).collection('players').doc(newMasterId),
     { isMaster: true }

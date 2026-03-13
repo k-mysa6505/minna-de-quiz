@@ -37,8 +37,8 @@ export const onPresenceChangedForMaster = onValueWritten(
     // 離脱したのがマスターでなければ何もしない
     if (room.masterId !== playerId) return;
 
-    // waiting状態のときのみマスター移譲を実施（ゲーム中は行わない）
-    if (room.status !== 'waiting') {
+    // waiting または finished 状態のときのみマスター移譲を実施（ゲーム中は行わない）
+    if (room.status !== 'waiting' && room.status !== 'finished') {
       console.log(
         `[masterHandover] Room ${roomId} is in status=${room.status}. ` +
         'Master handover skipped during game.'
@@ -51,13 +51,12 @@ export const onPresenceChangedForMaster = onValueWritten(
       'Searching for new master...'
     );
 
-    // オンライン中のプレイヤーを joinedAt 昇順で取得
+    // オンライン中のプレイヤーを取得
     const playersSnap = await db
       .collection('rooms')
       .doc(roomId)
       .collection('players')
       .where('isOnline', '==', true)
-      .orderBy('joinedAt', 'asc')
       .get();
 
     if (playersSnap.empty) {
@@ -65,13 +64,22 @@ export const onPresenceChangedForMaster = onValueWritten(
       return;
     }
 
-    const newMasterDoc = playersSnap.docs[0];
+    // ランダムに新しいマスターを選択（離脱したプレイヤーを除く）
+    const candidates = playersSnap.docs.filter(doc => doc.id !== playerId);
+
+    if (candidates.length === 0) {
+      console.log(`[masterHandover] No other online players found. No handover performed.`);
+      return;
+    }
+
+    const randomIndex = Math.floor(Math.random() * candidates.length);
+    const newMasterDoc = candidates[randomIndex];
     const newMasterId = newMasterDoc.id;
     const newMasterNickname = newMasterDoc.data().nickname as string;
 
     console.log(
       `[masterHandover] Handing over master to: ` +
-      `${newMasterId} (${newMasterNickname})`
+      `${newMasterId} (${newMasterNickname}) (randomly selected)`
     );
 
     // バッチでルームとプレイヤーを更新
@@ -83,11 +91,12 @@ export const onPresenceChangedForMaster = onValueWritten(
       masterNickname: newMasterNickname,
     });
 
-    // 旧マスターのisMasterをfalseに
-    batch.update(
-      db.collection('rooms').doc(roomId).collection('players').doc(playerId),
-      { isMaster: false }
-    );
+    // 旧マスターのドキュメントが存在するか確認してから更新
+    const oldMasterRef = db.collection('rooms').doc(roomId).collection('players').doc(playerId);
+    const oldMasterSnap = await oldMasterRef.get();
+    if (oldMasterSnap.exists) {
+      batch.update(oldMasterRef, { isMaster: false });
+    }
 
     // 新マスターのisMasterをtrueに
     batch.update(
