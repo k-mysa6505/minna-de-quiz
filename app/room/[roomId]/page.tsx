@@ -132,6 +132,8 @@ export default function RoomPage() {
               roomId={roomId}
               players={players}
               currentPlayerId={currentPlayerId}
+              useScreenMode={room.useScreenMode ?? false}
+              timeLimit={room.timeLimit ?? 30}
             />
           )}
 

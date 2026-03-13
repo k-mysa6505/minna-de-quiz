@@ -41,6 +41,8 @@ export interface Room {
   cleanupState?: 'scheduled' | 'deferred' | 'deleted' | 'skipped';
   cleanupReason?: string;
   lastCleanupDecisionAt?: Timestamp;
+  useScreenMode?: boolean;
+  displayDeviceId?: string;
 }
 
 /**
@@ -54,6 +56,7 @@ export interface CreateRoomParams {
   timeLimit?: number;            // 制限時間（秒）
   scoringMode?: ScoringMode;     // 点数加算方式
   wrongAnswerPenalty?: number;   // 誤答ペナルティ
+  useScreenMode?: boolean;
 }
 
 /**

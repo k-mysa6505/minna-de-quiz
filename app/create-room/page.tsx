@@ -34,6 +34,7 @@ export default function CreateRoomPage() {
   const [scoringMode, setScoringMode] = useState<ScoringMode>('standard');
   const [wrongAnswerPenalty, setWrongAnswerPenalty] = useState<number>(0);
   const [maxPlayers, setMaxPlayers] = useState<number>(8);
+  const [useScreenMode, setUseScreenMode] = useState<boolean>(false);
 
   // 説明モーダル
   const [showHelpModal, setShowHelpModal] = useState(false);
@@ -68,6 +69,7 @@ export default function CreateRoomPage() {
           scoringMode,
           wrongAnswerPenalty,
           maxPlayers,
+          useScreenMode,
         }),
       {
         onError: (message) => setError(message || 'ルームの作成に失敗しました'),
@@ -232,6 +234,31 @@ export default function CreateRoomPage() {
                 max="20"
                 className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-blue-500"
               />
+            </div>
+
+            {/* スクリーンモード */}
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
+                スクリーンモード
+                <HelpIconButton onClick={() => showHelp('スクリーンモード', '有効にすると表示専用端末向けURLが使えるようになります。スクリーン端末はプレイヤーとして参加しません。')} />
+              </label>
+              <div className="flex items-center justify-between bg-slate-700/30 border border-slate-600 rounded-lg p-3">
+                <div>
+                  <p className="text-sm text-white font-semibold">{useScreenMode ? '有効' : '無効'}</p>
+                  <p className="text-xs text-slate-400">ホストが任意で切り替え可能</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setUseScreenMode((prev) => !prev)}
+                  className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors ${useScreenMode ? 'bg-emerald-600' : 'bg-slate-600'}`}
+                  aria-pressed={useScreenMode}
+                  aria-label="スクリーンモード切替"
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${useScreenMode ? 'translate-x-8' : 'translate-x-1'}`}
+                  />
+                </button>
+              </div>
             </div>
           </div>
 

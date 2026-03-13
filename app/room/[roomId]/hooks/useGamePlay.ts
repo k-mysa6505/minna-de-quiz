@@ -18,9 +18,53 @@ import {
 } from '@/lib/services/gameService';
 import { getQuestions } from '@/lib/services/questionService';
 import { updatePlayerScore } from '@/lib/services/playerService';
+import { countQuestionReactions } from '@/lib/services/reactionService';
 import type { GameState, GamePhase, Question, Answer, Prediction, Player } from '@/types';
 
-export function useGamePlay(roomId: string, currentPlayerId: string, players: Player[]) {
+function toMillis(value: unknown): number {
+  if (value && typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
+    return value.toDate().getTime();
+  }
+  return 0;
+}
+
+function calculateAnswerPoints(
+  answer: Answer,
+  questionStartedAt: unknown,
+  timeLimit: number
+): number {
+  if (!answer.isCorrect) {
+    return 0;
+  }
+
+  const base = 100;
+  if (timeLimit <= 0) {
+    return base;
+  }
+
+  const startedAtMs = toMillis(questionStartedAt);
+  const answeredAtMs = toMillis(answer.answeredAt);
+  if (startedAtMs <= 0 || answeredAtMs <= 0) {
+    return base;
+  }
+
+  const elapsedSeconds = Math.max(0, Math.floor((answeredAtMs - startedAtMs) / 1000));
+  const remaining = Math.max(0, timeLimit - elapsedSeconds);
+  return base + remaining * 2;
+}
+
+function calculatePredictionPoints(predictedCount: number, actualCount: number): number {
+  const diff = Math.abs(predictedCount - actualCount);
+  if (diff === 0) {
+    return 150;
+  }
+  if (diff === 1) {
+    return 50;
+  }
+  return 0;
+}
+
+export function useGamePlay(roomId: string, currentPlayerId: string, players: Player[], timeLimit: number) {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
@@ -69,8 +113,17 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
     const ps = playersRef.current;
     if (!q) return;
 
+    const increments = new Map<string, number>();
+    const addIncrement = (playerId: string, points: number) => {
+      if (points <= 0) {
+        return;
+      }
+      increments.set(playerId, (increments.get(playerId) ?? 0) + points);
+    };
+
     const correctAnswersCount = allAnswers.filter((a) => a.isCorrect).length;
-    const isCorrect = pred.predictedCount === correctAnswersCount;
+    const predictionPoints = calculatePredictionPoints(pred.predictedCount, correctAnswersCount);
+    const isCorrect = predictionPoints >= 150;
 
     await updatePredictionResult(
       roomId,
@@ -79,28 +132,46 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
       isCorrect
     ).catch(console.error);
 
+    // 回答ポイントを集計
     for (const answer of allAnswers) {
-      if (answer.isCorrect) {
-        const player = ps.find((p) => p.playerId === answer.playerId);
-        if (player) {
-          await updatePlayerScore(
-            roomId,
-            answer.playerId,
-            player.score + 10
-          ).catch(console.error);
-        }
+      const player = ps.find((p) => p.playerId === answer.playerId);
+      if (!player) {
+        continue;
+      }
+
+      const gained = calculateAnswerPoints(answer, gameState?.questionStartedAt, timeLimit);
+      if (gained <= 0) {
+        continue;
+      }
+      addIncrement(answer.playerId, gained);
+    }
+
+    // 作問者の予想ポイントを集計
+    if (predictionPoints > 0) {
+      addIncrement(q.authorId, predictionPoints);
+    }
+
+    // 難問ブレイカー: 正解者が1人だけなら +50
+    if (correctAnswersCount === 1) {
+      const breaker = allAnswers.find((a) => a.isCorrect);
+      if (breaker) {
+        addIncrement(breaker.playerId, 50);
       }
     }
 
-    if (isCorrect) {
-      const author = ps.find((p) => p.playerId === q.authorId);
-      if (author) {
-        await updatePlayerScore(
-          roomId,
-          q.authorId,
-          author.score + 20
-        ).catch(console.error);
+    // 盛り上げ賞: 1問あたりリアクション10件以上で作問者に +20
+    const reactionCount = await countQuestionReactions(roomId, q.questionId).catch(() => 0);
+    if (reactionCount >= 10) {
+      addIncrement(q.authorId, 20);
+    }
+
+    // 1プレイヤー1回でスコア更新する
+    for (const player of ps) {
+      const gained = increments.get(player.playerId) ?? 0;
+      if (gained <= 0) {
+        continue;
       }
+      await updatePlayerScore(roomId, player.playerId, player.score + gained).catch(console.error);
     }
   });
 

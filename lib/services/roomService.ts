@@ -37,6 +37,10 @@ export async function createRoom(params: CreateRoomParams): Promise<{ roomId: st
     // 作成者を最初のプレイヤーとして追加（マスター）
     const masterId = await addPlayer(roomId, params.nickname, true);
     console.log('Creator added as master:', masterId);
+    const useScreenMode = params.useScreenMode ?? false;
+    const displayDeviceId = useScreenMode
+      ? `screen-${Math.random().toString(36).slice(2, 10)}`
+      : undefined;
 
     // Firestoreにルームドキュメントを作成
     const roomData: Partial<Room> = {
@@ -51,7 +55,12 @@ export async function createRoom(params: CreateRoomParams): Promise<{ roomId: st
       timeLimit: params.timeLimit || 30,
       scoringMode: params.scoringMode || 'standard',
       wrongAnswerPenalty: params.wrongAnswerPenalty || 0,
+      useScreenMode,
     };
+
+    if (displayDeviceId) {
+      roomData.displayDeviceId = displayDeviceId;
+    }
 
     // descriptionがundefinedでない場合のみ追加
     if (params.description) {
@@ -269,7 +278,16 @@ export async function deleteRoom(roomId: string): Promise<void> {
     );
     await Promise.all(gameStateDeletePromises);
 
-    // 6. 最後にルーム本体を削除
+    // 6. reactions サブコレクションを削除
+    const reactionsRef = collection(db, 'rooms', roomId, 'reactions');
+    const reactionsSnapshot = await getDocs(reactionsRef);
+    console.log(`Deleting ${reactionsSnapshot.size} reactions`);
+    const reactionDeletePromises = reactionsSnapshot.docs.map(reactionDoc =>
+      deleteDoc(reactionDoc.ref)
+    );
+    await Promise.all(reactionDeletePromises);
+
+    // 7. 最後にルーム本体を削除
     const roomRef = doc(db, 'rooms', roomId);
     await deleteDoc(roomRef);
 

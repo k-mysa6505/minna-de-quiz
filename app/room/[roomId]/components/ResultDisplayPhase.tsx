@@ -13,6 +13,7 @@ interface ResultDisplayPhaseProps {
   isReady: boolean;
   waitingForPlayers: boolean;
   handleNextQuestion: () => void;
+  useScreenMode?: boolean;
 }
 
 const CHOICE_COLORS = [
@@ -60,6 +61,7 @@ export function ResultDisplayPhase({
   isReady,
   waitingForPlayers,
   handleNextQuestion,
+  useScreenMode = false,
 }: ResultDisplayPhaseProps) {
   const [showAnswerReveal, setShowAnswerReveal] = useState(false);
   const [revealedPlayers, setRevealedPlayers] = useState<string[]>([]);
@@ -119,6 +121,56 @@ export function ResultDisplayPhase({
   const readyCount = playersReady.length;
   const totalPlayers = players.length;
   const allReady = readyCount >= totalPlayers && totalPlayers > 0;
+
+  if (useScreenMode) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-slate-800/60 border border-slate-700/60 rounded-xl p-5 sm:p-6 text-center">
+          <h4 className="font-bold text-white text-xl sm:text-2xl">結果表示中</h4>
+          <p className="text-slate-300 text-sm sm:text-base mt-2">
+            詳細な結果はスクリーンに表示されています
+          </p>
+        </div>
+
+        {prediction && (
+          <div className="bg-slate-800/60 border border-slate-700/60 rounded-xl p-5 sm:p-6">
+            <p className="text-sm text-slate-300 mb-2">あなたの予想</p>
+            <p className="text-base sm:text-lg text-white font-semibold">
+              予想: {prediction.predictedCount}人 / 実際: {correctAnswerCount}人
+            </p>
+          </div>
+        )}
+
+        {showNextButton && (
+          <div className="space-y-4">
+            <div className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-slate-300">準備完了</span>
+                <span className={`font-bold text-lg ${allReady ? 'text-green-400' : 'text-yellow-400'}`}>
+                  {readyCount}/{totalPlayers}人
+                </span>
+              </div>
+            </div>
+
+            <button
+              onClick={handleNextQuestion}
+              disabled={allReady}
+              className={`
+                w-full font-bold py-4 sm:py-5 px-6 rounded-md shadow-lg transition-all duration-300 text-base sm:text-lg
+                ${isReady
+                  ? 'bg-green-600 text-white cursor-default'
+                  : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800'
+                }
+                ${allReady ? 'opacity-75 cursor-not-allowed' : ''}
+              `}
+            >
+              {allReady ? '全員準備完了 - 自動で進みます...' : isReady ? '準備完了 - 他のプレイヤーを待っています...' : `準備完了 (${gameState.currentQuestionIndex >= gameState.totalQuestions - 1 ? '結果を見る' : '次の問題へ'})`}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

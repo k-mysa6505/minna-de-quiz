@@ -47,6 +47,52 @@ const CHOICE_COLORS = [
   },
 ];
 
+type TemplateKind = 'inside' | 'image' | 'common';
+
+const TEMPLATE_LABELS: Record<TemplateKind, string> = {
+  inside: '身内ネタ',
+  image: '画像クイズ',
+  common: '一般常識',
+};
+
+function buildTemplateDraft(template: TemplateKind, keyword: string): { text: string; choices: [string, string, string, string] } {
+  const safeKeyword = keyword.trim() || 'キーワード';
+
+  if (template === 'inside') {
+    return {
+      text: `【身内ネタ】${safeKeyword}に最も関係が深いのはどれ？`,
+      choices: [
+        `${safeKeyword}の定番ネタ`,
+        `${safeKeyword}の黒歴史`,
+        `${safeKeyword}の口ぐせ`,
+        `${safeKeyword}の秘密`,
+      ],
+    };
+  }
+
+  if (template === 'image') {
+    return {
+      text: `【画像クイズ】この画像に最も当てはまる${safeKeyword}はどれ？`,
+      choices: [
+        `${safeKeyword} A`,
+        `${safeKeyword} B`,
+        `${safeKeyword} C`,
+        `${safeKeyword} D`,
+      ],
+    };
+  }
+
+  return {
+    text: `【一般常識】${safeKeyword}について正しいものはどれ？`,
+    choices: [
+      `${safeKeyword}に関する正しい選択肢`,
+      `${safeKeyword}に関する誤りの選択肢1`,
+      `${safeKeyword}に関する誤りの選択肢2`,
+      `${safeKeyword}に関する誤りの選択肢3`,
+    ],
+  };
+}
+
 export function QuestionCreationPhase({ roomId, players, currentPlayerId }: QuestionCreationPhaseProps) {
   const [questionText, setQuestionText] = useState('');
   const [choices, setChoices] = useState(['', '', '', '']);
@@ -57,6 +103,8 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
   const [hasCreated, setHasCreated] = useState(false);
   const [progress, setProgress] = useState({ created: 0, total: players.length });
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateKind>('inside');
+  const [templateKeyword, setTemplateKeyword] = useState('');
 
   useEffect(() => {
     const checkProgress = async () => {
@@ -91,6 +139,13 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
     const newChoices = [...choices];
     newChoices[index] = value;
     setChoices(newChoices);
+  };
+
+  const applyTemplate = () => {
+    const draft = buildTemplateDraft(selectedTemplate, templateKeyword);
+    setQuestionText(draft.text);
+    setChoices(draft.choices);
+    setCorrectAnswer(0);
   };
 
   const handleSubmitClick = (e: React.FormEvent) => {
@@ -155,6 +210,41 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
       <h2 className="text-2xl font-bold text-center text-white tracking-tight">問題を作りましょう</h2>
 
       <form onSubmit={handleSubmitClick} className="space-y-6">
+        {/* テンプレート入力 */}
+        <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 sm:p-5 space-y-3">
+          <p className="text-sm font-semibold text-slate-200">作問テンプレート</p>
+          <div className="grid grid-cols-3 gap-2">
+            {(Object.keys(TEMPLATE_LABELS) as TemplateKind[]).map((template) => (
+              <button
+                key={template}
+                type="button"
+                onClick={() => setSelectedTemplate(template)}
+                className={`py-2 rounded-lg text-xs sm:text-sm transition-all border ${selectedTemplate === template ? 'bg-blue-600/80 border-blue-400 text-white' : 'bg-slate-700/60 border-slate-600 text-slate-200 hover:bg-slate-600/80'}`}
+              >
+                {TEMPLATE_LABELS[template]}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              type="text"
+              value={templateKeyword}
+              onChange={(e) => setTemplateKeyword(e.target.value)}
+              className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-blue-500"
+              placeholder="キーワード（例: 首都, 料理名, メンバー名）"
+            />
+            <button
+              type="button"
+              onClick={applyTemplate}
+              className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold transition-all"
+            >
+              テンプレ適用
+            </button>
+          </div>
+          <p className="text-xs text-slate-400">テンプレートは下書き作成用です。内容は自由に編集できます。</p>
+        </div>
+
         {/* 問題文入力 */}
         <div>
           <label className="block text-sm font-semibold text-slate-300 mb-3">問題文 *</label>
@@ -199,8 +289,8 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
               <div
                 key={index}
                 className={`flex items-center space-x-3 p-2 rounded-md border-2 transition-all ${correctAnswer === index
-                    ? `${CHOICE_COLORS[index].bgSelected} ${CHOICE_COLORS[index].borderSelected}`
-                    : `${CHOICE_COLORS[index].bg} ${CHOICE_COLORS[index].border}`
+                  ? `${CHOICE_COLORS[index].bgSelected} ${CHOICE_COLORS[index].borderSelected}`
+                  : `${CHOICE_COLORS[index].bg} ${CHOICE_COLORS[index].border}`
                   }`}
               >
                 <input
@@ -279,8 +369,8 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
                   <div
                     key={index}
                     className={`p-3 rounded-lg border-2 ${correctAnswer === index
-                        ? `${CHOICE_COLORS[index].bgSelected} ${CHOICE_COLORS[index].borderSelected} text-white font-bold`
-                        : `${CHOICE_COLORS[index].bg} ${CHOICE_COLORS[index].border} text-slate-200`
+                      ? `${CHOICE_COLORS[index].bgSelected} ${CHOICE_COLORS[index].borderSelected} text-white font-bold`
+                      : `${CHOICE_COLORS[index].bg} ${CHOICE_COLORS[index].border} text-slate-200`
                       }`}
                   >
                     {index + 1}. {choice}

@@ -1,7 +1,7 @@
 // app/room/[roomId]/components/WaitingPhase.tsx
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateRoomStatus } from '@/lib/services/roomService';
 import { leaveRoomFlow } from '@/lib/services/roomFlowService';
@@ -24,6 +24,14 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
+  const [isCopyingScreenUrl, setIsCopyingScreenUrl] = useState(false);
+
+  const screenUrl = useMemo(() => {
+    if (!room.useScreenMode || !room.displayDeviceId || typeof window === 'undefined') {
+      return '';
+    }
+    return `${window.location.origin}/room/${roomId}/screen?deviceId=${room.displayDeviceId}`;
+  }, [room.displayDeviceId, room.useScreenMode, roomId]);
 
   const handleStartGame = async () => {
     await runServiceAction('waiting.startGame', () => updateRoomStatus(roomId, 'creating'));
@@ -46,6 +54,20 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
       router.push('/');
     }
     setIsLeaving(false);
+  };
+
+  const handleCopyScreenUrl = async () => {
+    if (!screenUrl) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(screenUrl);
+      setIsCopyingScreenUrl(true);
+      setTimeout(() => setIsCopyingScreenUrl(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy screen URL:', error);
+    }
   };
 
   return (
@@ -109,7 +131,37 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
               {room.wrongAnswerPenalty !== 0 ? `${room.wrongAnswerPenalty}pt` : 'なし'}
             </span>
           </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-400 italic">SCREEN</span>
+            <span className={`text-xs font-semibold ${room.useScreenMode ? 'text-emerald-400' : 'text-slate-400'}`}>
+              {room.useScreenMode ? '有効' : '無効'}
+            </span>
+          </div>
         </div>
+
+        {room.useScreenMode && room.displayDeviceId && isMaster && (
+          <div className="pt-3 border-t border-slate-700/50 space-y-2">
+            <p className="text-xs text-slate-400 italic">DISPLAY LINK</p>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <input
+                type="text"
+                readOnly
+                value={screenUrl}
+                className="flex-1 bg-slate-900/60 text-slate-200 px-3 py-2 rounded border border-slate-600 text-xs"
+              />
+              <button
+                type="button"
+                onClick={handleCopyScreenUrl}
+                className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-2 rounded transition-all"
+              >
+                {isCopyingScreenUrl ? 'コピー済み' : 'リンクをコピー'}
+              </button>
+            </div>
+            <p className="text-xs text-slate-500">
+              表示専用端末はこのリンクから接続してください（プレイヤーとしては参加しません）。
+            </p>
+          </div>
+        )}
       </div>
 
       {/* プレイヤー一覧 */}

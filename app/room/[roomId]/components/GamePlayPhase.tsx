@@ -1,9 +1,11 @@
 // app/room/[roomId]/components/GamePlayPhase.tsx
 'use client';
 
+import { useState } from 'react';
 import Image from 'next/image';
 import { useGamePlay } from '../hooks/useGamePlay';
 import { ResultDisplayPhase } from './ResultDisplayPhase';
+import { sendRoomReaction } from '@/lib/services/reactionService';
 import type { Player } from '@/types';
 import LoadingSpinner from '@/app/common/LoadingSpinner';
 
@@ -11,6 +13,8 @@ interface GamePlayPhaseProps {
   roomId: string;
   players: Player[];
   currentPlayerId: string;
+  useScreenMode: boolean;
+  timeLimit: number;
 }
 
 const CHOICE_COLORS = [
@@ -44,7 +48,10 @@ const CHOICE_COLORS = [
   },
 ];
 
-export function GamePlayPhase({ roomId, players, currentPlayerId }: GamePlayPhaseProps) {
+const REACTION_STAMPS = ['👏', '🔥', '😆', '😱', '🤯', '🎉'];
+const QUICK_MESSAGES = ['難しい！', '天才か？', 'ドボンw', 'いい問題！'];
+
+export function GamePlayPhase({ roomId, players, currentPlayerId, useScreenMode, timeLimit }: GamePlayPhaseProps) {
   const {
     gameState,
     currentQuestion,
@@ -63,7 +70,30 @@ export function GamePlayPhase({ roomId, players, currentPlayerId }: GamePlayPhas
     handleAnswerSubmit,
     handlePredictionSubmit,
     handleNextQuestion,
-  } = useGamePlay(roomId, currentPlayerId, players);
+  } = useGamePlay(roomId, currentPlayerId, players, timeLimit);
+
+  const currentPlayer = players.find((player) => player.playerId === currentPlayerId);
+  const [lastReactionAt, setLastReactionAt] = useState(0);
+
+  const handleSendReaction = async (
+    type: 'reaction' | 'message',
+    content: string,
+    eventTimestamp: number
+  ) => {
+    if (eventTimestamp - lastReactionAt < 1000 || !currentPlayer) {
+      return;
+    }
+
+    setLastReactionAt(eventTimestamp);
+    await sendRoomReaction({
+      roomId,
+      userId: currentPlayerId,
+      userName: currentPlayer.nickname,
+      type,
+      content,
+      questionId: currentQuestion?.questionId,
+    });
+  };
 
   if (!gameState || !currentQuestion) {
     return <LoadingSpinner message="読み込み中..." />;
@@ -100,6 +130,7 @@ export function GamePlayPhase({ roomId, players, currentPlayerId }: GamePlayPhas
         isReady={isReady}
         waitingForPlayers={waitingForPlayers}
         handleNextQuestion={handleNextQuestion}
+        useScreenMode={useScreenMode}
       />
     );
   }
@@ -114,39 +145,49 @@ export function GamePlayPhase({ roomId, players, currentPlayerId }: GamePlayPhas
         </p>
       </div>
 
-      {/* 問題表示 */}
-      <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-8 space-y-6">
-        <h3 className="text-2xl font-bold text-white text-center">{currentQuestion.text}</h3>
-        {currentQuestion.imageUrl && (
-          <div className="w-full bg-slate-700/30 rounded p-4">
-            <Image
-              src={currentQuestion.imageUrl}
-              alt="Question"
-              width={1200}
-              height={800}
-              className="max-w-full rounded mx-auto"
-              priority={true}
-              onError={() => {
-                console.error('Failed to load question image:', currentQuestion.imageUrl);
-              }}
-              onLoad={() => {
-                console.log('Question image loaded successfully');
-              }}
-            />
-          </div>
-        )}
-      </div>
+      {!useScreenMode && (
+        <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-8 space-y-6">
+          <h3 className="text-2xl font-bold text-white text-center">{currentQuestion.text}</h3>
+          {currentQuestion.imageUrl && (
+            <div className="w-full bg-slate-700/30 rounded p-4">
+              <Image
+                src={currentQuestion.imageUrl}
+                alt="Question"
+                width={1200}
+                height={800}
+                className="max-w-full rounded mx-auto"
+                priority={true}
+                onError={() => {
+                  console.error('Failed to load question image:', currentQuestion.imageUrl);
+                }}
+                onLoad={() => {
+                  console.log('Question image loaded successfully');
+                }}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {useScreenMode && (
+        <div className="bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700/50 rounded-2xl p-4 sm:p-6">
+          <p className="text-center text-slate-300 text-sm sm:text-base font-medium">
+            問題はスクリーンに表示中です。スマホでは回答を選んで送信してください。
+          </p>
+        </div>
+      )}
 
       {/* 回答フォーム（出題者以外）- 2×2グリッド */}
       {!isAuthor && !hasSubmittedAnswer && (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
+          <div className={`grid gap-3 sm:gap-4 ${useScreenMode ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2'}`}>
             {currentQuestion.choices.map((choice, index) => (
               <button
                 key={index}
                 onClick={() => setSelectedAnswer(index)}
                 className={`
-                  relative p-6 rounded-xl border-4 transition-all duration-300 font-bold text-lg min-h-[120px] flex flex-col items-center justify-center
+                  relative rounded-xl border-4 transition-all duration-300 font-bold text-lg flex flex-col items-center justify-center
+                  ${useScreenMode ? 'p-5 sm:p-6 min-h-[84px] sm:min-h-[120px]' : 'p-6 min-h-[120px]'}
                   ${selectedAnswer === index
                     ? `${CHOICE_COLORS[index].selected} ${CHOICE_COLORS[index].border} shadow-2xl scale-105`
                     : `${CHOICE_COLORS[index].bg} ${CHOICE_COLORS[index].border} ${CHOICE_COLORS[index].hover} shadow-lg hover:scale-102`
@@ -165,7 +206,7 @@ export function GamePlayPhase({ roomId, players, currentPlayerId }: GamePlayPhas
           <button
             onClick={handleAnswerSubmit}
             disabled={selectedAnswer === null}
-            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 disabled:from-slate-600 disabled:to-slate-700 text-white font-semibold py-4 px-6 rounded-md shadow-lg transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed"
+            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 disabled:from-slate-600 disabled:to-slate-700 text-white font-semibold py-4 sm:py-5 px-6 rounded-md shadow-lg transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed text-base sm:text-lg"
           >
             回答を送信
           </button>
@@ -187,6 +228,11 @@ export function GamePlayPhase({ roomId, players, currentPlayerId }: GamePlayPhas
               onChange={(e) => setPredictedCorrectCount(parseInt(e.target.value) || 0)}
               className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-md text-white text-center text-2xl font-bold focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
             />
+            {useScreenMode && (
+              <p className="text-xs text-slate-400 text-center mt-3">
+                問題文はスクリーンに表示されています
+              </p>
+            )}
           </div>
           <button
             onClick={handlePredictionSubmit}
@@ -204,6 +250,37 @@ export function GamePlayPhase({ roomId, players, currentPlayerId }: GamePlayPhas
           <p className="text-sm text-slate-400 mt-2">
             解答済みプレイヤー {currentAnswerCount} / {players.length}
           </p>
+        </div>
+      )}
+
+      {useScreenMode && (
+        <div className="space-y-4 bg-slate-800/50 border border-slate-700/60 rounded-xl p-4 sm:p-5">
+          <p className="text-sm text-slate-300 font-medium">リアクション</p>
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+            {REACTION_STAMPS.map((stamp) => (
+              <button
+                key={stamp}
+                type="button"
+                onClick={(event) => handleSendReaction('reaction', stamp, event.timeStamp)}
+                className="py-2 rounded-lg bg-slate-700/70 hover:bg-slate-600 text-xl transition-all"
+              >
+                {stamp}
+              </button>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {QUICK_MESSAGES.map((message) => (
+              <button
+                key={message}
+                type="button"
+                onClick={(event) => handleSendReaction('message', message, event.timeStamp)}
+                className="py-2 px-3 rounded-lg bg-slate-700/70 hover:bg-slate-600 text-xs sm:text-sm text-slate-100 transition-all"
+              >
+                {message}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-slate-400">送信は1秒に1回までです</p>
         </div>
       )}
     </div>
