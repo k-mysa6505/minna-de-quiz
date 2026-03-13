@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { joinRoom, getRoom } from '@/lib/services/roomService';
+import { runServiceAction } from '@/lib/services/serviceAction';
 import type { Room } from '@/types';
 
 export default function JoinRoomPage() {
@@ -38,50 +39,47 @@ export default function JoinRoomPage() {
     setIsLoading(true);
     setError('');
 
-    try {
-      const room = await getRoom(roomId.trim());
-      if (!room) {
-        setError('ルームが見つかりません');
-        setIsLoading(false);
-        return;
-      }
+    const room = await runServiceAction('joinRoom.checkRoom', () => getRoom(roomId.trim()), {
+      onError: (message) => setError(message || 'ルーム情報の取得に失敗しました'),
+      fallback: null,
+    });
 
-      setRoomInfo(room);
-      setShowConfirm(true);
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message || 'ルーム情報の取得に失敗しました');
-      } else {
-        setError(String(err) || 'ルーム情報の取得に失敗しました');
-      }
-    } finally {
+    if (!room) {
+      setError((prev) => prev || 'ルームが見つかりません');
       setIsLoading(false);
+      return;
     }
+
+    setRoomInfo(room);
+    setShowConfirm(true);
+    setIsLoading(false);
   };
 
   const handleJoinRoom = async () => {
     setIsLoading(true);
     setError('');
 
-    try {
-      const playerId = await joinRoom({
-        roomId: roomId.trim(),
-        nickname: nickname.trim(),
-      });
-
-      localStorage.setItem('currentPlayerId', playerId);
-      localStorage.setItem('currentRoomId', roomId.trim());
-
-      router.push(`/room/${roomId.trim()}`);
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message || 'ルームへの参加に失敗しました');
-      } else {
-        setError(String(err) || 'ルームへの参加に失敗しました');
+    const playerId = await runServiceAction(
+      'joinRoom.submit',
+      () =>
+        joinRoom({
+          roomId: roomId.trim(),
+          nickname: nickname.trim(),
+        }),
+      {
+        onError: (message) => setError(message || 'ルームへの参加に失敗しました'),
       }
+    );
+
+    if (!playerId) {
       setIsLoading(false);
       setShowConfirm(false);
+      return;
     }
+
+    localStorage.setItem('currentPlayerId', playerId);
+    localStorage.setItem('currentRoomId', roomId.trim());
+    router.push(`/room/${roomId.trim()}`);
   };
 
   if (showConfirm && roomInfo) {

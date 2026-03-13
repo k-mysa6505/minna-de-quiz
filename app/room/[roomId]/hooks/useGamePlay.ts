@@ -33,7 +33,6 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
   const [currentAnswerCount, setCurrentAnswerCount] = useState(0);
   const [prediction, setPrediction] = useState<Prediction | null>(null);
   const [isReady, setIsReady] = useState(false);
-  const [waitingForPlayers, setWaitingForPlayers] = useState(false);
 
   const prevQuestionIdRef = useRef<string | null>(null);
   const prevPhaseRef = useRef<GamePhase | undefined>(undefined);
@@ -56,8 +55,14 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
   // 最新の currentQuestion / players を ref で保持→関数を再生成せずとも常に最新値を参照できる
   const currentQuestionRef = useRef<Question | null>(null);
   const playersRef = useRef<Player[]>([]);
-  currentQuestionRef.current = currentQuestion;
-  playersRef.current = players;
+
+  useEffect(() => {
+    currentQuestionRef.current = currentQuestion;
+  }, [currentQuestion]);
+
+  useEffect(() => {
+    playersRef.current = players;
+  }, [players]);
 
   const calculateScores = useRef(async (allAnswers: Answer[], pred: Prediction) => {
     const q = currentQuestionRef.current;
@@ -128,7 +133,6 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
         setCurrentAnswerCount(0);
         setPrediction(null);
         setIsReady(false);
-        setWaitingForPlayers(false);
         hasCalculatedScoreRef.current = false;
       }
 
@@ -168,7 +172,6 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
       const playersReady = state.playersReady ?? [];
       const amIReady = playersReady.includes(currentPlayerId);
       setIsReady(amIReady);
-      setWaitingForPlayers(amIReady);
     });
 
     return () => unsubscribe();
@@ -283,11 +286,12 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
       // Functionsが全員の ready を確認して次の問題へ進める。
       await markPlayerReady(roomId, currentPlayerId);
       setIsReady(true);
-      setWaitingForPlayers(true);
     } catch (error) {
       console.error('Failed to mark ready:', error);
     }
   };
+
+  const waitingForPlayers = isReady;
 
   return {
     gameState,

@@ -1,16 +1,16 @@
 {
-    "rules": {
-        "rooms": {
-            "$roomId": {
-                "players": {
-                    "$playerId": {
-                        "presence": {
-                            ".read": true,
-                            ".write": "auth != null"
-                        }
-                    }
-                }
+  "rules": {
+    "rooms": {
+      "$roomId": {
+        "players": {
+          "$playerId": {
+            "presence": {
+              ".read": true,
+              ".write": "auth != null"
             }
+          }
         }
+      }
     }
+  }
 }

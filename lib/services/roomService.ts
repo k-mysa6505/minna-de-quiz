@@ -17,6 +17,7 @@ import { db } from '@/lib/firebase';
 import type { Room, CreateRoomParams, JoinRoomParams } from '@/types';
 import { generateRoomId, isValidRoomId } from '@/lib/utils/generateRoomId';
 import { addPlayer } from './playerService';
+import { serviceLogger } from './serviceLogger';
 
 /**
  * 新しいルームを作成
@@ -62,7 +63,7 @@ export async function createRoom(params: CreateRoomParams): Promise<{ roomId: st
 
     return { roomId, playerId: masterId };
   } catch (error) {
-    console.error('Error in createRoom:', error);
+    serviceLogger.error('room.createRoom', 'failed', error);
     throw error;
   }
 }
@@ -83,7 +84,7 @@ export async function joinRoom(params: JoinRoomParams): Promise<string> {
     const roomDoc = await getDoc(roomRef);
 
     if (!roomDoc.exists()) {
-      console.warn('Room not found:', params.roomId);
+      serviceLogger.warn('room.joinRoom', 'room not found', params.roomId);
       throw new Error('Room does not exist');
     }
 
@@ -92,7 +93,7 @@ export async function joinRoom(params: JoinRoomParams): Promise<string> {
 
     // 参加可能な状態か確認
     if (roomData.isClosed) {
-      console.warn('Room is closed:', params.roomId);
+      serviceLogger.warn('room.joinRoom', 'room closed', params.roomId);
       throw new Error('Room is closed for new participants');
     }
 
@@ -106,7 +107,7 @@ export async function joinRoom(params: JoinRoomParams): Promise<string> {
 
     return playerId;
   } catch (error) {
-    console.error('Error in joinRoom:', error);
+    serviceLogger.error('room.joinRoom', 'failed', error);
     throw error;
   }
 }
@@ -122,11 +123,11 @@ export async function getRoom(roomId: string): Promise<Room | null> {
       console.log('Room info retrieved:', roomId);
       return roomDoc.data() as Room;
     } else {
-      console.warn('Room info not found:', roomId);
+      serviceLogger.warn('room.getRoom', 'room not found', roomId);
       return null;
     }
   } catch (error) {
-    console.error('Error fetching room info:', error);
+    serviceLogger.error('room.getRoom', 'failed', error);
     return null;
   }
 }
@@ -149,12 +150,12 @@ export function subscribeToRoom(
         console.log(`Room update received for ${roomId}:`, room.status);
         callback(room);
       } else {
-        console.warn(`Room document missing or deleted: ${roomId}`);
+        serviceLogger.warn('room.subscribe', 'room missing or deleted', roomId);
         callback(null);
       }
     },
     (error) => {
-      console.error(`Subscription Error for room ${roomId}:`, error);
+      serviceLogger.error('room.subscribe', `subscription error: ${roomId}`, error);
       callback(null);
     }
   );
@@ -179,7 +180,7 @@ export async function updateRoomStatus(
     await updateDoc(roomRef, { status });
     console.log(`Room status updated: ${roomId} -> ${status}`);
   } catch (error) {
-    console.error(`Failed to update room status for ${roomId}:`, error);
+    serviceLogger.error('room.updateStatus', `failed: ${roomId}`, error);
     throw error;
   }
 }
@@ -202,7 +203,7 @@ export async function startGame(roomId: string): Promise<void> {
 
     if (playersSnapshot.size < room.minPlayers) {
       const errorMsg = `Not enough players to start the game. Current: ${playersSnapshot.size}, Min: ${room.minPlayers}`;
-      console.warn(errorMsg);
+      serviceLogger.warn('room.startGame', errorMsg);
       throw new Error(errorMsg);
     }
 
@@ -210,7 +211,7 @@ export async function startGame(roomId: string): Promise<void> {
     await updateRoomStatus(roomId, 'creating');
     console.log(`Game started defined for room: ${roomId}`);
   } catch (error) {
-    console.error(`Error starting game for room ${roomId}:`, error);
+    serviceLogger.error('room.startGame', `failed: ${roomId}`, error);
     throw error;
   }
 }
@@ -274,7 +275,7 @@ export async function deleteRoom(roomId: string): Promise<void> {
 
     console.log(`Room ${roomId} and all subcollections deleted successfully`);
   } catch (error) {
-    console.error('Failed to delete room:', error);
+    serviceLogger.error('room.deleteRoom', `failed: ${roomId}`, error);
     throw error;
   }
 }
@@ -296,7 +297,7 @@ export async function removePlayerFromRoom(
     const playersSnapshot = await getDocs(playersRef);
     return playersSnapshot.size;
   } catch (error) {
-    console.error('Failed to remove player from room:', error);
+    serviceLogger.error('room.removePlayer', `failed: room=${roomId}, player=${playerId}`, error);
     throw error;
   }
 }
@@ -311,7 +312,7 @@ export async function requestRoomCleanup(roomId: string): Promise<void> {
       cleanupRequestedAt: serverTimestamp(),
     });
   } catch (error) {
-    console.warn('Room cleanup request skipped:', error);
+    serviceLogger.warn('room.requestCleanup', `skipped: ${roomId}`, error);
   }
 }
 
@@ -330,7 +331,7 @@ export async function resetRoomForReplay(roomId: string): Promise<void> {
 
     console.log('Room reset successfully for replay');
   } catch (error) {
-    console.error('Error resetting room for replay:', error);
+    serviceLogger.error('room.resetForReplay', `failed: ${roomId}`, error);
     throw error;
   }
 }

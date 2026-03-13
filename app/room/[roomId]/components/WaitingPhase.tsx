@@ -3,10 +3,13 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { updateRoomStatus, removePlayerFromRoom, requestRoomCleanup } from '@/lib/services/roomService';
+import { updateRoomStatus } from '@/lib/services/roomService';
+import { leaveRoomFlow } from '@/lib/services/roomFlowService';
+import { runServiceAction } from '@/lib/services/serviceAction';
 import type { Player, Room } from '@/types';
 import { InviteModal } from '@/app/room/[roomId]/components/InviteModal';
 import { LeaveRoomModal } from '@/app/room/[roomId]/components/LeaveRoomModal';
+import { PlayerListCard } from './PlayerListCard';
 
 interface WaitingPhaseProps {
   roomId: string;
@@ -23,25 +26,26 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
   const [isLeaving, setIsLeaving] = useState(false);
 
   const handleStartGame = async () => {
-    try {
-      await updateRoomStatus(roomId, 'creating');
-    } catch (error) {
-      console.error('Failed to start game:', error);
-    }
+    await runServiceAction('waiting.startGame', () => updateRoomStatus(roomId, 'creating'));
   };
 
   const handleLeaveRoom = async () => {
-    try {
-      setIsLeaving(true);
-      await removePlayerFromRoom(roomId, currentPlayerId);
-      requestRoomCleanup(roomId).catch(console.error);
+    setIsLeaving(true);
+    const success = await runServiceAction(
+      'waiting.leaveRoom',
+      async () => {
+        await leaveRoomFlow(roomId, currentPlayerId);
+        return true;
+      },
+      {
+        fallback: false,
+        onError: () => alert('退室処理に失敗しました。'),
+      }
+    );
+    if (success) {
       router.push('/');
-    } catch (error) {
-      console.error('Failed to leave room:', error);
-      alert('退室処理に失敗しました。');
-    } finally {
-      setIsLeaving(false);
     }
+    setIsLeaving(false);
   };
 
   return (
@@ -109,50 +113,12 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
       </div>
 
       {/* プレイヤー一覧 */}
-      <div className="bg-gradient-to-br from-slate-800/70 to-slate-900/70 pb-4 rounded border border-slate-700/50">
-        <div className="font-bold text-slate-400 pt-3 px-8 italic">
-          PLAYER
-        </div>
-        <ul className="space-y-1">
-          {(() => {
-            const sortedPlayers = [...players].sort((a, b) => {
-              const getTime = (t: unknown): number => {
-                if (t == null) return 0;
-                if (typeof t === 'number') return t;
-                if (typeof t === 'string') return new Date(t).getTime();
-                const maybeTimestamp = t as { toDate?: () => Date };
-                if (typeof maybeTimestamp.toDate === 'function') return maybeTimestamp.toDate!().getTime();
-                if (t instanceof Date) return t.getTime();
-                return 0;
-              };
-
-              return getTime(a.joinedAt) - getTime(b.joinedAt);
-            });
-
-            return sortedPlayers.map((player, idx) => (
-              <li
-                key={player.playerId}
-                className={`flex items-center justify-between px-3 py-1 rounded transition-all ${player.playerId === currentPlayerId
-                  ? 'bg-gradient-to-b from-blue-800/90 to-blue-500/10'
-                  : ''
-                  }`}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="font-semibold text-white">
-                    {idx + 1}．
-                    <span className="italic">{player.nickname}</span>
-                  </span>
-                  {player.isMaster && (
-                    <span className="text-xs text-slate-400 bg-slate-600 px-1 rounded">
-                      ホスト
-                    </span>
-                  )}
-                </div>
-              </li>
-            ));
-          })()}
-        </ul>
-      </div>
+      <PlayerListCard
+        players={players}
+        currentPlayerId={currentPlayerId}
+        sortMode="joinedAt"
+        showMasterBadge
+      />
 
       {/* ゲーム開始ボタン（ホストのみ） */}
       {isMaster && (

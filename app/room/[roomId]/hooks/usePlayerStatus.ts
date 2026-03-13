@@ -36,15 +36,6 @@ export function usePlayerStatus(roomId: string, currentPlayerId: string) {
       safeUpdateOffline();
     };
 
-    // タブの可視性が変わった時の処理
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        safeUpdateOffline();
-      } else {
-        updatePlayerOnlineStatus(roomId, currentPlayerId, true).catch(console.error);
-      }
-    };
-
     // ページ離脱時の処理（より確実）
     const handlePageHide = () => {
       safeUpdateOffline();
@@ -52,12 +43,10 @@ export function usePlayerStatus(roomId: string, currentPlayerId: string) {
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     window.addEventListener('pagehide', handlePageHide);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('pagehide', handlePageHide);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
       safeUpdateOffline();
     };
   }, [roomId, currentPlayerId]);

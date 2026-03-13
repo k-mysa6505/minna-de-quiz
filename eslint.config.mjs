@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generated JavaScript from functions/src; lint source TypeScript instead.
+    "functions/lib/**",
   ]),
 ]);
 

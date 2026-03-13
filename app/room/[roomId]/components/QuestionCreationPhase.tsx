@@ -3,11 +3,12 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { createQuestion, getQuestionProgress, getQuestions } from '@/lib/services/questionService';
+import { createQuestion, getQuestionProgress } from '@/lib/services/questionService';
 import { uploadQuestionImage } from '@/lib/services/storageService';
-import { initializeGame } from '@/lib/services/gameService';
-import { updateRoomStatus } from '@/lib/services/roomService';
+import { initializeAndStartPlayingFlow } from '@/lib/services/roomFlowService';
+import { runServiceAction } from '@/lib/services/serviceAction';
 import type { Player, QuestionFormData } from '@/types';
+import { Modal } from './Modal';
 
 interface QuestionCreationPhaseProps {
   roomId: string;
@@ -59,18 +60,15 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
 
   useEffect(() => {
     const checkProgress = async () => {
-      try {
-        const progressData = await getQuestionProgress(roomId);
-        setProgress(progressData);
+      const progressData = await runServiceAction('questionCreation.progress', () => getQuestionProgress(roomId));
+      if (!progressData) {
+        return;
+      }
 
-        if (progressData.created === progressData.total && progressData.total > 0) {
-          const allQuestions = await getQuestions(roomId);
-          const questionIds = allQuestions.map(q => q.questionId);
-          await initializeGame(roomId, questionIds);
-          await updateRoomStatus(roomId, 'playing');
-        }
-      } catch (error) {
-        console.error('Failed to get progress:', error);
+      setProgress(progressData);
+
+      if (progressData.created === progressData.total && progressData.total > 0) {
+        await runServiceAction('questionCreation.startPlaying', () => initializeAndStartPlayingFlow(roomId));
       }
     };
 
@@ -109,26 +107,33 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
     setShowConfirmModal(false);
     setIsSubmitting(true);
 
-    try {
-      let imageUrl: string | undefined;
-      if (imageFile) {
-        imageUrl = await uploadQuestionImage(roomId, currentPlayerId, imageFile);
-      }
-
-      const questionData: QuestionFormData = {
-        text: questionText,
-        imageUrl,
-        choices: choices as [string, string, string, string],
-        correctAnswer: correctAnswer as 0 | 1 | 2 | 3,
-      };
-
-      await createQuestion(roomId, currentPlayerId, questionData);
-      setHasCreated(true);
-    } catch (error) {
-      console.error('Failed to create question:', error);
-    } finally {
-      setIsSubmitting(false);
+    let imageUrl: string | undefined;
+    if (imageFile) {
+      imageUrl = await runServiceAction('questionCreation.uploadImage', () =>
+        uploadQuestionImage(roomId, currentPlayerId, imageFile)
+      );
     }
+
+    const questionData: QuestionFormData = {
+      text: questionText,
+      imageUrl,
+      choices: choices as [string, string, string, string],
+      correctAnswer: correctAnswer as 0 | 1 | 2 | 3,
+    };
+
+    const created = await runServiceAction(
+      'questionCreation.createQuestion',
+      async () => {
+        await createQuestion(roomId, currentPlayerId, questionData);
+        return true;
+      },
+      { fallback: false }
+    );
+    if (created) {
+      setHasCreated(true);
+    }
+
+    setIsSubmitting(false);
   };
 
   if (hasCreated) {
@@ -193,11 +198,10 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
             {choices.map((choice, index) => (
               <div
                 key={index}
-                className={`flex items-center space-x-3 p-2 rounded-md border-2 transition-all ${
-                  correctAnswer === index
+                className={`flex items-center space-x-3 p-2 rounded-md border-2 transition-all ${correctAnswer === index
                     ? `${CHOICE_COLORS[index].bgSelected} ${CHOICE_COLORS[index].borderSelected}`
                     : `${CHOICE_COLORS[index].bg} ${CHOICE_COLORS[index].border}`
-                }`}
+                  }`}
               >
                 <input
                   type="radio"
@@ -240,75 +244,69 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
 
       {/* 確認モーダル */}
       {showConfirmModal && (
-        <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50"
-          onClick={() => setShowConfirmModal(false)}
+        <Modal
+          onClose={() => setShowConfirmModal(false)}
+          panelClassName="max-w-md w-full max-h-[80vh] overflow-y-auto p-8"
         >
-          <div
-            className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border border-slate-700 p-8 max-w-md w-full max-h-[80vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-2xl font-bold text-white mb-6 text-center">
-              この内容で問題を作成しますか？
-            </h3>
+          <h3 className="text-2xl font-bold text-white mb-6 text-center">
+            この内容で問題を作成しますか？
+          </h3>
 
-            <div className="space-y-4 mb-6">
-              <div>
-                <p className="text-sm text-slate-400 mb-2">問題文</p>
-                <p className="text-white bg-slate-700/50 p-3 rounded-lg">{questionText}</p>
-              </div>
-
-              {imagePreview && (
-                <div>
-                  <p className="text-sm text-slate-400 mb-2">画像</p>
-                  <Image
-                    src={imagePreview}
-                    alt="Preview"
-                    className="w-full rounded-lg"
-                    width={400}
-                    height={225}
-                    unoptimized
-                  />
-                </div>
-              )}
-
-              <div>
-                <p className="text-sm text-slate-400 mb-2">選択肢</p>
-                <div className="space-y-2">
-                  {choices.map((choice, index) => (
-                    <div
-                      key={index}
-                      className={`p-3 rounded-lg border-2 ${
-                        correctAnswer === index
-                          ? `${CHOICE_COLORS[index].bgSelected} ${CHOICE_COLORS[index].borderSelected} text-white font-bold`
-                          : `${CHOICE_COLORS[index].bg} ${CHOICE_COLORS[index].border} text-slate-200`
-                      }`}
-                    >
-                      {index + 1}. {choice}
-                      {correctAnswer === index && ' ✓'}
-                    </div>
-                  ))}
-                </div>
-              </div>
+          <div className="space-y-4 mb-6">
+            <div>
+              <p className="text-sm text-slate-400 mb-2">問題文</p>
+              <p className="text-white bg-slate-700/50 p-3 rounded-lg">{questionText}</p>
             </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowConfirmModal(false)}
-                className="flex-1 bg-slate-700 text-white font-medium py-3 px-4 rounded-md transition-all"
-              >
-                戻る
-              </button>
-              <button
-                onClick={handleConfirmSubmit}
-                disabled={isSubmitting}
-                className="flex-1 bg-blue-600 disabled:bg-slate-600 text-white font-semibold py-3 px-4 rounded-md transition-all disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? '作成中...' : '作成する'}
-              </button>
+            {imagePreview && (
+              <div>
+                <p className="text-sm text-slate-400 mb-2">画像</p>
+                <Image
+                  src={imagePreview}
+                  alt="Preview"
+                  className="w-full rounded-lg"
+                  width={400}
+                  height={225}
+                  unoptimized
+                />
+              </div>
+            )}
+
+            <div>
+              <p className="text-sm text-slate-400 mb-2">選択肢</p>
+              <div className="space-y-2">
+                {choices.map((choice, index) => (
+                  <div
+                    key={index}
+                    className={`p-3 rounded-lg border-2 ${correctAnswer === index
+                        ? `${CHOICE_COLORS[index].bgSelected} ${CHOICE_COLORS[index].borderSelected} text-white font-bold`
+                        : `${CHOICE_COLORS[index].bg} ${CHOICE_COLORS[index].border} text-slate-200`
+                      }`}
+                  >
+                    {index + 1}. {choice}
+                    {correctAnswer === index && ' ✓'}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowConfirmModal(false)}
+              className="flex-1 bg-slate-700 text-white font-medium py-3 px-4 rounded-md transition-all"
+            >
+              戻る
+            </button>
+            <button
+              onClick={handleConfirmSubmit}
+              disabled={isSubmitting}
+              className="flex-1 bg-blue-600 disabled:bg-slate-600 text-white font-semibold py-3 px-4 rounded-md transition-all disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? '作成中...' : '作成する'}
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
   );

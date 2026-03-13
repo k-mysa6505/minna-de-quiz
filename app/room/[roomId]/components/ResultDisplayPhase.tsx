@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Player, Answer, GameState, Question } from '@/types';
 
 interface ResultDisplayPhaseProps {
@@ -38,6 +38,19 @@ const CHOICE_COLORS = [
   },
 ];
 
+function toTimestamp(value: unknown): number {
+  if (value && typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
+    return value.toDate().getTime();
+  }
+  return 0;
+}
+
+function sortCorrectAnswers(answers: Answer[]): Answer[] {
+  return answers
+    .filter((answer) => answer.isCorrect)
+    .sort((a, b) => toTimestamp(a.answeredAt) - toTimestamp(b.answeredAt));
+}
+
 export function ResultDisplayPhase({
   gameState,
   currentQuestion,
@@ -53,6 +66,13 @@ export function ResultDisplayPhase({
   const [showPredictionResult, setShowPredictionResult] = useState(false);
   const [showNextButton, setShowNextButton] = useState(false);
 
+  const correctAnswers = useMemo(() => sortCorrectAnswers(answers), [answers]);
+  const correctAnswerCount = correctAnswers.length;
+  const questionStartTime = useMemo(
+    () => toTimestamp(gameState.questionStartedAt),
+    [gameState.questionStartedAt]
+  );
+
   // 結果表示時に回答者一覧を表示
   useEffect(() => {
     setShowAnswerReveal(true);
@@ -61,17 +81,6 @@ export function ResultDisplayPhase({
   // 回答者を順番に表示
   useEffect(() => {
     if (showAnswerReveal && answers.length > 0) {
-      const correctAnswers = answers.filter(a => a.isCorrect)
-        .sort((a, b) => {
-          const timeA = typeof a.answeredAt === 'object' && 'toDate' in a.answeredAt
-            ? a.answeredAt.toDate().getTime()
-            : 0;
-          const timeB = typeof b.answeredAt === 'object' && 'toDate' in b.answeredAt
-            ? b.answeredAt.toDate().getTime()
-            : 0;
-          return timeA - timeB; // 速い順（1位から表示）
-        });
-
       if (correctAnswers.length === 0) {
         // 正解者が0人の場合は2秒後に出題者の予想を表示
         const timer = setTimeout(() => setShowPredictionResult(true), 2000);
@@ -95,7 +104,7 @@ export function ResultDisplayPhase({
 
       return () => clearInterval(interval);
     }
-  }, [showAnswerReveal, answers]);
+  }, [showAnswerReveal, answers.length, correctAnswers]);
 
   // 出題者の予想が表示されたら3秒後に準備完了ボタンを表示
   useEffect(() => {
@@ -154,64 +163,41 @@ export function ResultDisplayPhase({
           {/* 正解者リスト */}
           <div className="bg-gradient-to-br from-slate-800/70 to-slate-900/70 rounded-xl border border-slate-700/50 p-6 space-y-3">
             <p className="text-sm text-slate-300 mb-3 text-center">正解者一覧</p>
-            {answers.filter(a => a.isCorrect).length === 0 ? (
+            {correctAnswerCount === 0 ? (
               <div className="text-center text-slate-400 italic py-4">
                 正解者なし
               </div>
             ) : (
-              (() => {
-                const correctAnswers = answers
-                  .filter(a => a.isCorrect)
-                  .sort((a, b) => {
-                    const timeA = typeof a.answeredAt === 'object' && 'toDate' in a.answeredAt
-                      ? a.answeredAt.toDate().getTime()
-                      : 0;
-                    const timeB = typeof b.answeredAt === 'object' && 'toDate' in b.answeredAt
-                      ? b.answeredAt.toDate().getTime()
-                      : 0;
-                    return timeA - timeB; // 速い順（1位が上）
-                  });
+              correctAnswers.map((answer, idx) => {
+                const player = players.find((p) => p.playerId === answer.playerId);
+                const isFastest = idx === 0;
+                const isRevealed = revealedPlayers.includes(answer.playerId);
 
-                // 問題開始時刻を取得
-                const questionStartTime = gameState.questionStartedAt && typeof gameState.questionStartedAt === 'object' && 'toDate' in gameState.questionStartedAt
-                  ? gameState.questionStartedAt.toDate().getTime()
-                  : 0;
+                if (!isRevealed) return null;
 
-                return correctAnswers.map((answer, idx) => {
-                  const player = players.find(p => p.playerId === answer.playerId);
-                  const isFastest = idx === 0; // 1位（最速）
-                  const isRevealed = revealedPlayers.includes(answer.playerId);
+                const answerTime = toTimestamp(answer.answeredAt);
+                const elapsedMs = questionStartTime > 0 ? answerTime - questionStartTime : 0;
+                const seconds = Math.floor(elapsedMs / 1000);
+                const centiseconds = Math.floor((elapsedMs % 1000) / 10);
+                const timeDisplay = `${seconds}''${centiseconds.toString().padStart(2, '0')}`;
 
-                  if (!isRevealed) return null;
-
-                  // 回答開始からの経過時間を計算
-                  const answerTime = typeof answer.answeredAt === 'object' && 'toDate' in answer.answeredAt
-                    ? answer.answeredAt.toDate().getTime()
-                    : 0;
-                  const elapsedMs = questionStartTime > 0 ? answerTime - questionStartTime : 0;
-                  const seconds = Math.floor(elapsedMs / 1000);
-                  const centiseconds = Math.floor((elapsedMs % 1000) / 10);
-                  const timeDisplay = `${seconds}''${centiseconds.toString().padStart(2, '0')}`;
-
-                  return (
-                    <div
-                      key={answer.playerId}
-                      className="flex justify-between items-center px-4 py-1 animate-fade-in"
-                    >
-                      <div className="flex items-center gap-10">
-                        <span className={`font-bold text-lg ${isFastest ? 'text-yellow-400' : 'text-white'
-                          }`}>
-                          {idx + 1}．{player?.nickname || 'unknown'}
-                        </span>
-                        <span className="text-ms text-slate-300 italic">
-                          {timeDisplay}
-                        </span>
-                      </div>
-                      <span className="text-emerald-400 font-bold">+10pt</span>
+                return (
+                  <div
+                    key={answer.playerId}
+                    className="flex justify-between items-center px-4 py-1 animate-fade-in"
+                  >
+                    <div className="flex items-center gap-10">
+                      <span className={`font-bold text-lg ${isFastest ? 'text-yellow-400' : 'text-white'}`}>
+                        {idx + 1}．{player?.nickname || 'unknown'}
+                      </span>
+                      <span className="text-ms text-slate-300 italic">
+                        {timeDisplay}
+                      </span>
                     </div>
-                  );
-                });
-              })()
+                    <span className="text-emerald-400 font-bold">+10pt</span>
+                  </div>
+                );
+              })
             )}
           </div>
 
@@ -225,7 +211,7 @@ export function ResultDisplayPhase({
                     {players.find(p => p.playerId === currentQuestion.authorId)?.nickname || 'unknown'}
                   </p>
                   <p className="text-sm text-slate-300 italic">
-                    予想: {prediction.predictedCount}人 / 実際: {answers.filter(a => a.isCorrect).length}人
+                    予想: {prediction.predictedCount}人 / 実際: {correctAnswerCount}人
                   </p>
                 </div>
                 <span className={prediction.isCorrect ? "text-emerald-400 font-bold" : "text-gray-400 font-bold"}>
