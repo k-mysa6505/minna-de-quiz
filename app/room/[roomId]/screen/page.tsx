@@ -644,17 +644,17 @@ export default function RoomScreenPage() {
         )}
 
         {state.room.status === 'finished' && (
-          <section className="rounded-2xl border border-slate-700 bg-slate-900/60 p-6 md:p-8">
-            <h2 className="text-2xl md:text-3xl font-bold mb-4">最終ランキング</h2>
+          <section className="p-6 md:p-8">
+            <h2 className="text-4xl md:text-4xl font-bold mb-4">総合ランキング</h2>
             <div className="space-y-3">
               {sortedPlayers.map((player, index) => (
                 <div
                   key={player.playerId}
                   className="flex items-center justify-between rounded-lg border border-slate-700 bg-slate-800/60 px-4 py-3"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 text-lg md:text-2xl">
                     <span className="text-emerald-300 font-black w-8">#{index + 1}</span>
-                    <span className="font-semibold">{player.nickname}</span>
+                    <span className="font-semibold italic">{player.nickname}</span>
                   </div>
                   <span className="text-xl font-black text-white">{player.score} pt</span>
                 </div>
