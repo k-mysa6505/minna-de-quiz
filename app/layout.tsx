@@ -15,7 +15,7 @@ const notoSansJp = Noto_Sans_JP({
 });
 
 export const metadata: Metadata = {
-  title: "みんクイ - Let's Explore The Quiz",
+  title: "みんクイ - みんなでクイズ",
   description: "みんなで作ってみんなで遊ぶクイズゲーム",
 };
 

@@ -49,11 +49,18 @@ export function subscribeToRoomReactions(
     const reactionsRef = collection(db, 'rooms', roomId, 'reactions');
     const q = query(reactionsRef, orderBy('createdAt', 'desc'), limit(maxItems));
 
-    return onSnapshot(q, (snapshot) => {
-        const reactions: RoomReaction[] = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...(doc.data() as Omit<RoomReaction, 'id'>),
-        }));
-        callback(reactions);
-    });
+    return onSnapshot(
+        q,
+        (snapshot) => {
+            const reactions: RoomReaction[] = snapshot.docs.map((doc) => ({
+                id: doc.id,
+                ...(doc.data() as Omit<RoomReaction, 'id'>),
+            }));
+            callback(reactions);
+        },
+        (error) => {
+            console.error('Failed to subscribe to reactions:', error);
+            callback([]);
+        }
+    );
 }

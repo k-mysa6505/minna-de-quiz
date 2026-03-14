@@ -7,7 +7,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { doc, collection, onSnapshot, query, where } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import {
   getAnswers,
   getPrediction,
@@ -220,16 +220,14 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
             try {
               const allAnswers = await getAnswers(roomId, question.questionId);
               const pred = await getPrediction(roomId, question.questionId);
-              if (pred) {
-                setAnswers(allAnswers);
-                setCurrentAnswerCount(allAnswers.length + 1);
-                setPrediction(pred);
-                setShowResults(true);
+              setAnswers(allAnswers);
+              setCurrentAnswerCount(allAnswers.length + (pred ? 1 : 0));
+              setPrediction(pred);
+              setShowResults(true);
 
-                if (!hasCalculatedScoreRef.current) {
-                  hasCalculatedScoreRef.current = true;
-                  await calculateScores.current(allAnswers, pred);
-                }
+              if (pred && !hasCalculatedScoreRef.current) {
+                hasCalculatedScoreRef.current = true;
+                await calculateScores.current(allAnswers, pred);
               }
             } catch (err) {
               console.error('Failed to load results:', err);
@@ -253,6 +251,7 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
   // ────────────────────────────────────────────
   useEffect(() => {
     if (!currentQuestion) return;
+    if (!auth.currentUser) return;
 
     const answersRef = collection(db, 'rooms', roomId, 'answers');
     const myAnswerQuery = query(
@@ -261,12 +260,18 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
       where('playerId', '==', currentPlayerId)
     );
 
-    const unsubscribe = onSnapshot(myAnswerQuery, (snap) => {
-      const isAuthor = currentQuestion.authorId === currentPlayerId;
-      if (!isAuthor) {
-        setHasSubmittedAnswer(!snap.empty);
+    const unsubscribe = onSnapshot(
+      myAnswerQuery,
+      (snap) => {
+        const isAuthor = currentQuestion.authorId === currentPlayerId;
+        if (!isAuthor) {
+          setHasSubmittedAnswer(!snap.empty);
+        }
+      },
+      (error) => {
+        console.error('Failed to subscribe to my answers:', error);
       }
-    });
+    );
 
     return () => unsubscribe();
   }, [roomId, currentQuestion, currentPlayerId]);
@@ -276,6 +281,7 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
   // ────────────────────────────────────────────
   useEffect(() => {
     if (!currentQuestion) return;
+    if (!auth.currentUser) return;
 
     // answers と predictions を両方監視し、合計で currentAnswerCount を更新
     // 作問者の予想も「回答済み」としてカウントする
@@ -288,10 +294,17 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
       where('questionId', '==', currentQuestion.questionId)
     );
 
-    const unsubAnswers = onSnapshot(answersQuery, (snap) => {
-      answerCount = snap.size;
-      setCurrentAnswerCount(answerCount + predCount);
-    });
+    const unsubAnswers = onSnapshot(
+      answersQuery,
+      (snap) => {
+        answerCount = snap.size;
+        setAnswers(snap.docs.map((doc) => doc.data() as Answer));
+        setCurrentAnswerCount(answerCount + predCount);
+      },
+      (error) => {
+        console.error('Failed to subscribe to answers:', error);
+      }
+    );
 
     const predictionsRef = collection(db, 'rooms', roomId, 'predictions');
     const predQuery = query(
@@ -299,14 +312,20 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
       where('questionId', '==', currentQuestion.questionId)
     );
 
-    const unsubPred = onSnapshot(predQuery, (snap) => {
-      predCount = snap.empty ? 0 : 1;
-      setCurrentAnswerCount(answerCount + predCount);
-      if (!snap.empty) {
-        setHasSubmittedPrediction(true);
-        setPrediction(snap.docs[0].data() as Prediction);
+    const unsubPred = onSnapshot(
+      predQuery,
+      (snap) => {
+        predCount = snap.empty ? 0 : 1;
+        setCurrentAnswerCount(answerCount + predCount);
+        if (!snap.empty) {
+          setHasSubmittedPrediction(true);
+          setPrediction(snap.docs[0].data() as Prediction);
+        }
+      },
+      (error) => {
+        console.error('Failed to subscribe to predictions:', error);
       }
-    });
+    );
 
     return () => {
       unsubAnswers();

@@ -23,6 +23,7 @@ type ScreenState = {
   creatingCompletedAuthorIds: string[];
   currentAnswers: Answer[];
   currentPrediction: Prediction | null;
+  revealDataQuestionId: string | null;
   reactions: RoomReaction[];
   error: string;
 };
@@ -65,6 +66,7 @@ export default function RoomScreenPage() {
     creatingCompletedAuthorIds: [],
     currentAnswers: [],
     currentPrediction: null,
+    revealDataQuestionId: null,
     reactions: [],
     error: '',
   });
@@ -157,8 +159,16 @@ export default function RoomScreenPage() {
               ...prev,
               currentAnswers,
               currentPrediction,
+              revealDataQuestionId: currentQuestion.questionId,
             }));
           }
+        } else if (!cancelled) {
+          setState((prev) => ({
+            ...prev,
+            currentAnswers: [],
+            currentPrediction: null,
+            revealDataQuestionId: null,
+          }));
         }
       }
     };
@@ -188,16 +198,45 @@ export default function RoomScreenPage() {
   }, [state.currentAnswers]);
 
   const correctAnswers = useMemo(() => {
-    return [...state.currentAnswers]
+    const sorted = [...state.currentAnswers]
       .filter((answer) => answer.isCorrect)
       .sort((a, b) => toTimestamp(a.answeredAt) - toTimestamp(b.answeredAt));
+
+    const seen = new Set<string>();
+    return sorted.filter((answer) => {
+      if (seen.has(answer.playerId)) {
+        return false;
+      }
+      seen.add(answer.playerId);
+      return true;
+    });
   }, [state.currentAnswers]);
+
+  const currentQuestionId = state.currentQuestion?.questionId;
+
+  const isRevealDataReady = useMemo(() => {
+    if (state.gameState?.phase !== 'revealing' || !currentQuestionId) {
+      return false;
+    }
+    return state.revealDataQuestionId === currentQuestionId;
+  }, [state.gameState?.phase, currentQuestionId, state.revealDataQuestionId]);
 
   const correctAnswersKey = useMemo(() => {
     return correctAnswers
       .map((answer) => `${answer.playerId}:${toTimestamp(answer.answeredAt)}`)
       .join('|');
   }, [correctAnswers]);
+
+  const correctAnswerPlayerIds = useMemo(() => {
+    if (!correctAnswersKey) {
+      return [] as string[];
+    }
+
+    return correctAnswersKey
+      .split('|')
+      .map((entry) => entry.split(':')[0])
+      .filter((playerId) => playerId.length > 0);
+  }, [correctAnswersKey]);
 
   const visibleRankingAnswers = useMemo(() => {
     return correctAnswers.slice(0, MAX_RANKING_PLAYERS);
@@ -217,33 +256,55 @@ export default function RoomScreenPage() {
 
   const hiddenFinishedPlayersCount = Math.max(0, sortedPlayers.length - visibleFinishedPlayers.length);
 
+  const revealReadyCount = state.gameState?.playersReady?.length ?? 0;
+  const revealReadyTotal = state.players.length;
+  const revealReadyPercent = revealReadyTotal > 0
+    ? Math.min(100, Math.round((revealReadyCount / revealReadyTotal) * 100))
+    : 0;
+
   const questionStartTime = useMemo(() => {
     return toTimestamp(state.gameState?.questionStartedAt);
   }, [state.gameState?.questionStartedAt]);
 
   useEffect(() => {
-    if (state.gameState?.phase !== 'revealing' || !state.currentQuestion) {
-      setRevealingPhase('answer');
-      setRevealedPlayers([]);
-      return;
+    let resetTimer: ReturnType<typeof setTimeout> | null = null;
+
+    if (state.gameState?.phase !== 'revealing' || !currentQuestionId) {
+      resetTimer = setTimeout(() => {
+        setRevealingPhase('answer');
+        setRevealedPlayers([]);
+      }, 0);
+
+      return () => {
+        if (resetTimer) {
+          clearTimeout(resetTimer);
+        }
+      };
     }
 
-    setRevealingPhase('answer');
-    setRevealedPlayers([]);
+    resetTimer = setTimeout(() => {
+      setRevealingPhase('answer');
+      setRevealedPlayers([]);
+    }, 0);
 
     const timer = setTimeout(() => {
       setRevealingPhase('ranking');
     }, 2200);
 
-    return () => clearTimeout(timer);
-  }, [state.gameState?.phase, state.currentQuestion?.questionId]);
+    return () => {
+      if (resetTimer) {
+        clearTimeout(resetTimer);
+      }
+      clearTimeout(timer);
+    };
+  }, [state.gameState?.phase, currentQuestionId]);
 
   useEffect(() => {
-    if (revealingPhase !== 'ranking' || state.gameState?.phase !== 'revealing') {
+    if (revealingPhase !== 'ranking' || state.gameState?.phase !== 'revealing' || !isRevealDataReady) {
       return;
     }
 
-    if (correctAnswers.length === 0) {
+    if (correctAnswerPlayerIds.length === 0) {
       const timer = setTimeout(() => setRevealingPhase('prediction'), 2000);
       return () => clearTimeout(timer);
     }
@@ -251,14 +312,14 @@ export default function RoomScreenPage() {
     let index = 0;
     let predictionTimer: ReturnType<typeof setTimeout> | null = null;
     const interval = setInterval(() => {
-      if (index < correctAnswers.length) {
-        const currentAnswer = correctAnswers[index];
-        if (currentAnswer?.playerId) {
+      if (index < correctAnswerPlayerIds.length) {
+        const playerId = correctAnswerPlayerIds[index];
+        if (playerId) {
           setRevealedPlayers((prev) => {
-            if (prev.includes(currentAnswer.playerId)) {
+            if (prev.includes(playerId)) {
               return prev;
             }
-            return [...prev, currentAnswer.playerId];
+            return [...prev, playerId];
           });
         }
         index += 1;
@@ -274,16 +335,25 @@ export default function RoomScreenPage() {
         clearTimeout(predictionTimer);
       }
     };
-  }, [revealingPhase, state.gameState?.phase, correctAnswersKey]);
+  }, [revealingPhase, state.gameState?.phase, isRevealDataReady, correctAnswerPlayerIds]);
 
   useEffect(() => {
+    let resetTimer: ReturnType<typeof setTimeout> | null = null;
+
     if (revealingPhase !== 'prediction' || state.gameState?.phase !== 'revealing') {
-      setShowPredictedCount(false);
-      setShowActualCount(false);
-      setShowPredictionBonus(false);
-      setAnimatedPredictedCount(0);
-      setAnimatedActualCount(0);
-      return;
+      resetTimer = setTimeout(() => {
+        setShowPredictedCount(false);
+        setShowActualCount(false);
+        setShowPredictionBonus(false);
+        setAnimatedPredictedCount(0);
+        setAnimatedActualCount(0);
+      }, 0);
+
+      return () => {
+        if (resetTimer) {
+          clearTimeout(resetTimer);
+        }
+      };
     }
 
     const timers: ReturnType<typeof setTimeout>[] = [];
@@ -338,6 +408,9 @@ export default function RoomScreenPage() {
     );
 
     return () => {
+      if (resetTimer) {
+        clearTimeout(resetTimer);
+      }
       timers.forEach((timer) => clearTimeout(timer));
       intervals.forEach((interval) => clearInterval(interval));
     };
@@ -603,7 +676,9 @@ export default function RoomScreenPage() {
 
                     <div className="rounded-2xl border border-violet-400/40 bg-violet-500/10 px-5 py-4">
                       <p className="text-sm md:text-base text-violet-200 mb-3">正解者一覧（先着順）</p>
-                      {correctAnswers.length === 0 ? (
+                      {!isRevealDataReady ? (
+                        <p className="text-slate-300">正解データを集計中です...</p>
+                      ) : correctAnswers.length === 0 ? (
                         <p className="text-slate-300">正解者なし</p>
                       ) : (
                         <div className="space-y-2">
@@ -623,7 +698,7 @@ export default function RoomScreenPage() {
 
                             return (
                               <div
-                                key={answer.playerId}
+                                key={`${answer.playerId}-${toTimestamp(answer.answeredAt)}`}
                                 className="flex items-center justify-between rounded-lg border border-violet-300/20 bg-slate-900/40 px-4 py-2 animate-fade-in"
                               >
                                 <div className="flex items-center gap-6">
@@ -684,6 +759,21 @@ export default function RoomScreenPage() {
                       )}
                     </div>
                   </>
+                )}
+
+                {revealingPhase === 'prediction' && showPredictionBonus && (
+                  <div className="rounded-xl border border-slate-700/70 bg-slate-900/40 px-4 py-3">
+                    <div className="flex items-center justify-between text-sm md:text-base">
+                      <span className="text-slate-300">次の問題への準備状況</span>
+                      <span className="font-bold text-emerald-300">{revealReadyCount}/{revealReadyTotal}人</span>
+                    </div>
+                    <div className="mt-2 h-2.5 rounded-full bg-slate-700/80 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500"
+                        style={{ width: `${revealReadyPercent}%` }}
+                      />
+                    </div>
+                  </div>
                 )}
               </div>
             )}

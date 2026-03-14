@@ -23,6 +23,7 @@ export interface GameState {
   // --- Phase 3で追加 ---
   phase?: GamePhase;           // 現在の詳細フェーズ（Functionsが管理）
   phaseDeadline?: Timestamp;   // フェーズの終了予定時刻（タイムアウト管理用）
+  revealStartedAt?: Timestamp; // 結果表示フェーズが始まった時刻（最低表示時間の制御用）
   onlinePlayerIds?: string[];  // Functionsが維持するオンラインプレイヤーID一覧
 }
 

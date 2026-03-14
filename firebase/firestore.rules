@@ -43,7 +43,8 @@ service cloud.firestore {
       }
 
       match /reactions/{reactionId} {
-        allow read: if request.auth != null;
+        // スクリーン表示端末（非プレイヤー）でも購読できるよう read は公開
+        allow read: if true;
         allow create: if request.auth != null
           && request.resource.data.roomId == roomId
           && request.resource.data.userId is string

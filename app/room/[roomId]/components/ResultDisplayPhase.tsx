@@ -47,9 +47,19 @@ function toTimestamp(value: unknown): number {
 }
 
 function sortCorrectAnswers(answers: Answer[]): Answer[] {
-  return answers
+  const sorted = answers
     .filter((answer) => answer.isCorrect)
     .sort((a, b) => toTimestamp(a.answeredAt) - toTimestamp(b.answeredAt));
+
+  // 同一プレイヤーの多重送信が混在しても最速の1件だけを採用する
+  const seen = new Set<string>();
+  return sorted.filter((answer) => {
+    if (seen.has(answer.playerId)) {
+      return false;
+    }
+    seen.add(answer.playerId);
+    return true;
+  });
 }
 
 export function ResultDisplayPhase({
@@ -83,31 +93,39 @@ export function ResultDisplayPhase({
 
   // 回答者を順番に表示
   useEffect(() => {
-    if (showAnswerReveal && answers.length > 0) {
-      if (correctAnswers.length === 0) {
-        // 正解者が0人の場合は2秒後に出題者の予想を表示
-        const timer = setTimeout(() => setShowPredictionResult(true), 2000);
-        return () => clearTimeout(timer);
-      }
-
-      let index = 0;
-      const interval = setInterval(() => {
-        if (index < correctAnswers.length) {
-          const currentAnswer = correctAnswers[index];
-          if (currentAnswer && currentAnswer.playerId) {
-            setRevealedPlayers(prev => [...prev, currentAnswer.playerId]);
-          }
-          index++;
-        } else {
-          clearInterval(interval);
-          // 全員表示後、1秒待ってから出題者の予想結果を表示
-          setTimeout(() => setShowPredictionResult(true), 1000);
-        }
-      }, 500);
-
-      return () => clearInterval(interval);
+    if (!showAnswerReveal) {
+      return;
     }
-  }, [showAnswerReveal, answers.length, correctAnswers]);
+
+    if (correctAnswers.length === 0) {
+      // 正解者が0人の場合は2秒後に出題者の予想を表示
+      const timer = setTimeout(() => setShowPredictionResult(true), 2000);
+      return () => clearTimeout(timer);
+    }
+
+    let index = 0;
+    let predictionTimer: ReturnType<typeof setTimeout> | null = null;
+    const interval = setInterval(() => {
+      if (index < correctAnswers.length) {
+        const currentAnswer = correctAnswers[index];
+        if (currentAnswer && currentAnswer.playerId) {
+          setRevealedPlayers(prev => [...prev, currentAnswer.playerId]);
+        }
+        index++;
+      } else {
+        clearInterval(interval);
+        // 全員表示後、1秒待ってから出題者の予想結果を表示
+        predictionTimer = setTimeout(() => setShowPredictionResult(true), 1000);
+      }
+    }, 500);
+
+    return () => {
+      clearInterval(interval);
+      if (predictionTimer) {
+        clearTimeout(predictionTimer);
+      }
+    };
+  }, [showAnswerReveal, correctAnswers]);
 
   // 出題者の予想が表示されたら3秒後に準備完了ボタンを表示
   useEffect(() => {
@@ -247,7 +265,7 @@ export function ResultDisplayPhase({
 
                 return (
                   <div
-                    key={answer.playerId}
+                    key={`${answer.playerId}-${toTimestamp(answer.answeredAt)}`}
                     className="flex justify-between items-center px-4 py-1 animate-fade-in"
                   >
                     <div className="flex items-center gap-10">
@@ -266,22 +284,26 @@ export function ResultDisplayPhase({
           </div>
 
           {/* 出題者の予想結果 */}
-          {prediction && showPredictionResult && (
+          {showPredictionResult && (
             <div className="bg-gradient-to-br from-purple-900/20 to-purple-800/30 rounded-xl border border-purple-600/50 p-6 animate-fade-in">
               <p className="text-sm text-purple-300 mb-3 text-center">出題者の予想</p>
-              <div className="flex justify-between items-center px-4 py-1">
-                <div className="flex items-center gap-10">
-                  <p className="text-white font-bold">
-                    {players.find(p => p.playerId === currentQuestion.authorId)?.nickname || 'unknown'}
-                  </p>
-                  <p className="text-sm text-slate-300 italic">
-                    予想: {prediction.predictedCount}人 / 実際: {correctAnswerCount}人
-                  </p>
+              {prediction ? (
+                <div className="flex justify-between items-center px-4 py-1">
+                  <div className="flex items-center gap-10">
+                    <p className="text-white font-bold">
+                      {players.find(p => p.playerId === currentQuestion.authorId)?.nickname || 'unknown'}
+                    </p>
+                    <p className="text-sm text-slate-300 italic">
+                      予想: {prediction.predictedCount}人 / 実際: {correctAnswerCount}人
+                    </p>
+                  </div>
+                  <span className={prediction.isCorrect ? "text-emerald-400 font-bold" : "text-gray-400 font-bold"}>
+                    {prediction.isCorrect ? '+20pt' : '+0pt'}
+                  </span>
                 </div>
-                <span className={prediction.isCorrect ? "text-emerald-400 font-bold" : "text-gray-400 font-bold"}>
-                  {prediction.isCorrect ? '+20pt' : '+0pt'}
-                </span>
-              </div>
+              ) : (
+                <p className="text-center text-slate-300 italic py-2">予想結果を集計中です...</p>
+              )}
             </div>
           )}
 
