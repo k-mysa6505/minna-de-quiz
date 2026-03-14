@@ -27,6 +27,13 @@ type ScreenState = {
   error: string;
 };
 
+const SCREEN_CHOICE_COLORS = [
+  { badgeBg: 'bg-blue-600' },
+  { badgeBg: 'bg-red-600' },
+  { badgeBg: 'bg-green-600' },
+  { badgeBg: 'bg-yellow-600' },
+];
+
 export default function RoomScreenPage() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -313,11 +320,16 @@ export default function RoomScreenPage() {
         )}
 
         {state.room.status === 'playing' && (
-          <section className="rounded-2xl border border-slate-700 bg-slate-900/60 p-6 md:p-8 space-y-6">
+          <section className="p-6 md:p-8 space-y-6">
             {state.gameState && (
-              <p className="text-sm text-slate-300">
-                問題 {state.gameState.currentQuestionIndex + 1} / {state.gameState.totalQuestions}
-              </p>
+              <div className="flex items-center justify-between gap-4 text-3xl">
+                <p className="text-slate-300">
+                  問題 {state.gameState.currentQuestionIndex + 1} / {state.gameState.totalQuestions}
+                </p>
+                <p className="text-slate-300 text-right italic">
+                  作問者：<span className="font-bold text-emerald-300">{currentAuthorName}</span>
+                </p>
+              </div>
             )}
 
             {!state.currentQuestion && <LoadingSpinner message="問題を読み込み中..." />}
@@ -338,15 +350,20 @@ export default function RoomScreenPage() {
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-4">
-                  {state.currentQuestion.choices.map((choice, index) => (
-                    <div
-                      key={`${choice}-${index}`}
-                      className="rounded-xl border border-slate-600 bg-slate-800/70 p-6 min-h-32 text-lg md:text-2xl font-semibold flex items-center"
-                    >
-                      <span className="text-emerald-300 mr-2">{index + 1}.</span>
-                      {choice}
-                    </div>
-                  ))}
+                  {state.currentQuestion.choices.map((choice, index) => {
+                    const choiceColor = SCREEN_CHOICE_COLORS[index] ?? SCREEN_CHOICE_COLORS[0];
+                    return (
+                      <div
+                        key={`${choice}-${index}`}
+                        className="rounded-xl border border-slate-600 bg-slate-800/70 p-6 min-h-32 text-lg md:text-2xl font-semibold flex items-center text-white"
+                      >
+                        <span className={`mr-4 inline-flex h-11 w-11 md:h-14 md:w-14 shrink-0 items-center justify-center rounded-full text-xl md:text-3xl font-black text-white ${choiceColor.badgeBg}`}>
+                          {index + 1}
+                        </span>
+                        {choice}
+                      </div>
+                    );
+                  })}
                 </div>
               </>
             )}
@@ -357,13 +374,16 @@ export default function RoomScreenPage() {
                 <div className="grid grid-cols-2 gap-4 md:gap-5">
                   {state.currentQuestion.choices.map((choice, index) => {
                     const isCorrect = index === state.currentQuestion?.correctAnswer;
+                    const choiceColor = SCREEN_CHOICE_COLORS[index] ?? SCREEN_CHOICE_COLORS[0];
                     return (
                       <div
                         key={`${choice}-${index}`}
-                        className={`rounded-2xl border-2 p-5 md:p-6 min-h-36 flex flex-col justify-between ${isCorrect ? 'border-emerald-300 bg-emerald-500/25 shadow-[0_0_24px_rgba(16,185,129,0.35)]' : 'border-slate-700 bg-slate-800/35 opacity-50'}`}
+                        className={`rounded-2xl border-2 p-5 md:p-6 min-h-36 flex flex-col justify-between text-white ${isCorrect ? 'border-emerald-300 bg-slate-800/60 ring-2 ring-emerald-300 shadow-[0_0_24px_rgba(16,185,129,0.35)]' : 'border-slate-700 bg-slate-800/35 opacity-50'}`}
                       >
-                        <div className="text-lg md:text-2xl font-bold leading-snug">
-                          <span className="mr-2 text-emerald-200">{index + 1}.</span>
+                        <div className="text-lg md:text-2xl font-bold leading-snug flex items-center">
+                          <span className={`mr-3 inline-flex h-10 w-10 md:h-12 md:w-12 shrink-0 items-center justify-center rounded-full text-lg md:text-2xl font-black text-white ${choiceColor.badgeBg}`}>
+                            {index + 1}
+                          </span>
                           {choice}
                         </div>
                         <div className="mt-4 text-sm md:text-lg text-slate-100 flex items-center gap-2">
