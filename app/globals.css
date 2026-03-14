@@ -24,7 +24,9 @@ body {
 }
 
 /* モバイルでも太字・斜体を確実に表示 */
-strong, b, .font-bold {
+strong,
+b,
+.font-bold {
   font-weight: 700 !important;
 }
 
@@ -32,7 +34,9 @@ strong, b, .font-bold {
   font-weight: 600 !important;
 }
 
-em, i, .italic {
+em,
+i,
+.italic {
   font-style: italic !important;
 }
 
@@ -60,6 +64,7 @@ em, i, .italic {
     opacity: 0;
     transform: translateY(-10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -68,4 +73,25 @@ em, i, .italic {
 
 .animate-fade-in {
   animation: fade-in 0.5s ease-out;
+}
+
+@keyframes float-up {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.9);
+  }
+
+  15% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-48px) scale(1.1);
+  }
+}
+
+.animate-float-up {
+  animation: float-up 0.9s ease-out forwards;
 }

@@ -58,6 +58,7 @@ export function ResultDisplayPhase({
   players,
   answers,
   prediction,
+  currentPlayerId,
   isReady,
   waitingForPlayers,
   handleNextQuestion,
@@ -122,24 +123,35 @@ export function ResultDisplayPhase({
   const totalPlayers = players.length;
   const allReady = readyCount >= totalPlayers && totalPlayers > 0;
 
+  const myAnswer = answers.find((answer) => answer.playerId === currentPlayerId);
+  const isAuthor = currentQuestion.authorId === currentPlayerId;
+
   if (useScreenMode) {
     return (
       <div className="space-y-6">
-        <div className="bg-slate-800/60 border border-slate-700/60 rounded-xl p-5 sm:p-6 text-center">
-          <h4 className="font-bold text-white text-xl sm:text-2xl">結果表示中</h4>
-          <p className="text-slate-300 text-sm sm:text-base mt-2">
-            詳細な結果はスクリーンに表示されています
-          </p>
+        <div className="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 sm:p-8 text-center">
+          <h4 className="font-bold text-white text-2xl sm:text-3xl">結果はスクリーンで発表中！</h4>
+          <p className="text-slate-300 text-sm sm:text-base mt-3">前（スクリーン）をご覧ください</p>
         </div>
 
-        {prediction && (
-          <div className="bg-slate-800/60 border border-slate-700/60 rounded-xl p-5 sm:p-6">
-            <p className="text-sm text-slate-300 mb-2">あなたの予想</p>
-            <p className="text-base sm:text-lg text-white font-semibold">
-              予想: {prediction.predictedCount}人 / 実際: {correctAnswerCount}人
-            </p>
-          </div>
-        )}
+        <div className="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 sm:p-8 text-center">
+          <p className="text-sm text-slate-300 mb-2">あなたの結果</p>
+          {!isAuthor && myAnswer?.isCorrect && (
+            <p className="text-2xl sm:text-3xl font-black text-emerald-300">正解（+100pt）</p>
+          )}
+          {!isAuthor && myAnswer && !myAnswer.isCorrect && (
+            <p className="text-2xl sm:text-3xl font-black text-rose-300">不正解</p>
+          )}
+          {isAuthor && prediction && (
+            <p className="text-xl sm:text-2xl font-bold text-violet-300">作問者の予想結果をスクリーンで確認中</p>
+          )}
+          {isAuthor && !prediction && (
+            <p className="text-xl sm:text-2xl font-bold text-slate-200">作問者として待機中</p>
+          )}
+          {!isAuthor && !myAnswer && (
+            <p className="text-xl sm:text-2xl font-bold text-slate-200">判定待ち...</p>
+          )}
+        </div>
 
         {showNextButton && (
           <div className="space-y-4">

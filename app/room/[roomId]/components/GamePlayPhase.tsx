@@ -17,6 +17,11 @@ interface GamePlayPhaseProps {
   timeLimit: number;
 }
 
+interface LocalReactionEffect {
+  id: number;
+  content: string;
+}
+
 const CHOICE_COLORS = [
   {
     bg: 'bg-blue-600/70',
@@ -74,6 +79,7 @@ export function GamePlayPhase({ roomId, players, currentPlayerId, useScreenMode,
 
   const currentPlayer = players.find((player) => player.playerId === currentPlayerId);
   const [lastReactionAt, setLastReactionAt] = useState(0);
+  const [reactionEffects, setReactionEffects] = useState<LocalReactionEffect[]>([]);
 
   const handleSendReaction = async (
     type: 'reaction' | 'message',
@@ -85,14 +91,24 @@ export function GamePlayPhase({ roomId, players, currentPlayerId, useScreenMode,
     }
 
     setLastReactionAt(eventTimestamp);
-    await sendRoomReaction({
-      roomId,
-      userId: currentPlayerId,
-      userName: currentPlayer.nickname,
-      type,
-      content,
-      questionId: currentQuestion?.questionId,
-    });
+    try {
+      await sendRoomReaction({
+        roomId,
+        userId: currentPlayerId,
+        userName: currentPlayer.nickname,
+        type,
+        content,
+        questionId: currentQuestion?.questionId,
+      });
+
+      const effectId = eventTimestamp;
+      setReactionEffects((prev) => [...prev, { id: effectId, content }]);
+      setTimeout(() => {
+        setReactionEffects((prev) => prev.filter((effect) => effect.id !== effectId));
+      }, 900);
+    } catch (error) {
+      console.error('Failed to send reaction:', error);
+    }
   };
 
   if (!gameState || !currentQuestion) {
@@ -180,14 +196,14 @@ export function GamePlayPhase({ roomId, players, currentPlayerId, useScreenMode,
       {/* 回答フォーム（出題者以外）- 2×2グリッド */}
       {!isAuthor && !hasSubmittedAnswer && (
         <div className="space-y-6">
-          <div className={`grid gap-3 sm:gap-4 ${useScreenMode ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2'}`}>
+          <div className={`grid gap-3 sm:gap-4 ${useScreenMode ? 'grid-cols-2' : 'grid-cols-2'}`}>
             {currentQuestion.choices.map((choice, index) => (
               <button
                 key={index}
                 onClick={() => setSelectedAnswer(index)}
                 className={`
-                  relative rounded-xl border-4 transition-all duration-300 font-bold text-lg flex flex-col items-center justify-center
-                  ${useScreenMode ? 'p-5 sm:p-6 min-h-[84px] sm:min-h-[120px]' : 'p-6 min-h-[120px]'}
+                  relative rounded-xl border-4 transition-all duration-200 font-bold text-lg flex flex-col items-center justify-center
+                  ${useScreenMode ? 'p-4 min-h-[32svh] sm:min-h-[220px]' : 'p-6 min-h-[120px]'}
                   ${selectedAnswer === index
                     ? `${CHOICE_COLORS[index].selected} ${CHOICE_COLORS[index].border} shadow-2xl scale-105`
                     : `${CHOICE_COLORS[index].bg} ${CHOICE_COLORS[index].border} ${CHOICE_COLORS[index].hover} shadow-lg hover:scale-102`
@@ -195,8 +211,14 @@ export function GamePlayPhase({ roomId, players, currentPlayerId, useScreenMode,
                   ${CHOICE_COLORS[index].text}
                 `}
               >
-                <div className="text-sm opacity-80 mb-2">{index + 1}</div>
-                <div className="break-words text-center">{choice}</div>
+                {useScreenMode ? (
+                  <div className="text-5xl sm:text-6xl font-black leading-none">{index + 1}</div>
+                ) : (
+                  <>
+                    <div className="text-sm opacity-80 mb-2">{index + 1}</div>
+                    <div className="break-words text-center">{choice}</div>
+                  </>
+                )}
                 {selectedAnswer === index && (
                   <div className="absolute top-2 right-2 text-2xl">✓</div>
                 )}
@@ -262,7 +284,7 @@ export function GamePlayPhase({ roomId, players, currentPlayerId, useScreenMode,
                 key={stamp}
                 type="button"
                 onClick={(event) => handleSendReaction('reaction', stamp, event.timeStamp)}
-                className="py-2 rounded-lg bg-slate-700/70 hover:bg-slate-600 text-xl transition-all"
+                className="py-2 rounded-lg bg-slate-700/70 hover:bg-slate-600 text-xl transition-all active:scale-90"
               >
                 {stamp}
               </button>
@@ -274,13 +296,23 @@ export function GamePlayPhase({ roomId, players, currentPlayerId, useScreenMode,
                 key={message}
                 type="button"
                 onClick={(event) => handleSendReaction('message', message, event.timeStamp)}
-                className="py-2 px-3 rounded-lg bg-slate-700/70 hover:bg-slate-600 text-xs sm:text-sm text-slate-100 transition-all"
+                className="py-2 px-3 rounded-lg bg-slate-700/70 hover:bg-slate-600 text-xs sm:text-sm text-slate-100 transition-all active:scale-95"
               >
                 {message}
               </button>
             ))}
           </div>
           <p className="text-xs text-slate-400">送信は1秒に1回までです</p>
+        </div>
+      )}
+
+      {reactionEffects.length > 0 && (
+        <div className="pointer-events-none fixed bottom-28 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-1">
+          {reactionEffects.map((effect) => (
+            <div key={effect.id} className="animate-float-up text-3xl sm:text-4xl">
+              {effect.content}
+            </div>
+          ))}
         </div>
       )}
     </div>

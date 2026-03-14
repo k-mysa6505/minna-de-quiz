@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { updateRoomStatus } from '@/lib/services/roomService';
 import { leaveRoomFlow } from '@/lib/services/roomFlowService';
 import { runServiceAction } from '@/lib/services/serviceAction';
+import { sendRoomReaction } from '@/lib/services/reactionService';
 import type { Player, Room } from '@/types';
 import { InviteModal } from '@/app/room/[roomId]/components/InviteModal';
 import { LeaveRoomModal } from '@/app/room/[roomId]/components/LeaveRoomModal';
@@ -19,12 +20,22 @@ interface WaitingPhaseProps {
   isMaster: boolean;
 }
 
+interface LocalReactionEffect {
+  id: number;
+  content: string;
+}
+
+const REACTION_STAMPS = ['👏', '🔥', '😆', '😱', '🤯', '🎉'];
+const QUICK_MESSAGES = ['よろしく！', '楽しみ！', '準備OK', 'はやく！'];
+
 export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster }: WaitingPhaseProps) {
   const router = useRouter();
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const [isCopyingScreenUrl, setIsCopyingScreenUrl] = useState(false);
+  const [lastReactionAt, setLastReactionAt] = useState(0);
+  const [reactionEffects, setReactionEffects] = useState<LocalReactionEffect[]>([]);
 
   const screenUrl = useMemo(() => {
     if (!room.useScreenMode || !room.displayDeviceId || typeof window === 'undefined') {
@@ -67,6 +78,38 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
       setTimeout(() => setIsCopyingScreenUrl(false), 2000);
     } catch (error) {
       console.error('Failed to copy screen URL:', error);
+    }
+  };
+
+  const currentPlayer = players.find((player) => player.playerId === currentPlayerId);
+  const isScreenModePlayerView = room.useScreenMode === true;
+
+  const handleSendReaction = async (
+    type: 'reaction' | 'message',
+    content: string,
+    eventTimestamp: number
+  ) => {
+    if (eventTimestamp - lastReactionAt < 1000 || !currentPlayer) {
+      return;
+    }
+
+    setLastReactionAt(eventTimestamp);
+    try {
+      await sendRoomReaction({
+        roomId,
+        userId: currentPlayerId,
+        userName: currentPlayer.nickname,
+        type,
+        content,
+      });
+
+      const effectId = eventTimestamp;
+      setReactionEffects((prev) => [...prev, { id: effectId, content }]);
+      setTimeout(() => {
+        setReactionEffects((prev) => prev.filter((effect) => effect.id !== effectId));
+      }, 900);
+    } catch (error) {
+      console.error('Failed to send waiting reaction:', error);
     }
   };
 
@@ -157,37 +200,69 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
                 {isCopyingScreenUrl ? 'コピー済み' : 'リンクをコピー'}
               </button>
             </div>
-            <p className="text-xs text-slate-500">
-              表示専用端末はこのリンクから接続してください（プレイヤーとしては参加しません）。
-            </p>
           </div>
         )}
       </div>
 
-      {/* プレイヤー一覧 */}
-      <PlayerListCard
-        players={players}
-        currentPlayerId={currentPlayerId}
-        sortMode="joinedAt"
-        showMasterBadge
-      />
+      {!isScreenModePlayerView && (
+        <>
+          {/* プレイヤー一覧 */}
+          <PlayerListCard
+            players={players}
+            currentPlayerId={currentPlayerId}
+            sortMode="joinedAt"
+            showMasterBadge
+          />
 
-      {/* ゲーム開始ボタン（ホストのみ） */}
-      {isMaster && (
-        <button
-          disabled={players.length < 2}
-          onClick={handleStartGame}
-          className="block mx-auto bg-gradient-to-b from-emerald-700 to-emerald-800 disabled:from-slate-600 disabled:to-slate-700 text-white font-bold italic px-4 rounded-2xl shadow-2xl transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed disabled:text-slate-400"
-        >
-          START
-        </button>
+          {/* ゲーム開始ボタン（ホストのみ） */}
+          {isMaster && (
+            <button
+              disabled={players.length < 2}
+              onClick={handleStartGame}
+              className="block mx-auto bg-gradient-to-b from-emerald-700 to-emerald-800 disabled:from-slate-600 disabled:to-slate-700 text-white font-bold italic px-4 rounded-2xl shadow-2xl transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed disabled:text-slate-400"
+            >
+              START
+            </button>
+          )}
+
+          {/* ホスト以外向けのメッセージ */}
+          {!isMaster && (
+            <p className="text-center text-slate-400 italic">
+              ホストがゲームを開始するのをお待ちください...
+            </p>
+          )}
+        </>
       )}
 
-      {/* ホスト以外向けのメッセージ */}
-      {!isMaster && (
-        <p className="text-center text-slate-400 italic">
-          ホストがゲームを開始するのをお待ちください...
-        </p>
+      {!isScreenModePlayerView && room.useScreenMode && currentPlayer && (
+        <div className="space-y-4 bg-slate-800/50 border border-slate-700/60 rounded-xl p-4 sm:p-5">
+          <p className="text-sm text-slate-300 font-medium">リアクション</p>
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+            {REACTION_STAMPS.map((stamp) => (
+              <button
+                key={stamp}
+                type="button"
+                onClick={(event) => handleSendReaction('reaction', stamp, event.timeStamp)}
+                className="py-2 rounded-lg bg-slate-700/70 hover:bg-slate-600 text-xl transition-all active:scale-90"
+              >
+                {stamp}
+              </button>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {QUICK_MESSAGES.map((message) => (
+              <button
+                key={message}
+                type="button"
+                onClick={(event) => handleSendReaction('message', message, event.timeStamp)}
+                className="py-2 px-3 rounded-lg bg-slate-700/70 hover:bg-slate-600 text-xs sm:text-sm text-slate-100 transition-all active:scale-95"
+              >
+                {message}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-slate-400">送信は1秒に1回までです</p>
+        </div>
       )}
 
       {/* 招待モーダル */}
@@ -205,6 +280,16 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
           onCancel={() => setShowLeaveModal(false)}
           onConfirm={handleLeaveRoom}
         />
+      )}
+
+      {reactionEffects.length > 0 && (
+        <div className="pointer-events-none fixed bottom-28 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-1">
+          {reactionEffects.map((effect) => (
+            <div key={effect.id} className="animate-float-up text-3xl sm:text-4xl">
+              {effect.content}
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

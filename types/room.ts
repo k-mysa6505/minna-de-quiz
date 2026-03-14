@@ -50,6 +50,7 @@ export interface Room {
  */
 export interface CreateRoomParams {
   nickname: string;              // 作成者のニックネーム
+  createHostPlayer?: boolean;    // ルーム作成時にホストをプレイヤーとして同時作成するか
   maxPlayers?: number;           // 最大人数
   minPlayers?: number;           // 最小人数
   description?: string;          // ルームの説明

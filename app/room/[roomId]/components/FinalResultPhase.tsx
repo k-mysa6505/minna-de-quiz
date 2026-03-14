@@ -13,9 +13,10 @@ interface FinalResultPhaseProps {
   roomId: string;
   players: Player[];
   currentPlayerId: string;
+  useScreenMode?: boolean;
 }
 
-export function FinalResultPhase({ roomId, players, currentPlayerId }: FinalResultPhaseProps) {
+export function FinalResultPhase({ roomId, players, currentPlayerId, useScreenMode = false }: FinalResultPhaseProps) {
   const router = useRouter();
   const [hasLeft, setHasLeft] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
@@ -60,18 +61,37 @@ export function FinalResultPhase({ roomId, players, currentPlayerId }: FinalResu
     setIsResetting(false);
   };
 
+  const sortedByScore = [...players].sort((a, b) => b.score - a.score);
+  const myRank = Math.max(1, sortedByScore.findIndex((player) => player.playerId === currentPlayerId) + 1);
+
+  const getRankSuffix = (rank: number) => {
+    if (rank === 1) return '1位';
+    if (rank === 2) return '2位';
+    if (rank === 3) return '3位';
+    return `第${rank}位`;
+  };
+
   return (
     <div className="space-y-8">
       <h2 className="text-2xl font-bold text-white tracking-tight">総合結果</h2>
 
-      {/* プレイヤー一覧 */}
-      <PlayerListCard
-        players={players}
-        currentPlayerId={currentPlayerId}
-        sortMode="scoreDesc"
-        showScores
-        highlightTopScore
-      />
+      {!useScreenMode && (
+        <PlayerListCard
+          players={players}
+          currentPlayerId={currentPlayerId}
+          sortMode="scoreDesc"
+          showScores
+          highlightTopScore
+        />
+      )}
+
+      {useScreenMode && (
+        <div className="rounded-xl border border-slate-700/60 bg-slate-900/55 p-6 text-center space-y-3">
+          <p className="text-slate-300">あなたの最終順位は</p>
+          <p className="text-4xl sm:text-5xl font-black text-emerald-300">{getRankSuffix(myRank)}</p>
+          <p className="text-slate-300">でした！ 総合結果はスクリーンをご覧ください。</p>
+        </div>
+      )}
 
       {/* ボタン群 */}
       <div className="space-y-4">

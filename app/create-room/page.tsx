@@ -9,6 +9,8 @@ import { runServiceAction } from '@/lib/services/serviceAction';
 import { Modal } from '@/app/room/[roomId]/components/Modal';
 import type { ScoringMode } from '@/types';
 
+type ParticipationStyle = 'player' | 'screen';
+
 function HelpIconButton({ onClick }: { onClick: () => void }) {
   return (
     <button
@@ -23,7 +25,7 @@ function HelpIconButton({ onClick }: { onClick: () => void }) {
 
 export default function CreateRoomPage() {
   const router = useRouter();
-  const [nickname, setNickname] = useState('');
+  const [participationStyle, setParticipationStyle] = useState<ParticipationStyle>('player');
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState('');
 
@@ -34,7 +36,6 @@ export default function CreateRoomPage() {
   const [scoringMode, setScoringMode] = useState<ScoringMode>('standard');
   const [wrongAnswerPenalty, setWrongAnswerPenalty] = useState<number>(0);
   const [maxPlayers, setMaxPlayers] = useState<number>(8);
-  const [useScreenMode, setUseScreenMode] = useState<boolean>(false);
 
   // 説明モーダル
   const [showHelpModal, setShowHelpModal] = useState(false);
@@ -45,15 +46,9 @@ export default function CreateRoomPage() {
     setShowHelpModal(true);
   };
 
+  const useScreenMode = participationStyle === 'screen';
+
   const handleCreateRoom = async () => {
-    if (nickname.trim() === '') {
-      setError('名無しのごんべえはお断り');
-      return;
-    }
-    if (nickname.length > 20) {
-      setError('長い名前は覚えられないよ');
-      return;
-    }
     if (isCreating) return;
 
     setIsCreating(true);
@@ -63,7 +58,8 @@ export default function CreateRoomPage() {
       'createRoom.submit',
       () =>
         createRoom({
-          nickname: nickname.trim(),
+          nickname: useScreenMode ? 'スクリーンホスト' : '',
+          createHostPlayer: useScreenMode,
           description: description.trim() || undefined,
           timeLimit,
           scoringMode,
@@ -81,10 +77,26 @@ export default function CreateRoomPage() {
       return;
     }
 
-    const { roomId, playerId } = roomResult;
-    localStorage.setItem('currentPlayerId', playerId);
+    const { roomId, playerId, displayDeviceId } = roomResult;
+
+    if (useScreenMode && displayDeviceId) {
+      localStorage.removeItem('currentPlayerId');
+      localStorage.setItem('currentRoomId', roomId);
+      router.push(`/room/${roomId}/screen?deviceId=${displayDeviceId}`);
+      return;
+    }
+
+    if (playerId) {
+      localStorage.setItem('currentPlayerId', playerId);
+      localStorage.setItem('currentRoomId', roomId);
+      router.push(`/room/${roomId}`);
+      return;
+    }
+
+    // プレイヤーモードでは次画面でニックネーム入力して参加する
+    localStorage.removeItem('currentPlayerId');
     localStorage.setItem('currentRoomId', roomId);
-    router.push(`/room/${roomId}`);
+    router.push(`/join-room?roomId=${roomId}&mode=host-setup`);
   };
 
   return (
@@ -96,17 +108,26 @@ export default function CreateRoomPage() {
           </h1>
         </div>
 
-        {/* ニックネーム入力 */}
-        <div>
-          <input
-            id="nickname"
-            type="text"
-            value={nickname}
-            onChange={(e) => setNickname(e.target.value)}
-            placeholder="ルームマスターの名前は？"
-            maxLength={20}
-            className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-          />
+        {/* 参加スタイル */}
+        <div className="space-y-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setParticipationStyle('player')}
+              className={`rounded-lg border px-4 py-3 text-center transition-all ${participationStyle === 'player' ? 'border-yellow-400 bg-yellow-500/20' : 'border-slate-600 bg-slate-700/40 hover:bg-slate-700/60'}`}
+            >
+              <p className="font-semibold text-white">プレイヤーモード</p>
+              <p className="text-xs text-slate-300 mt-1">お使いの端末で<br />プレイできます</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => setParticipationStyle('screen')}
+              className={`rounded-lg border px-4 py-3 text-center transition-all ${participationStyle === 'screen' ? 'border-red-400 bg-red-500/20' : 'border-slate-600 bg-slate-700/40 hover:bg-slate-700/60'}`}
+            >
+              <p className="font-semibold text-white">スクリーンモード</p>
+              <p className="text-xs text-slate-300 mt-1">お使いの端末は<br />表示専用になります</p>
+            </button>
+          </div>
         </div>
 
         {/* オプションボタン */}
@@ -131,10 +152,10 @@ export default function CreateRoomPage() {
         <div className="flex gap-4 justify-center">
           <button
             onClick={handleCreateRoom}
-            disabled={isCreating || !nickname.trim()}
+            disabled={isCreating}
             className="bg-gradient-to-b from-green-700 to-green-800 disabled:bg-slate-600 text-white font-bold italic px-3 rounded-xl shadow-lg transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed"
           >
-            {isCreating ? 'CREATING...' : 'CREATE'}
+            {isCreating ? 'CREATING...' : 'CREATE ROOM'}
           </button>
 
           <button
@@ -234,31 +255,6 @@ export default function CreateRoomPage() {
                 max="20"
                 className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-blue-500"
               />
-            </div>
-
-            {/* スクリーンモード */}
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
-                スクリーンモード
-                <HelpIconButton onClick={() => showHelp('スクリーンモード', '有効にすると表示専用端末向けURLが使えるようになります。スクリーン端末はプレイヤーとして参加しません。')} />
-              </label>
-              <div className="flex items-center justify-between bg-slate-700/30 border border-slate-600 rounded-lg p-3">
-                <div>
-                  <p className="text-sm text-white font-semibold">{useScreenMode ? '有効' : '無効'}</p>
-                  <p className="text-xs text-slate-400">ホストが任意で切り替え可能</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setUseScreenMode((prev) => !prev)}
-                  className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors ${useScreenMode ? 'bg-emerald-600' : 'bg-slate-600'}`}
-                  aria-pressed={useScreenMode}
-                  aria-label="スクリーンモード切替"
-                >
-                  <span
-                    className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${useScreenMode ? 'translate-x-8' : 'translate-x-1'}`}
-                  />
-                </button>
-              </div>
             </div>
           </div>
 

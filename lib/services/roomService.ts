@@ -11,7 +11,8 @@ import {
   deleteDoc,
   onSnapshot,
   Timestamp,
-  serverTimestamp
+  serverTimestamp,
+  runTransaction
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Room, CreateRoomParams, JoinRoomParams } from '@/types';
@@ -23,7 +24,7 @@ import { serviceLogger } from './serviceLogger';
  * 新しいルームを作成
  * @returns { roomId, playerId } - ルームIDとプレイヤーID
  */
-export async function createRoom(params: CreateRoomParams): Promise<{ roomId: string; playerId: string }> {
+export async function createRoom(params: CreateRoomParams): Promise<{ roomId: string; playerId?: string; displayDeviceId?: string }> {
   console.log('Creating room with params:', params);
   try {
     // ルームIDを生成
@@ -34,13 +35,21 @@ export async function createRoom(params: CreateRoomParams): Promise<{ roomId: st
 
     console.log('Room ID generated:', roomId);
 
-    // 作成者を最初のプレイヤーとして追加（マスター）
-    const masterId = await addPlayer(roomId, params.nickname, true);
-    console.log('Creator added as master:', masterId);
     const useScreenMode = params.useScreenMode ?? false;
+    const createHostPlayer = params.createHostPlayer ?? true;
     const displayDeviceId = useScreenMode
       ? `screen-${Math.random().toString(36).slice(2, 10)}`
       : undefined;
+
+    let masterId = '';
+    if (!useScreenMode && createHostPlayer) {
+      // 通常モードでは作成者を最初のプレイヤーとして追加（マスター）
+      masterId = await addPlayer(roomId, params.nickname, true);
+      console.log('Creator added as master:', masterId);
+    } else if (displayDeviceId) {
+      // スクリーンモードでは表示端末IDをマスター識別子として保持
+      masterId = displayDeviceId;
+    }
 
     // Firestoreにルームドキュメントを作成
     const roomData: Partial<Room> = {
@@ -70,7 +79,11 @@ export async function createRoom(params: CreateRoomParams): Promise<{ roomId: st
     await setDoc(doc(db, 'rooms', roomId), roomData);
     console.log('Room document created successfully:', roomId);
 
-    return { roomId, playerId: masterId };
+    return {
+      roomId,
+      playerId: useScreenMode || !createHostPlayer ? undefined : masterId,
+      displayDeviceId,
+    };
   } catch (error) {
     serviceLogger.error('room.createRoom', 'failed', error);
     throw error;
@@ -106,13 +119,37 @@ export async function joinRoom(params: JoinRoomParams): Promise<string> {
       throw new Error('Room is closed for new participants');
     }
 
+    const shouldBecomeMaster = !roomData.masterId;
+
     // プレイヤー情報をサブコレクションに追加
     const playerId = await addPlayer(
       params.roomId,
       params.nickname,
-      false
+      shouldBecomeMaster
     );
     console.log('Player added to room:', playerId);
+
+    // ルームにマスターが未設定の場合、最初の参加者をマスターとして確定する
+    if (shouldBecomeMaster) {
+      await runTransaction(db, async (transaction) => {
+        const freshRoomRef = doc(db, 'rooms', params.roomId);
+        const freshRoomSnap = await transaction.get(freshRoomRef);
+        if (!freshRoomSnap.exists()) {
+          throw new Error('Room does not exist');
+        }
+
+        const freshRoom = freshRoomSnap.data() as Room;
+        if (!freshRoom.masterId) {
+          transaction.update(freshRoomRef, {
+            masterId: playerId,
+            masterNickname: params.nickname,
+          });
+
+          const playerRef = doc(db, 'rooms', params.roomId, 'players', playerId);
+          transaction.update(playerRef, { isMaster: true });
+        }
+      });
+    }
 
     return playerId;
   } catch (error) {
