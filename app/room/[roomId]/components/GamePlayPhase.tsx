@@ -22,6 +22,23 @@ interface LocalReactionEffect {
   content: string;
 }
 
+function ReactionTriggerIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className="h-7 w-7"
+      fill="none"
+    >
+      <path d="M4 12.5L14.5 8V16.5L4 12.5Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M14.5 10.5V14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M7 13L8.5 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M17.5 9.5C18.6 10.4 19.2 11.6 19.2 12.8C19.2 14 18.6 15.2 17.5 16.1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M19.6 7.8C21.1 9.1 22 10.9 22 12.8C22 14.7 21.1 16.5 19.6 17.8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 const CHOICE_COLORS = [
   {
     bg: 'bg-blue-600/70',
@@ -80,6 +97,7 @@ export function GamePlayPhase({ roomId, players, currentPlayerId, useScreenMode,
   const currentPlayer = players.find((player) => player.playerId === currentPlayerId);
   const [lastReactionAt, setLastReactionAt] = useState(0);
   const [reactionEffects, setReactionEffects] = useState<LocalReactionEffect[]>([]);
+  const [isReactionPanelOpen, setIsReactionPanelOpen] = useState(false);
 
   const handleSendReaction = async (
     type: 'reaction' | 'message',
@@ -276,33 +294,48 @@ export function GamePlayPhase({ roomId, players, currentPlayerId, useScreenMode,
       )}
 
       {useScreenMode && (
-        <div className="space-y-4 bg-slate-800/50 border border-slate-700/60 rounded-xl p-4 sm:p-5">
-          <p className="text-sm text-slate-300 font-medium">リアクション</p>
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-            {REACTION_STAMPS.map((stamp) => (
-              <button
-                key={stamp}
-                type="button"
-                onClick={(event) => handleSendReaction('reaction', stamp, event.timeStamp)}
-                className="py-2 rounded-lg bg-slate-700/70 hover:bg-slate-600 text-xl transition-all active:scale-90"
-              >
-                {stamp}
-              </button>
-            ))}
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {QUICK_MESSAGES.map((message) => (
-              <button
-                key={message}
-                type="button"
-                onClick={(event) => handleSendReaction('message', message, event.timeStamp)}
-                className="py-2 px-3 rounded-lg bg-slate-700/70 hover:bg-slate-600 text-xs sm:text-sm text-slate-100 transition-all active:scale-95"
-              >
-                {message}
-              </button>
-            ))}
-          </div>
-          <p className="text-xs text-slate-400">送信は1秒に1回までです</p>
+        <div className="fixed bottom-6 right-4 z-40 flex flex-col items-end gap-3 sm:right-6">
+          {isReactionPanelOpen && (
+            <div className="w-[min(88vw,320px)] space-y-3 rounded-2xl border border-slate-700/80 bg-slate-900/90 p-3 shadow-2xl backdrop-blur-sm">
+              <div className="grid grid-cols-3 gap-2">
+                {REACTION_STAMPS.map((stamp) => (
+                  <button
+                    key={stamp}
+                    type="button"
+                    onClick={(event) => handleSendReaction('reaction', stamp, event.timeStamp)}
+                    className="rounded-lg border border-slate-700 bg-slate-800 px-2 py-2 text-xl leading-none text-slate-100 transition hover:bg-slate-700 active:scale-95"
+                  >
+                    {stamp}
+                  </button>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {QUICK_MESSAGES.map((message) => (
+                  <button
+                    key={message}
+                    type="button"
+                    onClick={(event) => handleSendReaction('message', message, event.timeStamp)}
+                    className="rounded-lg border border-slate-700 bg-slate-800 px-2 py-2 text-xs text-slate-100 transition hover:bg-slate-700 active:scale-95 sm:text-sm"
+                  >
+                    {message}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-slate-400">送信は1秒に1回までです</p>
+            </div>
+          )}
+
+          <button
+            type="button"
+            aria-label="リアクションを開く"
+            aria-expanded={isReactionPanelOpen}
+            onClick={() => setIsReactionPanelOpen((prev) => !prev)}
+            className="grid h-14 w-14 place-items-center rounded-full border border-slate-500/70 bg-slate-800/90 text-slate-100 shadow-lg transition hover:bg-slate-700 active:scale-95"
+          >
+            <span className={isReactionPanelOpen ? '' : 'motion-safe:animate-pulse'}>
+              <ReactionTriggerIcon />
+            </span>
+          </button>
         </div>
       )}
 
