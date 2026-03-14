@@ -223,7 +223,7 @@ export default function RoomScreenPage() {
 
         {state.room.status === 'waiting' && (
           <section className="backdrop-blur-sm min-h-[86vh] grid grid-cols-1 xl:grid-cols-2 gap-6 xl:gap-8">
-            <div className="p-5 md:p-7 flex flex-col">
+            <div className="p-5 md:p-7">
               <div className="mb-5">
                 <h2 className="text-2xl md:text-4xl font-black">
                   プレイヤー待機中
@@ -242,14 +242,14 @@ export default function RoomScreenPage() {
                 />
               </div>
 
-              <div className="mt-5">
+              <div className="mt-5 flex flex-col items-center flex-1">
                 <button
                   type="button"
                   disabled={isStarting || state.players.length < (state.room.minPlayers ?? 2)}
                   onClick={handleStartFromScreen}
                   className="w-full sm:w-auto bg-gradient-to-r from-emerald-600 to-emerald-700 disabled:from-slate-600 disabled:to-slate-700 text-white font-semibold px-8 py-3 rounded-lg transition-all disabled:cursor-not-allowed"
                 >
-                  {isStarting ? '開始中...' : 'ゲーム開始'}
+                  {isStarting ? 'STARTING...' : 'START'}
                 </button>
                 <p className="text-xs text-slate-400 mt-2">
                   最低参加人数: {state.room.minPlayers ?? 2}人
@@ -257,20 +257,21 @@ export default function RoomScreenPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-700/60 bg-slate-950/45 p-5 md:p-8 flex flex-col items-center justify-center text-center">
-              <p className="text-slate-300 text-sm md:text-base mb-6">ルーム参加用QRコード</p>
-
-              <div className="bg-white rounded-2xl p-4 md:p-6 shadow-2xl mb-6">
-                <QRCodeSVG
-                  value={joinUrl}
-                  size={320}
-                  level="M"
-                  includeMargin={true}
-                />
+            <div className="rounded-2xl border border-slate-700/60 bg-slate-900/50 p-5 md:p-8 flex flex-col items-center justify-center text-center">
+              <div>
+                <p className="text-slate-300 text-sm md:text-base mb-6">ルーム参加用QRコード</p>
+                <div className="bg-white rounded-2xl p-4 md:p-6 shadow-2xl mb-6">
+                  <QRCodeSVG
+                    value={joinUrl}
+                    size={320}
+                    level="M"
+                    includeMargin={true}
+                  />
+                </div>
               </div>
 
-              <div className="rounded-2xl border border-emerald-400/40 bg-emerald-500/10 px-6 py-5 w-full max-w-xl">
-                <p className="text-emerald-200 text-sm md:text-base mb-2">ROOM ID</p>
+              <div className="px-6 py-5 w-full max-w-xl">
+                <p className="text-slate-200 md:text-base mb-2">ROOM ID</p>
                 <p className="font-black tracking-[0.22em] text-4xl md:text-6xl text-white">{displayRoomId}</p>
               </div>
             </div>
