@@ -9,6 +9,7 @@ import { initializeAndStartPlayingFlow } from '@/lib/services/roomFlowService';
 import { runServiceAction } from '@/lib/services/serviceAction';
 import type { Player, QuestionFormData } from '@/types';
 import { Modal } from './Modal';
+import templateDataset from './questionTemplateDataset.json';
 
 interface QuestionCreationPhaseProps {
   roomId: string;
@@ -47,51 +48,20 @@ const CHOICE_COLORS = [
   },
 ];
 
-type TemplateKind = 'inside' | 'image' | 'common';
-
-const TEMPLATE_LABELS: Record<TemplateKind, string> = {
-  inside: '身内ネタ',
-  image: '画像クイズ',
-  common: '一般常識',
+type TemplateQuestion = {
+  text: string;
+  choices: [string, string, string, string];
+  correctAnswer: 0 | 1 | 2 | 3;
 };
 
-function buildTemplateDraft(template: TemplateKind, keyword: string): { text: string; choices: [string, string, string, string] } {
-  const safeKeyword = keyword.trim() || 'キーワード';
+type TemplateCategory = {
+  id: string;
+  label: string;
+  questions: TemplateQuestion[];
+};
 
-  if (template === 'inside') {
-    return {
-      text: `【身内ネタ】${safeKeyword}に最も関係が深いのはどれ？`,
-      choices: [
-        `${safeKeyword}の定番ネタ`,
-        `${safeKeyword}の黒歴史`,
-        `${safeKeyword}の口ぐせ`,
-        `${safeKeyword}の秘密`,
-      ],
-    };
-  }
-
-  if (template === 'image') {
-    return {
-      text: `【画像クイズ】この画像に最も当てはまる${safeKeyword}はどれ？`,
-      choices: [
-        `${safeKeyword} A`,
-        `${safeKeyword} B`,
-        `${safeKeyword} C`,
-        `${safeKeyword} D`,
-      ],
-    };
-  }
-
-  return {
-    text: `【一般常識】${safeKeyword}について正しいものはどれ？`,
-    choices: [
-      `${safeKeyword}に関する正しい選択肢`,
-      `${safeKeyword}に関する誤りの選択肢1`,
-      `${safeKeyword}に関する誤りの選択肢2`,
-      `${safeKeyword}に関する誤りの選択肢3`,
-    ],
-  };
-}
+const TEMPLATE_CATEGORIES = templateDataset as TemplateCategory[];
+const INITIAL_TEMPLATE_CATEGORY_ID = TEMPLATE_CATEGORIES[0]?.id ?? '';
 
 export function QuestionCreationPhase({ roomId, players, currentPlayerId }: QuestionCreationPhaseProps) {
   const [questionText, setQuestionText] = useState('');
@@ -103,8 +73,8 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
   const [hasCreated, setHasCreated] = useState(false);
   const [progress, setProgress] = useState({ created: 0, total: players.length });
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<TemplateKind>('inside');
-  const [templateKeyword, setTemplateKeyword] = useState('');
+  const [selectedTemplateCategoryId, setSelectedTemplateCategoryId] = useState(INITIAL_TEMPLATE_CATEGORY_ID);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
 
   useEffect(() => {
     const checkProgress = async () => {
@@ -142,10 +112,18 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
   };
 
   const applyTemplate = () => {
-    const draft = buildTemplateDraft(selectedTemplate, templateKeyword);
-    setQuestionText(draft.text);
-    setChoices(draft.choices);
-    setCorrectAnswer(0);
+    const category = TEMPLATE_CATEGORIES.find(item => item.id === selectedTemplateCategoryId);
+    if (!category || category.questions.length === 0) {
+      return;
+    }
+
+    const randomIndex = Math.floor(Math.random() * category.questions.length);
+    const randomQuestion = category.questions[randomIndex];
+
+    setQuestionText(randomQuestion.text);
+    setChoices(randomQuestion.choices);
+    setCorrectAnswer(randomQuestion.correctAnswer);
+    setShowTemplateModal(false);
   };
 
   const handleSubmitClick = (e: React.FormEvent) => {
@@ -210,39 +188,16 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
       <h2 className="text-2xl font-bold text-center text-white tracking-tight">問題を作りましょう</h2>
 
       <form onSubmit={handleSubmitClick} className="space-y-6">
-        {/* テンプレート入力 */}
-        <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 sm:p-5 space-y-3">
-          <p className="text-sm font-semibold text-slate-200">作問テンプレート</p>
-          <div className="grid grid-cols-3 gap-2">
-            {(Object.keys(TEMPLATE_LABELS) as TemplateKind[]).map((template) => (
-              <button
-                key={template}
-                type="button"
-                onClick={() => setSelectedTemplate(template)}
-                className={`py-2 rounded-lg text-xs sm:text-sm transition-all border ${selectedTemplate === template ? 'bg-blue-600/80 border-blue-400 text-white' : 'bg-slate-700/60 border-slate-600 text-slate-200 hover:bg-slate-600/80'}`}
-              >
-                {TEMPLATE_LABELS[template]}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-2">
-            <input
-              type="text"
-              value={templateKeyword}
-              onChange={(e) => setTemplateKeyword(e.target.value)}
-              className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-blue-500"
-              placeholder="キーワード（例: 首都, 料理名, メンバー名）"
-            />
-            <button
-              type="button"
-              onClick={applyTemplate}
-              className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold transition-all"
-            >
-              テンプレ適用
-            </button>
-          </div>
-          <p className="text-xs text-slate-400">テンプレートは下書き作成用です。内容は自由に編集できます。</p>
+        {/* テンプレート入力（任意） */}
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setShowTemplateModal(true)}
+            aria-label="作問テンプレートを開く"
+            className="w-8 h-8 rounded-full border border-slate-500/80 text-slate-200 bg-slate-700/70 hover:bg-slate-600/80 transition-all text-sm font-bold"
+          >
+            ?
+          </button>
         </div>
 
         {/* 問題文入力 */}
@@ -331,6 +286,45 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
           作成済みプレイヤー <span className="font-bold text-blue-400">{progress.created}/{progress.total}</span>
         </p>
       </form>
+
+      {/* テンプレートモーダル */}
+      {showTemplateModal && (
+        <Modal
+          onClose={() => setShowTemplateModal(false)}
+          panelClassName="max-w-lg w-full max-h-[80vh] overflow-y-auto p-6"
+        >
+          <h3 className="text-xl font-bold text-white mb-2">作問テンプレート（任意）</h3>
+          <p className="text-xs text-slate-400 mb-4">カテゴリを選ぶと、そのカテゴリからランダムに1問を下書きへ反映します（10カテゴリ × 各10問）。</p>
+
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-semibold text-slate-300 mb-2">カテゴリ</label>
+              <select
+                value={selectedTemplateCategoryId}
+                onChange={(e) => setSelectedTemplateCategoryId(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-blue-500"
+              >
+                {TEMPLATE_CATEGORIES.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              type="button"
+              onClick={applyTemplate}
+              disabled={!selectedTemplateCategoryId}
+              className="w-full px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-600 text-white text-sm font-semibold transition-all disabled:cursor-not-allowed"
+            >
+              このカテゴリからランダムに作成
+            </button>
+
+            <p className="text-xs text-slate-400">反映後は自由に編集できます。</p>
+          </div>
+        </Modal>
+      )}
 
       {/* 確認モーダル */}
       {showConfirmModal && (
