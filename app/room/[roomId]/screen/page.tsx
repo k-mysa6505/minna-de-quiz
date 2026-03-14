@@ -278,20 +278,21 @@ export default function RoomScreenPage() {
           </section>
         )}
 
-        {state.room.status !== 'waiting' && (
+        {/* {state.room.status !== 'waiting' && (
           <section className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4 md:p-6 flex justify-between items-center">
             <p className="text-sm md:text-base text-slate-200">ROOM ID: <span className="font-mono text-white">{displayRoomId}</span></p>
           </section>
-        )}
+        )} */}
 
         {state.room.status === 'creating' && (
-          <section className="rounded-2xl border border-slate-700 bg-slate-900/60 p-6 md:p-8">
-            <h2 className="text-2xl md:text-3xl font-bold mb-2 text-center">作問フェーズ</h2>
-            <p className="text-slate-300 text-center">プレイヤーごとの作問ステータス</p>
-            <p className="text-4xl md:text-6xl font-black mt-4 mb-6 text-emerald-400 text-center">
-              {state.questionProgress.created} / {state.questionProgress.total}
+          <section className="p-6 md:p-8">
+            <h2 className="text-2xl md:text-4xl font-bold">問題を作りましょう</h2>
+            <p className="py-3 text-base md:text-lg">
+              <span className="text-2xl md:text-2xl font-black mt-4">完了プレイヤー：</span>
+              <span className="text-4xl md:text-6xl font-black mt-4 mb-6 text-emerald-400">{state.questionProgress.created}</span>
+              <span className="text-3xl md:text-4xl font-black mt-4 mb-6"> / </span>
+              <span className="text-3xl md:text-4xl font-black mt-4 mb-6">{state.questionProgress.total}</span>
             </p>
-
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {state.players.map((player) => {
                 const isCompleted = state.creatingCompletedAuthorIds.includes(player.playerId);
@@ -302,7 +303,7 @@ export default function RoomScreenPage() {
                   >
                     <p className="font-semibold text-white truncate pr-3">{player.nickname}</p>
                     <span className={`text-sm font-semibold ${isCompleted ? 'text-emerald-300' : 'text-amber-300'}`}>
-                      {isCompleted ? '完了 ✨' : '作問中 🤔'}
+                      {isCompleted ? '完了' : '作問中...'}
                     </span>
                   </div>
                 );
