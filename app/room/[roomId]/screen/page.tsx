@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { QRCodeSVG } from 'qrcode.react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import LoadingSpinner from '@/app/common/LoadingSpinner';
 import { startGame, subscribeToRoom } from '@/lib/services/roomService';
 import { subscribeToPlayers } from '@/lib/services/playerService';
@@ -45,6 +45,7 @@ function toTimestamp(value: unknown): number {
 
 export default function RoomScreenPage() {
   const params = useParams();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const roomId = params.roomId as string;
   const requestedDeviceId = searchParams.get('deviceId') || '';
@@ -339,6 +340,10 @@ export default function RoomScreenPage() {
     setIsStarting(false);
   };
 
+  const handleBackFromScreen = () => {
+    router.push(`/room/${roomId}`);
+  };
+
   if (!state.room && !state.error) {
     return <LoadingSpinner message="スクリーン情報を読み込み中..." />;
   }
@@ -391,6 +396,9 @@ export default function RoomScreenPage() {
                 </h2>
                 <p className="text-slate-300 mt-2 text-base md:text-lg">
                   現在：<span className="font-bold text-emerald-400">{state.players.length}人</span>
+                  <span className="ml-2 text-xs md:text-sm text-slate-400">
+                    (最低参加人数: {state.room.minPlayers ?? 2}人)
+                  </span>
                 </p>
               </div>
 
@@ -404,17 +412,24 @@ export default function RoomScreenPage() {
               </div>
 
               <div className="mt-5 flex flex-col items-center flex-1">
-                <button
-                  type="button"
-                  disabled={isStarting || state.players.length < (state.room.minPlayers ?? 2)}
-                  onClick={handleStartFromScreen}
-                  className="w-full sm:w-auto bg-gradient-to-r from-emerald-600 to-emerald-700 disabled:from-slate-600 disabled:to-slate-700 text-white font-semibold px-8 py-3 rounded-lg transition-all disabled:cursor-not-allowed"
-                >
-                  {isStarting ? 'STARTING...' : 'START'}
-                </button>
-                <p className="text-xs text-slate-400 mt-2">
-                  最低参加人数: {state.room.minPlayers ?? 2}人
-                </p>
+                <div className="flex gap-4 justify-center">
+                  <button
+                    type="button"
+                    disabled={isStarting || state.players.length < (state.room.minPlayers ?? 2)}
+                    onClick={handleStartFromScreen}
+                    className="bg-emerald-700 disabled:bg-slate-600 text-white font-bold italic px-4 rounded-xl shadow-lg transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed"
+                  >
+                    {isStarting ? 'STARTING...' : 'START'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleBackFromScreen}
+                    className="bg-slate-700/50 text-slate-200 font-bold italic px-4 rounded-xl border border-slate-600 transition-all duration-300"
+                  >
+                    BACK
+                  </button>
+                </div>
               </div>
             </div>
 
