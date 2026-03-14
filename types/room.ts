@@ -15,7 +15,7 @@ export type RoomStatus =
 /**
  * 点数加算方式
  */
-export type ScoringMode = 
+export type ScoringMode =
   | 'standard'        // 標準（正解で10pt）
   | 'firstBonus'      // 1位ボーナス（1位は倍の得点）
   | 'rateBonus';      // 正解率ボーナス（正解率が低いほど高得点）
@@ -26,7 +26,7 @@ export type ScoringMode =
 export interface Room {
   roomId: string;
   masterId: string;
-  masterNickname: string;      // 作成者のニックネーム
+  masterNickname: string;      // 作問者のニックネーム
   status: RoomStatus;
   createdAt: Timestamp;
   maxPlayers: number;
@@ -36,19 +36,28 @@ export interface Room {
   timeLimit?: number;          // 制限時間（秒）
   scoringMode: ScoringMode;    // 点数加算方式
   wrongAnswerPenalty: number;  // 誤答ペナルティ
+  cleanupRequestedAt?: Timestamp;
+  deleteEligibleAt?: Timestamp;
+  cleanupState?: 'scheduled' | 'deferred' | 'deleted' | 'skipped';
+  cleanupReason?: string;
+  lastCleanupDecisionAt?: Timestamp;
+  useScreenMode?: boolean;
+  displayDeviceId?: string;
 }
 
 /**
  * ルーム作成時のパラメータ
  */
 export interface CreateRoomParams {
-  nickname: string;              // 作成者のニックネーム
+  nickname: string;              // 作問者のニックネーム
+  createHostPlayer?: boolean;    // ルーム作成時にホストをプレイヤーとして同時作成するか
   maxPlayers?: number;           // 最大人数
   minPlayers?: number;           // 最小人数
   description?: string;          // ルームの説明
   timeLimit?: number;            // 制限時間（秒）
   scoringMode?: ScoringMode;     // 点数加算方式
   wrongAnswerPenalty?: number;   // 誤答ペナルティ
+  useScreenMode?: boolean;
 }
 
 /**

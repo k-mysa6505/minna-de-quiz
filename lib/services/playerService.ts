@@ -9,10 +9,12 @@ import {
   getDocs,
   getDoc,
   onSnapshot,
+  serverTimestamp,
   Timestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Player } from '@/types';
+import { serviceLogger } from './serviceLogger';
 
 /**
  * プレイヤーを追加
@@ -27,7 +29,7 @@ export async function addPlayer(
     // ニックネームの重複チェック
     const isDuplicate = await isNicknameTaken(roomId, nickname);
     if (isDuplicate) {
-      console.warn(`Nickname duplicate: ${nickname} in room ${roomId}`);
+      serviceLogger.warn('player.add', `nickname duplicate: ${nickname} in ${roomId}`);
       throw new Error('おっと、その名前はすでに使われているよ！');
     }
 
@@ -47,7 +49,7 @@ export async function addPlayer(
 
     return playerDoc.id;
   } catch (error) {
-    console.error('Error adding player:', error);
+    serviceLogger.error('player.add', `failed: room=${roomId}, nickname=${nickname}`, error);
     throw error;
   }
 }
@@ -68,7 +70,7 @@ export async function getPlayers(roomId: string): Promise<Player[]> {
     }));
     return players;
   } catch (error) {
-    console.error(`Error getting players for room ${roomId}:`, error);
+    serviceLogger.error('player.getPlayers', `failed: ${roomId}`, error);
     throw error;
   }
 }
@@ -107,13 +109,13 @@ export async function updatePlayerOnlineStatus(
     // ドキュメントが存在するか確認
     const playerSnap = await getDoc(playerRef);
     if (!playerSnap.exists()) {
-      console.warn(`Player ${playerId} does not exist in room ${roomId}. Skipping online status update.`);
+      serviceLogger.warn('player.online', `player not found: room=${roomId}, player=${playerId}`);
       return;
     }
 
     await updateDoc(playerRef, { isOnline });
   } catch (error) {
-    console.error(`Failed to update online status for player ${playerId}:`, error);
+    serviceLogger.error('player.online', `failed: room=${roomId}, player=${playerId}`, error);
     // エラーを投げずに処理を続行
   }
 }
@@ -132,14 +134,41 @@ export async function updatePlayerScore(
     // ドキュメントが存在するか確認
     const playerSnap = await getDoc(playerRef);
     if (!playerSnap.exists()) {
-      console.warn(`Player ${playerId} does not exist in room ${roomId}. Skipping score update.`);
+      serviceLogger.warn('player.score', `player not found: room=${roomId}, player=${playerId}`);
       return;
     }
 
     await updateDoc(playerRef, { score });
   } catch (error) {
-    console.error(`Failed to update score for player ${playerId}:`, error);
+    serviceLogger.error('player.score', `failed: room=${roomId}, player=${playerId}`, error);
     // エラーを投げずに処理を続行
+  }
+}
+
+/**
+ * Reset all players' scores to zero
+ */
+export async function resetAllPlayersScores(roomId: string): Promise<void> {
+  console.log(`Resetting all players' scores for room ${roomId}`);
+  try {
+    const playersRef = collection(db, 'rooms', roomId, 'players');
+    const playerDocs = await getDocs(playersRef);
+
+    const updatePromises = [];
+    for (const playerDoc of playerDocs.docs) {
+      updatePromises.push(
+        updateDoc(playerDoc.ref, {
+          score: 0,
+          lastUpdated: serverTimestamp()
+        })
+      );
+    }
+
+    await Promise.all(updatePromises);
+    console.log('All players scores reset successfully');
+  } catch (error) {
+    serviceLogger.error('player.resetScores', `failed: ${roomId}`, error);
+    throw error;
   }
 }
 

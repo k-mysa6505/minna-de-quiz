@@ -10,18 +10,21 @@ import {
   updateDoc,
   deleteDoc,
   onSnapshot,
-  Timestamp
+  Timestamp,
+  serverTimestamp,
+  runTransaction
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Room, CreateRoomParams, JoinRoomParams } from '@/types';
 import { generateRoomId, isValidRoomId } from '@/lib/utils/generateRoomId';
 import { addPlayer } from './playerService';
+import { serviceLogger } from './serviceLogger';
 
 /**
  * 新しいルームを作成
  * @returns { roomId, playerId } - ルームIDとプレイヤーID
  */
-export async function createRoom(params: CreateRoomParams): Promise<{ roomId: string; playerId: string }> {
+export async function createRoom(params: CreateRoomParams): Promise<{ roomId: string; playerId?: string; displayDeviceId?: string }> {
   console.log('Creating room with params:', params);
   try {
     // ルームIDを生成
@@ -32,9 +35,21 @@ export async function createRoom(params: CreateRoomParams): Promise<{ roomId: st
 
     console.log('Room ID generated:', roomId);
 
-    // 作成者を最初のプレイヤーとして追加（マスター）
-    const masterId = await addPlayer(roomId, params.nickname, true);
-    console.log('Creator added as master:', masterId);
+    const useScreenMode = params.useScreenMode ?? false;
+    const createHostPlayer = params.createHostPlayer ?? true;
+    const displayDeviceId = useScreenMode
+      ? `screen-${Math.random().toString(36).slice(2, 10)}`
+      : undefined;
+
+    let masterId = '';
+    if (!useScreenMode && createHostPlayer) {
+      // 通常モードでは作問者を最初のプレイヤーとして追加（マスター）
+      masterId = await addPlayer(roomId, params.nickname, true);
+      console.log('Creator added as master:', masterId);
+    } else if (displayDeviceId) {
+      // スクリーンモードでは表示端末IDをマスター識別子として保持
+      masterId = displayDeviceId;
+    }
 
     // Firestoreにルームドキュメントを作成
     const roomData: Partial<Room> = {
@@ -49,7 +64,12 @@ export async function createRoom(params: CreateRoomParams): Promise<{ roomId: st
       timeLimit: params.timeLimit || 30,
       scoringMode: params.scoringMode || 'standard',
       wrongAnswerPenalty: params.wrongAnswerPenalty || 0,
+      useScreenMode,
     };
+
+    if (displayDeviceId) {
+      roomData.displayDeviceId = displayDeviceId;
+    }
 
     // descriptionがundefinedでない場合のみ追加
     if (params.description) {
@@ -59,9 +79,13 @@ export async function createRoom(params: CreateRoomParams): Promise<{ roomId: st
     await setDoc(doc(db, 'rooms', roomId), roomData);
     console.log('Room document created successfully:', roomId);
 
-    return { roomId, playerId: masterId };
+    return {
+      roomId,
+      playerId: useScreenMode || !createHostPlayer ? undefined : masterId,
+      displayDeviceId,
+    };
   } catch (error) {
-    console.error('Error in createRoom:', error);
+    serviceLogger.error('room.createRoom', 'failed', error);
     throw error;
   }
 }
@@ -82,7 +106,7 @@ export async function joinRoom(params: JoinRoomParams): Promise<string> {
     const roomDoc = await getDoc(roomRef);
 
     if (!roomDoc.exists()) {
-      console.warn('Room not found:', params.roomId);
+      serviceLogger.warn('room.joinRoom', 'room not found', params.roomId);
       throw new Error('Room does not exist');
     }
 
@@ -91,21 +115,45 @@ export async function joinRoom(params: JoinRoomParams): Promise<string> {
 
     // 参加可能な状態か確認
     if (roomData.isClosed) {
-      console.warn('Room is closed:', params.roomId);
+      serviceLogger.warn('room.joinRoom', 'room closed', params.roomId);
       throw new Error('Room is closed for new participants');
     }
+
+    const shouldBecomeMaster = !roomData.masterId;
 
     // プレイヤー情報をサブコレクションに追加
     const playerId = await addPlayer(
       params.roomId,
       params.nickname,
-      false
+      shouldBecomeMaster
     );
     console.log('Player added to room:', playerId);
 
+    // ルームにマスターが未設定の場合、最初の参加者をマスターとして確定する
+    if (shouldBecomeMaster) {
+      await runTransaction(db, async (transaction) => {
+        const freshRoomRef = doc(db, 'rooms', params.roomId);
+        const freshRoomSnap = await transaction.get(freshRoomRef);
+        if (!freshRoomSnap.exists()) {
+          throw new Error('Room does not exist');
+        }
+
+        const freshRoom = freshRoomSnap.data() as Room;
+        if (!freshRoom.masterId) {
+          transaction.update(freshRoomRef, {
+            masterId: playerId,
+            masterNickname: params.nickname,
+          });
+
+          const playerRef = doc(db, 'rooms', params.roomId, 'players', playerId);
+          transaction.update(playerRef, { isMaster: true });
+        }
+      });
+    }
+
     return playerId;
   } catch (error) {
-    console.error('Error in joinRoom:', error);
+    serviceLogger.error('room.joinRoom', 'failed', error);
     throw error;
   }
 }
@@ -121,11 +169,11 @@ export async function getRoom(roomId: string): Promise<Room | null> {
       console.log('Room info retrieved:', roomId);
       return roomDoc.data() as Room;
     } else {
-      console.warn('Room info not found:', roomId);
+      serviceLogger.warn('room.getRoom', 'room not found', roomId);
       return null;
     }
   } catch (error) {
-    console.error('Error fetching room info:', error);
+    serviceLogger.error('room.getRoom', 'failed', error);
     return null;
   }
 }
@@ -148,12 +196,12 @@ export function subscribeToRoom(
         console.log(`Room update received for ${roomId}:`, room.status);
         callback(room);
       } else {
-        console.warn(`Room document missing or deleted: ${roomId}`);
+        serviceLogger.warn('room.subscribe', 'room missing or deleted', roomId);
         callback(null);
       }
     },
     (error) => {
-      console.error(`Subscription Error for room ${roomId}:`, error);
+      serviceLogger.error('room.subscribe', `subscription error: ${roomId}`, error);
       callback(null);
     }
   );
@@ -178,7 +226,7 @@ export async function updateRoomStatus(
     await updateDoc(roomRef, { status });
     console.log(`Room status updated: ${roomId} -> ${status}`);
   } catch (error) {
-    console.error(`Failed to update room status for ${roomId}:`, error);
+    serviceLogger.error('room.updateStatus', `failed: ${roomId}`, error);
     throw error;
   }
 }
@@ -201,7 +249,7 @@ export async function startGame(roomId: string): Promise<void> {
 
     if (playersSnapshot.size < room.minPlayers) {
       const errorMsg = `Not enough players to start the game. Current: ${playersSnapshot.size}, Min: ${room.minPlayers}`;
-      console.warn(errorMsg);
+      serviceLogger.warn('room.startGame', errorMsg);
       throw new Error(errorMsg);
     }
 
@@ -209,7 +257,7 @@ export async function startGame(roomId: string): Promise<void> {
     await updateRoomStatus(roomId, 'creating');
     console.log(`Game started defined for room: ${roomId}`);
   } catch (error) {
-    console.error(`Error starting game for room ${roomId}:`, error);
+    serviceLogger.error('room.startGame', `failed: ${roomId}`, error);
     throw error;
   }
 }
@@ -267,13 +315,22 @@ export async function deleteRoom(roomId: string): Promise<void> {
     );
     await Promise.all(gameStateDeletePromises);
 
-    // 6. 最後にルーム本体を削除
+    // 6. reactions サブコレクションを削除
+    const reactionsRef = collection(db, 'rooms', roomId, 'reactions');
+    const reactionsSnapshot = await getDocs(reactionsRef);
+    console.log(`Deleting ${reactionsSnapshot.size} reactions`);
+    const reactionDeletePromises = reactionsSnapshot.docs.map(reactionDoc =>
+      deleteDoc(reactionDoc.ref)
+    );
+    await Promise.all(reactionDeletePromises);
+
+    // 7. 最後にルーム本体を削除
     const roomRef = doc(db, 'rooms', roomId);
     await deleteDoc(roomRef);
 
     console.log(`Room ${roomId} and all subcollections deleted successfully`);
   } catch (error) {
-    console.error('Failed to delete room:', error);
+    serviceLogger.error('room.deleteRoom', `failed: ${roomId}`, error);
     throw error;
   }
 }
@@ -295,7 +352,41 @@ export async function removePlayerFromRoom(
     const playersSnapshot = await getDocs(playersRef);
     return playersSnapshot.size;
   } catch (error) {
-    console.error('Failed to remove player from room:', error);
+    serviceLogger.error('room.removePlayer', `failed: room=${roomId}, player=${playerId}`, error);
+    throw error;
+  }
+}
+
+/**
+ * ルーム削除をサーバー側に依頼
+ */
+export async function requestRoomCleanup(roomId: string): Promise<void> {
+  try {
+    const roomRef = doc(db, 'rooms', roomId);
+    await updateDoc(roomRef, {
+      cleanupRequestedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    serviceLogger.warn('room.requestCleanup', `skipped: ${roomId}`, error);
+  }
+}
+
+/**
+ * Reset room for replay (keep participants, reset game data)
+ */
+export async function resetRoomForReplay(roomId: string): Promise<void> {
+  console.log('Resetting room for replay:', roomId);
+  try {
+    const roomRef = doc(db, 'rooms', roomId);
+
+    // Reset room status to waiting
+    await updateDoc(roomRef, {
+      status: 'waiting'
+    });
+
+    console.log('Room reset successfully for replay');
+  } catch (error) {
+    serviceLogger.error('room.resetForReplay', `failed: ${roomId}`, error);
     throw error;
   }
 }

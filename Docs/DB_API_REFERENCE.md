@@ -19,8 +19,9 @@
 | `subscribeToRoom(roomId, callback)` | ルーム情報のリアルタイム監視 | `roomId`, `callback` | `() => void`（購読解除） | Firestore | 監視 |
 | `updateRoomStatus(roomId, status)` | ルーム状態更新 | `roomId`, `Room['status']` | `void` | Firestore | 更新 |
 | `startGame(roomId)` | 開始可能判定後に `creating` へ遷移 | `roomId` | `void` | Firestore | 読み取り＋更新 |
-| `deleteRoom(roomId)` | ルームと全サブコレクション削除 | `roomId` | `void` | Firestore | 削除 |
+| `deleteRoom(roomId)` | ルームと全サブコレクション削除（サーバー側実行用） | `roomId` | `void` | Firestore | 削除 |
 | `removePlayerFromRoom(roomId, playerId)` | プレイヤー削除 | `roomId`, `playerId` | `number`（残人数） | Firestore | 削除＋読み取り |
+| `requestRoomCleanup(roomId)` | ルーム削除判定をサーバーへ依頼 | `roomId` | `void` | Firestore | 更新 |
 
 ## Player API（`playerService.ts`）
 

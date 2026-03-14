@@ -3,11 +3,13 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { createQuestion, getQuestionProgress, getQuestions } from '@/lib/services/questionService';
+import { createQuestion, getQuestionProgress } from '@/lib/services/questionService';
 import { uploadQuestionImage } from '@/lib/services/storageService';
-import { initializeGame } from '@/lib/services/gameService';
-import { updateRoomStatus } from '@/lib/services/roomService';
+import { initializeAndStartPlayingFlow } from '@/lib/services/roomFlowService';
+import { runServiceAction } from '@/lib/services/serviceAction';
 import type { Player, QuestionFormData } from '@/types';
+import { Modal } from './Modal';
+import templateDataset from './questionTemplateDataset.json';
 
 interface QuestionCreationPhaseProps {
   roomId: string;
@@ -46,6 +48,21 @@ const CHOICE_COLORS = [
   },
 ];
 
+type TemplateQuestion = {
+  text: string;
+  choices: [string, string, string, string];
+  correctAnswer: 0 | 1 | 2 | 3;
+};
+
+type TemplateCategory = {
+  id: string;
+  label: string;
+  questions: TemplateQuestion[];
+};
+
+const TEMPLATE_CATEGORIES = templateDataset as TemplateCategory[];
+const INITIAL_TEMPLATE_CATEGORY_ID = TEMPLATE_CATEGORIES[0]?.id ?? '';
+
 export function QuestionCreationPhase({ roomId, players, currentPlayerId }: QuestionCreationPhaseProps) {
   const [questionText, setQuestionText] = useState('');
   const [choices, setChoices] = useState(['', '', '', '']);
@@ -56,21 +73,20 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
   const [hasCreated, setHasCreated] = useState(false);
   const [progress, setProgress] = useState({ created: 0, total: players.length });
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [selectedTemplateCategoryId, setSelectedTemplateCategoryId] = useState(INITIAL_TEMPLATE_CATEGORY_ID);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
 
   useEffect(() => {
     const checkProgress = async () => {
-      try {
-        const progressData = await getQuestionProgress(roomId);
-        setProgress(progressData);
+      const progressData = await runServiceAction('questionCreation.progress', () => getQuestionProgress(roomId));
+      if (!progressData) {
+        return;
+      }
 
-        if (progressData.created === progressData.total && progressData.total > 0) {
-          const allQuestions = await getQuestions(roomId);
-          const questionIds = allQuestions.map(q => q.questionId);
-          await initializeGame(roomId, questionIds);
-          await updateRoomStatus(roomId, 'playing');
-        }
-      } catch (error) {
-        console.error('Failed to get progress:', error);
+      setProgress(progressData);
+
+      if (progressData.created === progressData.total && progressData.total > 0) {
+        await runServiceAction('questionCreation.startPlaying', () => initializeAndStartPlayingFlow(roomId));
       }
     };
 
@@ -95,6 +111,21 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
     setChoices(newChoices);
   };
 
+  const applyTemplate = () => {
+    const category = TEMPLATE_CATEGORIES.find(item => item.id === selectedTemplateCategoryId);
+    if (!category || category.questions.length === 0) {
+      return;
+    }
+
+    const randomIndex = Math.floor(Math.random() * category.questions.length);
+    const randomQuestion = category.questions[randomIndex];
+
+    setQuestionText(randomQuestion.text);
+    setChoices(randomQuestion.choices);
+    setCorrectAnswer(randomQuestion.correctAnswer);
+    setShowTemplateModal(false);
+  };
+
   const handleSubmitClick = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -109,26 +140,33 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
     setShowConfirmModal(false);
     setIsSubmitting(true);
 
-    try {
-      let imageUrl: string | undefined;
-      if (imageFile) {
-        imageUrl = await uploadQuestionImage(roomId, currentPlayerId, imageFile);
-      }
-
-      const questionData: QuestionFormData = {
-        text: questionText,
-        imageUrl,
-        choices: choices as [string, string, string, string],
-        correctAnswer: correctAnswer as 0 | 1 | 2 | 3,
-      };
-
-      await createQuestion(roomId, currentPlayerId, questionData);
-      setHasCreated(true);
-    } catch (error) {
-      console.error('Failed to create question:', error);
-    } finally {
-      setIsSubmitting(false);
+    let imageUrl: string | undefined;
+    if (imageFile) {
+      imageUrl = await runServiceAction('questionCreation.uploadImage', () =>
+        uploadQuestionImage(roomId, currentPlayerId, imageFile)
+      );
     }
+
+    const questionData: QuestionFormData = {
+      text: questionText,
+      imageUrl,
+      choices: choices as [string, string, string, string],
+      correctAnswer: correctAnswer as 0 | 1 | 2 | 3,
+    };
+
+    const created = await runServiceAction(
+      'questionCreation.createQuestion',
+      async () => {
+        await createQuestion(roomId, currentPlayerId, questionData);
+        return true;
+      },
+      { fallback: false }
+    );
+    if (created) {
+      setHasCreated(true);
+    }
+
+    setIsSubmitting(false);
   };
 
   if (hasCreated) {
@@ -150,6 +188,18 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
       <h2 className="text-2xl font-bold text-center text-white tracking-tight">問題を作りましょう</h2>
 
       <form onSubmit={handleSubmitClick} className="space-y-6">
+        {/* テンプレート入力（任意） */}
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setShowTemplateModal(true)}
+            aria-label="作問テンプレートを開く"
+            className="w-8 h-8 rounded-full border border-slate-500/80 text-slate-200 bg-slate-700/70 hover:bg-slate-600/80 transition-all text-sm font-bold"
+          >
+            ?
+          </button>
+        </div>
+
         {/* 問題文入力 */}
         <div>
           <label className="block text-sm font-semibold text-slate-300 mb-3">問題文 *</label>
@@ -193,11 +243,10 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
             {choices.map((choice, index) => (
               <div
                 key={index}
-                className={`flex items-center space-x-3 p-2 rounded-md border-2 transition-all ${
-                  correctAnswer === index
-                    ? `${CHOICE_COLORS[index].bgSelected} ${CHOICE_COLORS[index].borderSelected}`
-                    : `${CHOICE_COLORS[index].bg} ${CHOICE_COLORS[index].border}`
-                }`}
+                className={`flex items-center space-x-3 p-2 rounded-md border-2 transition-all ${correctAnswer === index
+                  ? `${CHOICE_COLORS[index].bgSelected} ${CHOICE_COLORS[index].borderSelected}`
+                  : `${CHOICE_COLORS[index].bg} ${CHOICE_COLORS[index].border}`
+                  }`}
               >
                 <input
                   type="radio"
@@ -238,77 +287,110 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
         </p>
       </form>
 
+      {/* テンプレートモーダル */}
+      {showTemplateModal && (
+        <Modal
+          onClose={() => setShowTemplateModal(false)}
+          panelClassName="max-w-lg w-full max-h-[80vh] overflow-y-auto p-6"
+        >
+          <h3 className="text-xl font-bold text-white mb-2">作問テンプレート（任意）</h3>
+          <p className="text-xs text-slate-400 mb-4">カテゴリを選ぶと、そのカテゴリからランダムに1問を下書きへ反映します（10カテゴリ × 各10問）。</p>
+
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-semibold text-slate-300 mb-2">カテゴリ</label>
+              <select
+                value={selectedTemplateCategoryId}
+                onChange={(e) => setSelectedTemplateCategoryId(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-blue-500"
+              >
+                {TEMPLATE_CATEGORIES.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              type="button"
+              onClick={applyTemplate}
+              disabled={!selectedTemplateCategoryId}
+              className="w-full px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-600 text-white text-sm font-semibold transition-all disabled:cursor-not-allowed"
+            >
+              このカテゴリからランダムに作成
+            </button>
+
+            <p className="text-xs text-slate-400">反映後は自由に編集できます。</p>
+          </div>
+        </Modal>
+      )}
+
       {/* 確認モーダル */}
       {showConfirmModal && (
-        <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50"
-          onClick={() => setShowConfirmModal(false)}
+        <Modal
+          onClose={() => setShowConfirmModal(false)}
+          panelClassName="max-w-md w-full max-h-[80vh] overflow-y-auto p-8"
         >
-          <div
-            className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border border-slate-700 p-8 max-w-md w-full max-h-[80vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-2xl font-bold text-white mb-6 text-center">
-              この内容で問題を作成しますか？
-            </h3>
+          <h3 className="text-2xl font-bold text-white mb-6 text-center">
+            この内容で問題を作成しますか？
+          </h3>
 
-            <div className="space-y-4 mb-6">
-              <div>
-                <p className="text-sm text-slate-400 mb-2">問題文</p>
-                <p className="text-white bg-slate-700/50 p-3 rounded-lg">{questionText}</p>
-              </div>
-
-              {imagePreview && (
-                <div>
-                  <p className="text-sm text-slate-400 mb-2">画像</p>
-                  <Image
-                    src={imagePreview}
-                    alt="Preview"
-                    className="w-full rounded-lg"
-                    width={400}
-                    height={225}
-                    unoptimized
-                  />
-                </div>
-              )}
-
-              <div>
-                <p className="text-sm text-slate-400 mb-2">選択肢</p>
-                <div className="space-y-2">
-                  {choices.map((choice, index) => (
-                    <div
-                      key={index}
-                      className={`p-3 rounded-lg border-2 ${
-                        correctAnswer === index
-                          ? `${CHOICE_COLORS[index].bgSelected} ${CHOICE_COLORS[index].borderSelected} text-white font-bold`
-                          : `${CHOICE_COLORS[index].bg} ${CHOICE_COLORS[index].border} text-slate-200`
-                      }`}
-                    >
-                      {index + 1}. {choice}
-                      {correctAnswer === index && ' ✓'}
-                    </div>
-                  ))}
-                </div>
-              </div>
+          <div className="space-y-4 mb-6">
+            <div>
+              <p className="text-sm text-slate-400 mb-2">問題文</p>
+              <p className="text-white bg-slate-700/50 p-3 rounded-lg">{questionText}</p>
             </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowConfirmModal(false)}
-                className="flex-1 bg-slate-700 text-white font-medium py-3 px-4 rounded-md transition-all"
-              >
-                戻る
-              </button>
-              <button
-                onClick={handleConfirmSubmit}
-                disabled={isSubmitting}
-                className="flex-1 bg-blue-600 disabled:bg-slate-600 text-white font-semibold py-3 px-4 rounded-md transition-all disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? '作成中...' : '作成する'}
-              </button>
+            {imagePreview && (
+              <div>
+                <p className="text-sm text-slate-400 mb-2">画像</p>
+                <Image
+                  src={imagePreview}
+                  alt="Preview"
+                  className="w-full rounded-lg"
+                  width={400}
+                  height={225}
+                  unoptimized
+                />
+              </div>
+            )}
+
+            <div>
+              <p className="text-sm text-slate-400 mb-2">選択肢</p>
+              <div className="space-y-2">
+                {choices.map((choice, index) => (
+                  <div
+                    key={index}
+                    className={`p-3 rounded-lg border-2 ${correctAnswer === index
+                      ? `${CHOICE_COLORS[index].bgSelected} ${CHOICE_COLORS[index].borderSelected} text-white font-bold`
+                      : `${CHOICE_COLORS[index].bg} ${CHOICE_COLORS[index].border} text-slate-200`
+                      }`}
+                  >
+                    {index + 1}. {choice}
+                    {correctAnswer === index && ' ✓'}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowConfirmModal(false)}
+              className="flex-1 bg-slate-700 text-white font-medium py-3 px-4 rounded-md transition-all"
+            >
+              戻る
+            </button>
+            <button
+              onClick={handleConfirmSubmit}
+              disabled={isSubmitting}
+              className="flex-1 bg-blue-600 disabled:bg-slate-600 text-white font-semibold py-3 px-4 rounded-md transition-all disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? '作成中...' : '作成する'}
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
   );

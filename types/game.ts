@@ -5,6 +5,13 @@ import { Timestamp } from 'firebase/firestore';
 import type { PlayerInfo } from './player';
 
 /**
+ * ゲーム内の詳細フェーズ
+ * answering: 回答・予想受付中
+ * revealing: 結果表示中（全員の回答が揃った or タイムアウト）
+ */
+export type GamePhase = 'answering' | 'revealing';
+
+/**
  * ゲームの進行状態
  */
 export interface GameState {
@@ -13,6 +20,10 @@ export interface GameState {
   totalQuestions: number;
   playersReady?: string[]; // 次の問題への準備が完了したプレイヤーIDのリスト
   questionStartedAt?: Timestamp; // 現在の問題が開始された時刻
+  // --- Phase 3で追加 ---
+  phase?: GamePhase;           // 現在の詳細フェーズ（Functionsが管理）
+  phaseDeadline?: Timestamp;   // フェーズの終了予定時刻（タイムアウト管理用）
+  onlinePlayerIds?: string[];  // Functionsが維持するオンラインプレイヤーID一覧
 }
 
 /**

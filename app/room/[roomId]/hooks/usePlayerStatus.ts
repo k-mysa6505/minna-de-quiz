@@ -9,27 +9,45 @@ export function usePlayerStatus(roomId: string, currentPlayerId: string) {
   useEffect(() => {
     if (!currentPlayerId) return;
 
-    // ブラウザを閉じる時の処理
-    const handleBeforeUnload = () => {
-      updatePlayerOnlineStatus(roomId, currentPlayerId, false).catch(console.error);
-    };
+    let isCleaningUp = false;
 
-    // タブの可視性が変わった時の処理
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        updatePlayerOnlineStatus(roomId, currentPlayerId, false).catch(console.error);
-      } else {
-        updatePlayerOnlineStatus(roomId, currentPlayerId, true).catch(console.error);
+    // 安全なオフライン更新関数
+    const safeUpdateOffline = async () => {
+      if (!isCleaningUp) {
+        isCleaningUp = true;
+        try {
+          await updatePlayerOnlineStatus(roomId, currentPlayerId, false);
+          console.log('Player status set to offline:', currentPlayerId);
+        } catch (error) {
+          console.error('Failed to update player offline status:', error);
+        }
       }
     };
 
+    // ブラウザを閉じる時の処理（同期的にNavigator.sendBeaconを試行）
+    const handleBeforeUnload = () => {
+      if (navigator.sendBeacon) {
+        // sendBeaconを使用して確実に送信
+        navigator.sendBeacon('/api/player-offline', JSON.stringify({
+          roomId,
+          playerId: currentPlayerId
+        }));
+      }
+      safeUpdateOffline();
+    };
+
+    // ページ離脱時の処理（より確実）
+    const handlePageHide = () => {
+      safeUpdateOffline();
+    };
+
     window.addEventListener('beforeunload', handleBeforeUnload);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', handlePageHide);
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      updatePlayerOnlineStatus(roomId, currentPlayerId, false).catch(console.error);
+      window.removeEventListener('pagehide', handlePageHide);
+      safeUpdateOffline();
     };
   }, [roomId, currentPlayerId]);
 }

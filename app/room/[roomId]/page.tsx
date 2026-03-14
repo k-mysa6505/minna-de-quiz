@@ -2,14 +2,16 @@
 // ゲームルームページ - メイン画面（リファクタリング版）
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useRoomData } from './hooks/useRoomData';
 import { usePlayerStatus } from './hooks/usePlayerStatus';
+import { setupPresence } from '@/lib/services/presenceService';
 import { WaitingPhase } from './components/WaitingPhase';
 import { QuestionCreationPhase } from './components/QuestionCreationPhase';
 import { GamePlayPhase } from './components/GamePlayPhase';
 import { FinalResultPhase } from './components/FinalResultPhase';
+import LoadingSpinner from '@/app/common/LoadingSpinner';
 
 // 初期状態を取得するヘルパー関数
 function getInitialPlayerState(roomId: string) {
@@ -53,16 +55,32 @@ export default function RoomPage() {
   // プレイヤーのオンライン状態を管理
   usePlayerStatus(roomId, currentPlayerId);
 
+  // プレゼンス管理のクリーンアップ関数
+  const presenceCleanupRef = useRef<(() => void) | null>(null);
+
+  // プレゼンス設定とクリーンアップ
+  useEffect(() => {
+    if (currentPlayerId && roomId) {
+      console.log('Setting up presence for player:', currentPlayerId);
+      presenceCleanupRef.current = setupPresence(roomId, currentPlayerId);
+    }
+
+    // クリーンアップ関数
+    return () => {
+      if (presenceCleanupRef.current) {
+        console.log('Cleaning up presence on unmount');
+        presenceCleanupRef.current();
+        presenceCleanupRef.current = null;
+      }
+    };
+  }, [currentPlayerId, roomId]);
+
   const error = initialState.error || roomError;
   const loading = !room && !error;
 
   // ローディング中
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-2xl font-bold text-gray-600">読み込み中...</div>
-      </div>
-    );
+    return <LoadingSpinner message="読み込み中..." />;
   }
 
   // エラー表示
@@ -89,7 +107,7 @@ export default function RoomPage() {
   return (
     <main className="min-h-screen p-4">
       <div className="max-w-6xl mx-auto">
-        {/* メインコンテンツ: ゲーム状態に応じて切り替え */}
+        {/* メインコンテンツ: ルーム状態に応じて切り替え */}
         <div className="shadow py-6">
           {room.status === 'waiting' && (
             <WaitingPhase
@@ -114,6 +132,8 @@ export default function RoomPage() {
               roomId={roomId}
               players={players}
               currentPlayerId={currentPlayerId}
+              useScreenMode={room.useScreenMode ?? false}
+              timeLimit={room.timeLimit ?? 30}
             />
           )}
 
@@ -122,6 +142,7 @@ export default function RoomPage() {
               roomId={roomId}
               players={players}
               currentPlayerId={currentPlayerId}
+              useScreenMode={room.useScreenMode ?? false}
             />
           )}
         </div>

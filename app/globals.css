@@ -11,20 +11,41 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-geist-sans), var(--font-noto-sans-jp), sans-serif;
+  --font-mono: var(--font-geist-sans), var(--font-noto-sans-jp), sans-serif;
 }
 
 body {
   background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
   background-attachment: fixed;
   color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font-geist-sans), var(--font-noto-sans-jp), sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.45;
   min-height: 100vh;
 }
 
+/* 日本語を少し横に広く見せる */
+:lang(ja) {
+  letter-spacing: 0.04em;
+  font-variant-east-asian: proportional-width;
+  font-feature-settings: "palt" 1;
+}
+
+code,
+.font-mono {
+  font-family: inherit !important;
+}
+
+body.screen-lock {
+  overflow: hidden;
+}
+
 /* モバイルでも太字・斜体を確実に表示 */
-strong, b, .font-bold {
+strong,
+b,
+.font-bold {
   font-weight: 700 !important;
 }
 
@@ -32,7 +53,9 @@ strong, b, .font-bold {
   font-weight: 600 !important;
 }
 
-em, i, .italic {
+em,
+i,
+.italic {
   font-style: italic !important;
 }
 
@@ -60,6 +83,7 @@ em, i, .italic {
     opacity: 0;
     transform: translateY(-10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -68,4 +92,25 @@ em, i, .italic {
 
 .animate-fade-in {
   animation: fade-in 0.5s ease-out;
+}
+
+@keyframes float-up {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.9);
+  }
+
+  15% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-48px) scale(1.1);
+  }
+}
+
+.animate-float-up {
+  animation: float-up 0.9s ease-out forwards;
 }

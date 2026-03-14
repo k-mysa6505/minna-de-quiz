@@ -1,16 +1,17 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Noto_Sans_JP } from "next/font/google";
 import "./globals.css";
 import AuthProvider from "./AuthProvider";
 
 const geistSans = Geist({
-  variable: "--font-geist-sans",
   subsets: ["latin"],
+  variable: "--font-geist-sans",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const notoSansJp = Noto_Sans_JP({
   subsets: ["latin"],
+  weight: ["500", "700"],
+  variable: "--font-noto-sans-jp",
 });
 
 export const metadata: Metadata = {
@@ -25,9 +26,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ja">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${geistSans.variable} ${notoSansJp.variable} antialiased`}>
         <AuthProvider>
           {children}
         </AuthProvider>

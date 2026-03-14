@@ -3,10 +3,11 @@
 
 import {
   collection, doc, setDoc, addDoc, getDoc,
-  getDocs, updateDoc, query, where, Timestamp, serverTimestamp
+  getDocs, updateDoc, deleteDoc, query, where, Timestamp, serverTimestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { GameState, Answer, Prediction } from '@/types';
+import { serviceLogger } from './serviceLogger';
 
 /**
  * ゲーム状態を初期化
@@ -27,14 +28,15 @@ export async function initializeGame(
       questionOrder: shuffledOrder,
       totalQuestions: questionIds.length,
       playersReady: [], // 初期化時は誰も準備完了していない
-      questionStartedAt: serverTimestamp() // 最初の問題の開始時刻
+      questionStartedAt: serverTimestamp(), // 最初の問題の開始時刻
+      phase: 'answering' as const, // 初期フェーズを明示設定（Functionsの遷移検知に必要）
     };
 
     console.log('Setting initial game state:', initialState);
     await setDoc(gameStateRef, initialState);
     console.log('Game initialized successfully');
   } catch (error) {
-    console.error(`Error initializing game for room ${roomId}:`, error);
+    serviceLogger.error('game.initialize', `failed: ${roomId}`, error);
     throw error;
   }
 }
@@ -52,11 +54,11 @@ export async function getGameState(roomId: string): Promise<GameState | null> {
       // console.log(`Game state retrieved:`, state); // Potentially noisy if polled
       return state;
     } else {
-      console.warn(`Game state not found for room ${roomId}`);
+      serviceLogger.warn('game.getState', `not found: ${roomId}`);
       return null;
     }
   } catch (error) {
-    console.error(`Error getting game state for room ${roomId}:`, error);
+    serviceLogger.error('game.getState', `failed: ${roomId}`, error);
     return null;
   }
 }
@@ -79,7 +81,7 @@ export async function nextQuestion(roomId: string): Promise<void> {
 
     // 最後の問題かチェック
     if (gameState.currentQuestionIndex >= gameState.totalQuestions - 1) {
-      console.warn('Already at the last question. Cannot proceed.');
+      serviceLogger.warn('game.nextQuestion', `already at last question: ${roomId}`);
       throw new Error('Already at the last question');
     }
 
@@ -91,7 +93,7 @@ export async function nextQuestion(roomId: string): Promise<void> {
     });
     console.log(`Moved to question index ${gameState.currentQuestionIndex + 1}`);
   } catch (error) {
-    console.error(`Error moving to next question in room ${roomId}:`, error);
+    serviceLogger.error('game.nextQuestion', `failed: ${roomId}`, error);
     throw error;
   }
 }
@@ -127,7 +129,7 @@ export async function markPlayerReady(
     });
     console.log(`Player ${playerId} marked as ready.`);
   } catch (error) {
-    console.error(`Error marking player ${playerId} ready in room ${roomId}:`, error);
+    serviceLogger.error('game.markReady', `failed: room=${roomId}, player=${playerId}`, error);
     throw error;
   }
 }
@@ -294,4 +296,59 @@ function shuffleArray<T>(array: T[]): T[] {
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
   return shuffled;
+}
+
+/**
+ * Reset game state for replay
+ */
+export async function resetGameState(roomId: string): Promise<void> {
+  console.log(`Resetting game state for room ${roomId}`);
+  try {
+    const gameStateRef = doc(db, 'rooms', roomId, 'gameState', 'state');
+
+    // Delete the game state document to completely reset
+    await deleteDoc(gameStateRef);
+
+    console.log('Game state reset successfully');
+  } catch (error) {
+    serviceLogger.error('game.resetState', `failed: ${roomId}`, error);
+    throw error;
+  }
+}
+
+/**
+ * Clear all questions and related data for replay
+ */
+export async function clearQuestionsAndAnswers(roomId: string): Promise<void> {
+  console.log(`Clearing questions and answers for room ${roomId}`);
+  try {
+    const deletePromises = [];
+
+    // Clear all questions
+    const questionsRef = collection(db, 'rooms', roomId, 'questions');
+    const questionDocs = await getDocs(questionsRef);
+    for (const questionDoc of questionDocs.docs) {
+      deletePromises.push(deleteDoc(questionDoc.ref));
+    }
+
+    // Clear all answers (room level)
+    const answersRef = collection(db, 'rooms', roomId, 'answers');
+    const answerDocs = await getDocs(answersRef);
+    for (const answerDoc of answerDocs.docs) {
+      deletePromises.push(deleteDoc(answerDoc.ref));
+    }
+
+    // Clear all predictions (room level)
+    const predictionsRef = collection(db, 'rooms', roomId, 'predictions');
+    const predictionDocs = await getDocs(predictionsRef);
+    for (const predictionDoc of predictionDocs.docs) {
+      deletePromises.push(deleteDoc(predictionDoc.ref));
+    }
+
+    await Promise.all(deletePromises);
+    console.log('Questions and answers cleared successfully');
+  } catch (error) {
+    serviceLogger.error('game.clearData', `failed: ${roomId}`, error);
+    throw error;
+  }
 }

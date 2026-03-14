@@ -3,28 +3,24 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { deleteRoom, removePlayerFromRoom } from '@/lib/services/roomService';
+import { leaveRoomFlow, resetRoomForReplayFlow } from '@/lib/services/roomFlowService';
+import { runServiceAction } from '@/lib/services/serviceAction';
 import { updatePlayerOnlineStatus } from '@/lib/services/playerService';
 import type { Player } from '@/types';
+import { PlayerListCard } from './PlayerListCard';
 
 interface FinalResultPhaseProps {
   roomId: string;
   players: Player[];
   currentPlayerId: string;
+  useScreenMode?: boolean;
 }
 
-export function FinalResultPhase({ roomId, players, currentPlayerId }: FinalResultPhaseProps) {
+export function FinalResultPhase({ roomId, players, currentPlayerId, useScreenMode = false }: FinalResultPhaseProps) {
   const router = useRouter();
   const [hasLeft, setHasLeft] = useState(false);
-  const [displayPlayers] = useState<Player[]>(players);
+  const [isResetting, setIsResetting] = useState(false);
 
-  // プレイヤー数を監視し、0になったらルームを削除
-  useEffect(() => {
-    if (players.length === 0) {
-      console.log('No players left. Deleting room...');
-      deleteRoom(roomId).catch(console.error);
-    }
-  }, [players.length, roomId]);
 
   // コンポーネントアンマウント時の処理
   useEffect(() => {
@@ -32,6 +28,7 @@ export function FinalResultPhase({ roomId, players, currentPlayerId }: FinalResu
       if (!hasLeft) {
         const currentPlayerId = localStorage.getItem('currentPlayerId');
         if (currentPlayerId) {
+          console.log('FinalResultPhase cleanup for player:', currentPlayerId);
           updatePlayerOnlineStatus(roomId, currentPlayerId, false).catch(console.error);
         }
       }
@@ -39,105 +36,90 @@ export function FinalResultPhase({ roomId, players, currentPlayerId }: FinalResu
   }, [roomId, hasLeft]);
 
   const handleLeaveRoom = async () => {
-    try {
-      const currentPlayerId = localStorage.getItem('currentPlayerId');
-      if (!currentPlayerId) {
-        router.push('/');
-        return;
-      }
-
-      console.log(`Player ${currentPlayerId} leaving room`);
-      setHasLeft(true);
-
-      await updatePlayerOnlineStatus(roomId, currentPlayerId, false);
-      const remainingPlayers = await removePlayerFromRoom(roomId, currentPlayerId);
-
-      localStorage.removeItem('currentPlayerId');
-      localStorage.removeItem('currentRoomId');
-
-      if (remainingPlayers === 0) {
-        console.log('Last player leaving. Deleting room...');
-        await deleteRoom(roomId);
-      }
-
+    const currentPlayerIdFromStorage = localStorage.getItem('currentPlayerId');
+    if (!currentPlayerIdFromStorage) {
+      localStorage.clear();
       router.push('/');
-    } catch (error) {
-      console.error('Failed to leave room:', error);
-      localStorage.removeItem('currentPlayerId');
-      localStorage.removeItem('currentRoomId');
-      router.push('/');
+      return;
     }
+
+    setHasLeft(true);
+    await runServiceAction('final.leaveRoom', () => leaveRoomFlow(roomId, currentPlayerIdFromStorage));
+
+    localStorage.removeItem('currentPlayerId');
+    localStorage.removeItem('currentRoomId');
+    sessionStorage.removeItem('currentPlayerId');
+    sessionStorage.removeItem('currentRoomId');
+    router.push('/');
   };
 
-  const playersToShow = displayPlayers.length > 0 ? displayPlayers : players;
-  const sortedPlayers = [...playersToShow].sort((a, b) => b.score - a.score);
-
-  // スコアに基づいて順位を計算する関数
-  const calculateRank = (playerIndex: number): number => {
-    if (playerIndex === 0) return 1;
-    
-    const currentScore = sortedPlayers[playerIndex].score;
-    const previousScore = sortedPlayers[playerIndex - 1].score;
-    
-    if (currentScore === previousScore) {
-      // 同じスコアなら前のプレイヤーと同じ順位
-      return calculateRank(playerIndex - 1);
-    } else {
-      // スコアが異なる場合は、実際の位置 + 1
-      return playerIndex + 1;
-    }
+  const handlePlayAgain = async () => {
+    setIsResetting(true);
+    await runServiceAction('final.playAgain', () => resetRoomForReplayFlow(roomId), {
+      onError: () => alert('リセットに失敗しました。ページをリロードしてください。'),
+    });
+    setIsResetting(false);
   };
 
-  // 1位のスコアを取得
-  const topScore = sortedPlayers.length > 0 ? sortedPlayers[0].score : 0;
+  const sortedByScore = [...players].sort((a, b) => b.score - a.score);
+  const myRank = Math.max(1, sortedByScore.findIndex((player) => player.playerId === currentPlayerId) + 1);
+
+  const getRankSuffix = (rank: number) => {
+    if (rank === 1) return '1位';
+    if (rank === 2) return '2位';
+    if (rank === 3) return '3位';
+    return `第${rank}位`;
+  };
 
   return (
     <div className="space-y-8">
-      <h2 className="text-2xl font-bold text-white tracking-tight">総合結果</h2>
+      <h2 className="text-2xl font-bold text-white tracking-tight">総合ランキング</h2>
 
-      {/* プレイヤー一覧 */}
-      <div className="bg-gradient-to-br from-slate-800/70 to-slate-900/70 pb-4 rounded border border-slate-700/50">
-        <div className="font-bold text-slate-400 pt-3 px-8 italic">
-          PLAYER
+      {!useScreenMode && (
+        <PlayerListCard
+          players={players}
+          currentPlayerId={currentPlayerId}
+          sortMode="scoreDesc"
+          showScores
+          highlightTopScore
+        />
+      )}
+
+      {useScreenMode && (
+        <div className="rounded-xl border border-slate-700/60 bg-slate-900/55 p-6 text-center space-y-3">
+          <p className="text-slate-300">あなたの最終順位は</p>
+          <p className="text-4xl sm:text-5xl font-black text-emerald-300">{getRankSuffix(myRank)}</p>
+          <p className="text-slate-300">でした！ 総合結果はスクリーンをご覧ください。</p>
         </div>
-        <ul className="space-y-1">
-          {sortedPlayers.map((player, idx) => {
-            const rank = calculateRank(idx);
-            const isWinner = player.score === topScore && topScore > 0;
-            return (
-              <li
-                key={player.playerId}
-                className={`flex items-center justify-between px-3 py-1 rounded transition-all ${
-                  player.playerId === currentPlayerId
-                    ? 'bg-gradient-to-b from-blue-800/90 to-blue-500/10'
-                    : ''
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="font-semibold text-white">
-                    {rank}．
-                    <span className={`italic ${isWinner ? 'text-yellow-400' : ''}`}>
-                      {player.nickname}
-                    </span>
-                  </span>
-                </div>
-                <div className="text-white font-semibold">
-                  {player.score.toLocaleString()}
-                  <span className="text-xs ml-1">pt</span>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
+      )}
 
-      {/* ホームに戻るボタン */}
-      <button
-        onClick={handleLeaveRoom}
-        className="block mx-auto bg-gradient-to-b from-emerald-700 to-emerald-800 text-white font-bold italic px-4 rounded-2xl shadow-2xl transition-all duration-300 transform hover:scale-105"
-      >
-        HOME
-      </button>
+      {/* ボタン群 */}
+      <div className="flex gap-4 justify-center">
+        {/* もう一度遊ぶボタン */}
+        <button
+          onClick={handlePlayAgain}
+          disabled={isResetting || hasLeft}
+          className="bg-emerald-700 disabled:bg-slate-600 text-white font-bold italic px-4 rounded-xl shadow-lg transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed"
+        >
+          {isResetting ? (
+            <div className="flex items-center justify-center gap-2">
+              <div className="animate-spin h-5 w-5 border-b-2 border-white rounded-full"></div>
+              <span>RESETTING...</span>
+            </div>
+          ) : (
+            'REPLAY'
+          )}
+        </button>
+
+        {/* ホームに戻るボタン */}
+        <button
+          onClick={handleLeaveRoom}
+          disabled={isResetting}
+          className="bg-slate-700/50 disabled:bg-slate-600 text-slate-200 font-bold italic px-4 rounded-xl border border-slate-600 transition-all duration-300 disabled:cursor-not-allowed"
+        >
+          HOME
+        </button>
+      </div>
     </div>
   );
 }
