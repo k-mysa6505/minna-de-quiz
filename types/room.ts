@@ -26,7 +26,7 @@ export type ScoringMode =
 export interface Room {
   roomId: string;
   masterId: string;
-  masterNickname: string;      // 作成者のニックネーム
+  masterNickname: string;      // 作問者のニックネーム
   status: RoomStatus;
   createdAt: Timestamp;
   maxPlayers: number;
@@ -49,7 +49,7 @@ export interface Room {
  * ルーム作成時のパラメータ
  */
 export interface CreateRoomParams {
-  nickname: string;              // 作成者のニックネーム
+  nickname: string;              // 作問者のニックネーム
   createHostPlayer?: boolean;    // ルーム作成時にホストをプレイヤーとして同時作成するか
   maxPlayers?: number;           // 最大人数
   minPlayers?: number;           // 最小人数

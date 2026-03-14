@@ -175,7 +175,7 @@ export function GamePlayPhase({ roomId, players, currentPlayerId, useScreenMode,
       <div className="flex justify-between px-3 items-center text-slate-200">
         <p>問題 {gameState.currentQuestionIndex + 1} / {gameState.totalQuestions}</p>
         <p className="italic">
-          作成者：{players.find(p => p.playerId === currentQuestion.authorId)?.nickname || 'unknown'}
+          作問者：{players.find(p => p.playerId === currentQuestion.authorId)?.nickname || 'unknown'}
         </p>
       </div>
 

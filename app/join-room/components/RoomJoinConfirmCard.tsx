@@ -38,7 +38,7 @@ export function RoomJoinConfirmCard({
                     )}
 
                     <div>
-                        <p className="text-sm text-slate-400 mb-1">作成者</p>
+                        <p className="text-sm text-slate-400 mb-1">作問者</p>
                         <p className="text-white">{roomInfo.masterNickname || '未設定'}</p>
                     </div>
                 </div>

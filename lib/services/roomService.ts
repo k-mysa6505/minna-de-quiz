@@ -43,7 +43,7 @@ export async function createRoom(params: CreateRoomParams): Promise<{ roomId: st
 
     let masterId = '';
     if (!useScreenMode && createHostPlayer) {
-      // 通常モードでは作成者を最初のプレイヤーとして追加（マスター）
+      // 通常モードでは作問者を最初のプレイヤーとして追加（マスター）
       masterId = await addPlayer(roomId, params.nickname, true);
       console.log('Creator added as master:', masterId);
     } else if (displayDeviceId) {

@@ -68,7 +68,7 @@
 
 | フィールド | 型 | 必須 | 説明 |
 |---|---|---|---|
-| `nickname` | `string` | ✅ | 作成者ニックネーム |
+| `nickname` | `string` | ✅ | 作問者ニックネーム |
 | `maxPlayers` | `number` | 任意 | 最大参加人数 |
 | `minPlayers` | `number` | 任意 | 最小開始人数 |
 | `description` | `string` | 任意 | ルーム説明 |
