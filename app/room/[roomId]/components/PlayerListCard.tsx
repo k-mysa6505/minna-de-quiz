@@ -11,6 +11,7 @@ interface PlayerListCardProps {
   showScores?: boolean;
   showMasterBadge?: boolean;
   highlightTopScore?: boolean;
+  maxVisiblePlayers?: number;
 }
 
 function toTime(value: unknown): number {
@@ -46,6 +47,7 @@ export function PlayerListCard({
   showScores = false,
   showMasterBadge = false,
   highlightTopScore = false,
+  maxVisiblePlayers,
 }: PlayerListCardProps) {
   const sortedPlayers = [...players].sort((a, b) => {
     if (sortMode === 'scoreDesc') {
@@ -54,6 +56,10 @@ export function PlayerListCard({
     return toTime(a.joinedAt) - toTime(b.joinedAt);
   });
 
+  const visiblePlayers =
+    typeof maxVisiblePlayers === 'number' ? sortedPlayers.slice(0, maxVisiblePlayers) : sortedPlayers;
+  const hiddenCount = Math.max(0, sortedPlayers.length - visiblePlayers.length);
+
   const ranks = sortMode === 'scoreDesc' ? calculateDenseRanks(sortedPlayers) : [];
   const topScore = sortedPlayers.length > 0 ? sortedPlayers[0].score : 0;
 
@@ -61,7 +67,7 @@ export function PlayerListCard({
     <div className="bg-gradient-to-br from-slate-800/70 to-slate-900/70 pb-4 rounded border border-slate-700/50">
       <div className="font-bold text-slate-400 pt-3 px-8 italic">PLAYER</div>
       <ul className="space-y-1">
-        {sortedPlayers.map((player, idx) => {
+        {visiblePlayers.map((player, idx) => {
           const isCurrentPlayer = player.playerId === currentPlayerId;
           const isWinner = highlightTopScore && topScore > 0 && player.score === topScore;
           const prefix = sortMode === 'scoreDesc' ? `${ranks[idx]}．` : `${idx + 1}．`;
@@ -90,6 +96,9 @@ export function PlayerListCard({
             </li>
           );
         })}
+        {hiddenCount > 0 && (
+          <li className="px-3 py-1 text-right text-xs text-slate-300">他 {hiddenCount} 人</li>
+        )}
       </ul>
     </div>
   );

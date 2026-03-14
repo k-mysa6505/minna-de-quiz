@@ -29,6 +29,12 @@ type ScreenState = {
 
 type RevealingPhase = 'answer' | 'ranking' | 'prediction';
 
+const MAX_WAITING_PLAYERS = 10;
+const MAX_CREATING_PLAYERS = 12;
+const MAX_RANKING_PLAYERS = 8;
+const MAX_FINISHED_PLAYERS = 10;
+const MAX_REACTIONS = 3;
+
 const SCREEN_CHOICE_COLORS = [
   { badgeBg: 'bg-blue-600' },
   { badgeBg: 'bg-red-600' },
@@ -70,6 +76,13 @@ export default function RoomScreenPage() {
   const [showPredictionBonus, setShowPredictionBonus] = useState(false);
   const [animatedPredictedCount, setAnimatedPredictedCount] = useState(0);
   const [animatedActualCount, setAnimatedActualCount] = useState(0);
+
+  useEffect(() => {
+    document.body.classList.add('screen-lock');
+    return () => {
+      document.body.classList.remove('screen-lock');
+    };
+  }, []);
 
   useEffect(() => {
     const unsubscribeRoom = subscribeToRoom(roomId, (room) => {
@@ -185,6 +198,24 @@ export default function RoomScreenPage() {
       .map((answer) => `${answer.playerId}:${toTimestamp(answer.answeredAt)}`)
       .join('|');
   }, [correctAnswers]);
+
+  const visibleRankingAnswers = useMemo(() => {
+    return correctAnswers.slice(0, MAX_RANKING_PLAYERS);
+  }, [correctAnswers]);
+
+  const hiddenRankingCount = Math.max(0, correctAnswers.length - visibleRankingAnswers.length);
+
+  const visibleCreatingPlayers = useMemo(() => {
+    return state.players.slice(0, MAX_CREATING_PLAYERS);
+  }, [state.players]);
+
+  const hiddenCreatingPlayersCount = Math.max(0, state.players.length - visibleCreatingPlayers.length);
+
+  const visibleFinishedPlayers = useMemo(() => {
+    return sortedPlayers.slice(0, MAX_FINISHED_PLAYERS);
+  }, [sortedPlayers]);
+
+  const hiddenFinishedPlayersCount = Math.max(0, sortedPlayers.length - visibleFinishedPlayers.length);
 
   const questionStartTime = useMemo(() => {
     return toTimestamp(state.gameState?.questionStartedAt);
@@ -384,12 +415,12 @@ export default function RoomScreenPage() {
   }
 
   return (
-    <main className="min-h-screen text-white p-4 sm:p-6 lg:p-10">
-      <section className="max-w-7xl mx-auto space-y-6">
+    <main className="h-[100dvh] overflow-hidden text-white p-3 sm:p-4 lg:p-6">
+      <section className="max-w-7xl mx-auto h-full">
 
         {state.room.status === 'waiting' && (
-          <section className="backdrop-blur-sm min-h-[86vh] grid grid-cols-1 xl:grid-cols-2 gap-6 xl:gap-8">
-            <div className="p-5 md:p-7">
+          <section className="backdrop-blur-sm h-full grid grid-cols-1 xl:grid-cols-2 gap-4 xl:gap-6 overflow-hidden">
+            <div className="p-4 md:p-5 flex min-h-0 flex-col">
               <div className="mb-5">
                 <h2 className="text-2xl md:text-4xl font-black">
                   プレイヤー待機中
@@ -402,12 +433,13 @@ export default function RoomScreenPage() {
                 </p>
               </div>
 
-              <div className="flex-1">
+              <div className="flex-1 min-h-0">
                 <PlayerListCard
                   players={state.players}
                   currentPlayerId=""
                   sortMode="joinedAt"
                   showMasterBadge
+                  maxVisiblePlayers={MAX_WAITING_PLAYERS}
                 />
               </div>
 
@@ -433,44 +465,38 @@ export default function RoomScreenPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-700/60 bg-slate-900/50 p-5 md:p-8 flex flex-col items-center justify-center text-center">
+            <div className="rounded-2xl border border-slate-700/60 bg-slate-900/50 p-4 md:p-6 flex flex-col items-center justify-center text-center overflow-hidden">
               <div>
-                <p className="text-slate-300 text-sm md:text-base mb-6">ルーム参加用QRコード</p>
-                <div className="bg-white rounded-2xl p-4 md:p-6 shadow-2xl mb-6">
+                <p className="text-slate-300 text-sm md:text-base mb-4">ルーム参加用QRコード</p>
+                <div className="bg-white rounded-2xl p-3 md:p-4 shadow-2xl mb-4">
                   <QRCodeSVG
                     value={joinUrl}
-                    size={320}
+                    size={240}
                     level="M"
                     includeMargin={true}
                   />
                 </div>
               </div>
 
-              <div className="px-6 py-5 w-full max-w-xl">
+              <div className="px-4 py-2 w-full max-w-xl">
                 <p className="text-slate-200 md:text-base mb-2">ROOM ID</p>
-                <p className="font-black tracking-[0.22em] text-4xl md:text-6xl text-white">{displayRoomId}</p>
+                <p className="font-black tracking-[0.2em] text-3xl md:text-5xl text-white">{displayRoomId}</p>
               </div>
             </div>
           </section>
         )}
 
-        {/* {state.room.status !== 'waiting' && (
-          <section className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4 md:p-6 flex justify-between items-center">
-            <p className="text-sm md:text-base text-slate-200">ROOM ID: <span className="font-mono text-white">{displayRoomId}</span></p>
-          </section>
-        )} */}
-
         {state.room.status === 'creating' && (
-          <section className="p-6 md:p-8">
-            <h2 className="text-2xl md:text-4xl font-bold">問題を作りましょう</h2>
-            <p className="py-3 text-base md:text-lg">
-              <span className="text-2xl md:text-2xl font-black mt-4">完了プレイヤー：</span>
-              <span className="text-4xl md:text-6xl font-black mt-4 mb-6 text-emerald-400">{state.questionProgress.created}</span>
+          <section className="h-full p-4 md:p-6 flex flex-col overflow-hidden">
+            <h2 className="text-2xl md:text-4xl shrink-0">問題を作りましょう</h2>
+            <p className="py-2 text-base md:text-lg shrink-0">
+              <span className="text-2xl md:text-2xl mt-4">完了プレイヤー：</span>
+              <span className="text-4xl md:text-5xl font-black mt-4 mb-6 text-emerald-400">{state.questionProgress.created}</span>
               <span className="text-3xl md:text-4xl font-black mt-4 mb-6"> / </span>
               <span className="text-3xl md:text-4xl font-black mt-4 mb-6">{state.questionProgress.total}</span>
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {state.players.map((player) => {
+              {visibleCreatingPlayers.map((player) => {
                 const isCompleted = state.creatingCompletedAuthorIds.includes(player.playerId);
                 return (
                   <div
@@ -485,13 +511,16 @@ export default function RoomScreenPage() {
                 );
               })}
             </div>
+            {hiddenCreatingPlayersCount > 0 && (
+              <p className="mt-3 text-sm text-slate-300">他 {hiddenCreatingPlayersCount} 人</p>
+            )}
           </section>
         )}
 
         {state.room.status === 'playing' && (
-          <section className="p-6 md:p-8 space-y-6">
+          <section className="h-full p-4 md:p-6 space-y-4 overflow-hidden">
             {state.gameState && (
-              <div className="flex items-center justify-between gap-4 text-3xl">
+              <div className="flex items-center justify-between gap-4 text-xl md:text-2xl">
                 <p className="text-slate-300">
                   問題 {state.gameState.currentQuestionIndex + 1} / {state.gameState.totalQuestions}
                 </p>
@@ -505,31 +534,31 @@ export default function RoomScreenPage() {
 
             {state.currentQuestion && state.gameState?.phase !== 'revealing' && (
               <>
-                <h2 className="text-2xl md:text-4xl font-bold leading-tight">{state.currentQuestion.text}</h2>
+                <h2 className="text-2xl md:text-3xl font-bold leading-tight max-h-[5.2rem] overflow-hidden">{state.currentQuestion.text}</h2>
                 {state.currentQuestion.imageUrl && (
-                  <div className="rounded-xl bg-slate-800/70 p-3">
+                  <div className="rounded-xl bg-slate-800/70 p-2">
                     <Image
                       src={state.currentQuestion.imageUrl}
                       alt="Question"
                       width={1400}
                       height={900}
-                      className="w-full h-auto max-h-[55vh] object-contain rounded-lg"
+                      className="w-full h-auto max-h-[32dvh] object-contain rounded-lg"
                       priority
                     />
                   </div>
                 )}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   {state.currentQuestion.choices.map((choice, index) => {
                     const choiceColor = SCREEN_CHOICE_COLORS[index] ?? SCREEN_CHOICE_COLORS[0];
                     return (
                       <div
                         key={`${choice}-${index}`}
-                        className="rounded-xl border border-slate-600 bg-slate-800/70 p-6 min-h-32 text-lg md:text-2xl font-semibold flex items-center text-white"
+                        className="rounded-xl border border-slate-600 bg-slate-800/70 p-3 md:p-4 min-h-24 text-base md:text-xl font-semibold flex items-center text-white"
                       >
-                        <span className={`mr-4 inline-flex h-11 w-11 md:h-14 md:w-14 shrink-0 items-center justify-center rounded-full text-xl md:text-3xl font-black text-white ${choiceColor.badgeBg}`}>
+                        <span className={`mr-3 inline-flex h-9 w-9 md:h-11 md:w-11 shrink-0 items-center justify-center rounded-full text-lg md:text-2xl font-black text-white ${choiceColor.badgeBg}`}>
                           {index + 1}
                         </span>
-                        {choice}
+                        <span className="max-h-[3rem] md:max-h-[3.4rem] overflow-hidden">{choice}</span>
                       </div>
                     );
                   })}
@@ -578,7 +607,7 @@ export default function RoomScreenPage() {
                         <p className="text-slate-300">正解者なし</p>
                       ) : (
                         <div className="space-y-2">
-                          {correctAnswers.map((answer, index) => {
+                          {visibleRankingAnswers.map((answer, index) => {
                             const player = state.players.find((p) => p.playerId === answer.playerId);
                             const answerTime = toTimestamp(answer.answeredAt);
                             const elapsedMs = Math.max(0, questionStartTime > 0 ? answerTime - questionStartTime : 0);
@@ -607,6 +636,9 @@ export default function RoomScreenPage() {
                               </div>
                             );
                           })}
+                          {hiddenRankingCount > 0 && (
+                            <p className="text-right text-xs text-slate-300">他 {hiddenRankingCount} 人</p>
+                          )}
                         </div>
                       )}
                     </div>
@@ -615,34 +647,34 @@ export default function RoomScreenPage() {
 
                 {revealingPhase === 'prediction' && (
                   <>
-                    <h2 className="text-4xl md:text-6xl font-black text-center italic animate-fade-in">予想チャレンジ結果</h2>
+                    <h2 className="text-3xl md:text-5xl font-black text-center italic animate-fade-in">予想チャレンジ結果</h2>
                     <div className="rounded-2xl border border-violet-300/35 bg-violet-500/10 px-3 py-4 md:px-7 md:py-6 animate-fade-in">
-                      <p className="text-lg md:text-2xl text-violet-100 mb-6 text-center">作問者の正解者数予想</p>
+                      <p className="text-lg md:text-xl text-violet-100 mb-4 text-center">作問者の正解者数予想</p>
                       {state.currentPrediction ? (
-                        <div className="space-y-7">
-                          <p className="text-xl md:text-3xl text-slate-100 text-center">作問者: <span className="font-bold text-white">{currentAuthorName}</span></p>
+                        <div className="space-y-4">
+                          <p className="text-lg md:text-2xl text-slate-100 text-center">作問者: <span className="font-bold text-white">{currentAuthorName}</span></p>
 
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-end">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 items-end">
                             <div className={`rounded-xl border border-violet-300/25 bg-slate-900/35 p-4 transition-all duration-700 ${showPredictedCount ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
                               <p className="text-base md:text-xl text-violet-100">予想した正解者数</p>
-                              <p className="mt-2 text-6xl md:text-7xl font-black text-white tabular-nums leading-none">
+                              <p className="mt-2 text-5xl md:text-6xl font-black text-white tabular-nums leading-none">
                                 {showPredictedCount ? animatedPredictedCount : '-'}
-                                <span className="ml-2 text-3xl md:text-4xl font-bold text-slate-200">人</span>
+                                <span className="ml-2 text-2xl md:text-3xl font-bold text-slate-200">人</span>
                               </p>
                             </div>
 
                             <div className={`rounded-xl border border-violet-300/25 bg-slate-900/35 p-4 transition-all duration-700 ${showActualCount ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
                               <p className="text-base md:text-xl text-violet-100">実際の正解者数</p>
-                              <p className="mt-2 text-7xl md:text-8xl font-black text-emerald-200 tabular-nums leading-none">
+                              <p className="mt-2 text-5xl md:text-6xl font-black text-emerald-200 tabular-nums leading-none">
                                 {showActualCount ? animatedActualCount : '-'}
-                                <span className="ml-2 text-3xl md:text-4xl font-bold text-slate-200">人</span>
+                                <span className="ml-2 text-2xl md:text-3xl font-bold text-slate-200">人</span>
                               </p>
                             </div>
                           </div>
 
                           <div className={`rounded-xl border border-slate-500/40 bg-slate-900/30 p-4 transition-all duration-700 text-center ${showPredictionBonus ? 'opacity-100' : 'opacity-0'}`}>
-                            <p className="text-lg md:text-2xl text-slate-300">予想ボーナス</p>
-                            <p className={`mt-2 text-4xl md:text-5xl font-black ${state.currentPrediction.isCorrect ? 'text-amber-200' : 'text-slate-300'}`}>
+                            <p className="text-lg md:text-xl text-slate-300">予想ボーナス</p>
+                            <p className={`mt-2 text-3xl md:text-4xl font-black ${state.currentPrediction.isCorrect ? 'text-amber-200' : 'text-slate-300'}`}>
                               {state.currentPrediction.isCorrect ? '+20pt' : '+0pt'}
                             </p>
                           </div>
@@ -659,15 +691,15 @@ export default function RoomScreenPage() {
         )}
 
         {state.room.status === 'finished' && (
-          <section className="p-6 md:p-8">
-            <h2 className="text-4xl md:text-4xl font-bold mb-4">総合ランキング</h2>
-            <div className="space-y-3">
-              {sortedPlayers.map((player, index) => (
+          <section className="h-full p-4 md:p-6 overflow-hidden">
+            <h2 className="text-3xl md:text-4xl font-bold mb-3">総合ランキング</h2>
+            <div className="space-y-2">
+              {visibleFinishedPlayers.map((player, index) => (
                 <div
                   key={player.playerId}
-                  className="flex items-center justify-between rounded-lg border border-slate-700 bg-slate-800/60 px-4 py-3"
+                  className="flex items-center justify-between rounded-lg border border-slate-700 bg-slate-800/60 px-4 py-2"
                 >
-                  <div className="flex items-center gap-3 text-lg md:text-2xl">
+                  <div className="flex items-center gap-3 text-lg md:text-xl">
                     <span className="text-emerald-300 font-black w-8">#{index + 1}</span>
                     <span className="font-semibold italic">{player.nickname}</span>
                   </div>
@@ -675,6 +707,9 @@ export default function RoomScreenPage() {
                 </div>
               ))}
             </div>
+            {hiddenFinishedPlayersCount > 0 && (
+              <p className="mt-3 text-sm text-slate-300">他 {hiddenFinishedPlayersCount} 人</p>
+            )}
           </section>
         )}
       </section>
@@ -682,8 +717,8 @@ export default function RoomScreenPage() {
       {state.reactions.length > 0 && (
         <aside className="fixed bottom-3 right-3 sm:bottom-5 sm:right-5 w-[78vw] max-w-sm rounded-xl border border-slate-700 bg-slate-900/80 backdrop-blur-md p-3">
           <p className="text-xs text-slate-400 mb-2">LIVE REACTIONS</p>
-          <div className="space-y-1 max-h-44 overflow-y-auto">
-            {state.reactions.slice(0, 8).map((reaction) => (
+          <div className="space-y-1">
+            {state.reactions.slice(0, MAX_REACTIONS).map((reaction) => (
               <div key={reaction.id} className="flex items-center justify-between text-xs">
                 <span className="text-slate-300 truncate mr-2">{reaction.userName}</span>
                 <span className={reaction.type === 'reaction' ? 'text-lg leading-none' : 'text-slate-100'}>

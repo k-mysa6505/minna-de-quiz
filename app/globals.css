@@ -23,6 +23,10 @@ body {
   min-height: 100vh;
 }
 
+body.screen-lock {
+  overflow: hidden;
+}
+
 /* モバイルでも太字・斜体を確実に表示 */
 strong,
 b,

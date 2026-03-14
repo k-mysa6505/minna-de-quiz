@@ -204,7 +204,7 @@ export function GamePlayPhase({ roomId, players, currentPlayerId, useScreenMode,
       )}
 
       {useScreenMode && (
-        <div className="bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700/50 rounded-2xl p-4 sm:p-6">
+        <div className="p-4 sm:p-6">
           <p className="text-center text-slate-300 text-sm sm:text-base font-medium">
             問題はスクリーンに表示中です。スマホでは回答を選んで送信してください。
           </p>
