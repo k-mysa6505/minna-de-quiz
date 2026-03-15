@@ -110,6 +110,7 @@ export default function RoomScreenPage() {
   const [showPredictionBonus, setShowPredictionBonus] = useState(false);
   const [animatedPredictedCount, setAnimatedPredictedCount] = useState(0);
   const [animatedActualCount, setAnimatedActualCount] = useState(0);
+  const [finishedRankingPlayers, setFinishedRankingPlayers] = useState<Player[]>([]);
 
   useEffect(() => {
     document.body.classList.add('screen-lock');
@@ -214,9 +215,37 @@ export default function RoomScreenPage() {
     };
   }, [roomId, state.room]);
 
+  useEffect(() => {
+    if (state.room?.status !== 'finished') {
+      setFinishedRankingPlayers((prev) => (prev.length > 0 ? [] : prev));
+      return;
+    }
+
+    if (state.players.length === 0) {
+      return;
+    }
+
+    setFinishedRankingPlayers((prev) => {
+      if (prev.length === 0) {
+        return state.players;
+      }
+
+      const merged = new Map(prev.map((player) => [player.playerId, player]));
+      for (const player of state.players) {
+        merged.set(player.playerId, { ...merged.get(player.playerId), ...player });
+      }
+      return Array.from(merged.values());
+    });
+  }, [state.room?.status, state.players]);
+
+  const rankingSourcePlayers =
+    state.room?.status === 'finished' && finishedRankingPlayers.length > 0
+      ? finishedRankingPlayers
+      : state.players;
+
   const sortedPlayers = useMemo(
-    () => [...state.players].sort((a, b) => b.score - a.score),
-    [state.players]
+    () => [...rankingSourcePlayers].sort((a, b) => b.score - a.score),
+    [rankingSourcePlayers]
   );
 
   const answerDistribution = useMemo(() => {
