@@ -17,7 +17,7 @@ import {
 import { db } from '@/lib/firebase';
 import type { Room, CreateRoomParams, JoinRoomParams } from '@/types';
 import { generateRoomId, isValidRoomId } from '@/lib/utils/generateRoomId';
-import { addPlayer } from './playerService';
+import { addPlayer, getPlayers } from './playerService';
 import { serviceLogger } from './serviceLogger';
 
 /**
@@ -368,6 +368,99 @@ export async function requestRoomCleanup(roomId: string): Promise<void> {
     });
   } catch (error) {
     serviceLogger.warn('room.requestCleanup', `skipped: ${roomId}`, error);
+  }
+}
+
+/**
+ * マスター本人が離脱する直前に、次のマスターへ権限を移譲する。
+ */
+export async function handoverMasterOnPlayerLeave(roomId: string, leavingPlayerId: string): Promise<void> {
+  try {
+    const room = await getRoom(roomId);
+    if (!room) {
+      return;
+    }
+
+    if (room.masterId !== leavingPlayerId) {
+      return;
+    }
+
+    // ゲーム中の移譲は既存方針どおり実施しない。
+    if (room.status !== 'waiting' && room.status !== 'finished') {
+      return;
+    }
+
+    const players = await getPlayers(roomId);
+    const candidates = players.filter((player) => player.playerId !== leavingPlayerId);
+    if (candidates.length === 0) {
+      return;
+    }
+
+    const randomIndex = Math.floor(Math.random() * candidates.length);
+    const nextMaster = candidates[randomIndex];
+    if (!nextMaster) {
+      return;
+    }
+
+    await updateDoc(doc(db, 'rooms', roomId), {
+      masterId: nextMaster.playerId,
+      masterNickname: nextMaster.nickname,
+    });
+
+    await updateDoc(doc(db, 'rooms', roomId, 'players', nextMaster.playerId), {
+      isMaster: true,
+    });
+
+    // 旧マスターがすでに消えているケースは無視する。
+    await updateDoc(doc(db, 'rooms', roomId, 'players', leavingPlayerId), {
+      isMaster: false,
+    }).catch(() => undefined);
+  } catch (error) {
+    serviceLogger.error('room.handoverOnLeave', `failed: room=${roomId}, player=${leavingPlayerId}`, error);
+  }
+}
+
+/**
+ * スクリーン端末（display master）が離脱したとき、
+ * ランダムなオンラインプレイヤーへマスター権限を移譲する。
+ */
+export async function handoverMasterFromScreenDevice(roomId: string, deviceId: string): Promise<void> {
+  try {
+    const room = await getRoom(roomId);
+    if (!room) {
+      return;
+    }
+
+    if (!room.useScreenMode || room.masterId !== deviceId) {
+      return;
+    }
+
+    if (room.status !== 'waiting' && room.status !== 'finished') {
+      return;
+    }
+
+    const players = await getPlayers(roomId);
+    const onlineCandidates = players.filter((player) => player.isOnline);
+    if (onlineCandidates.length === 0) {
+      return;
+    }
+
+    const randomIndex = Math.floor(Math.random() * onlineCandidates.length);
+    const nextMaster = onlineCandidates[randomIndex];
+    if (!nextMaster) {
+      return;
+    }
+
+    await updateDoc(doc(db, 'rooms', roomId), {
+      masterId: nextMaster.playerId,
+      masterNickname: nextMaster.nickname,
+    });
+
+    await updateDoc(doc(db, 'rooms', roomId, 'players', nextMaster.playerId), {
+      isMaster: true,
+    });
+  } catch (error) {
+    serviceLogger.error('room.handoverFromScreen', `failed: room=${roomId}, device=${deviceId}`, error);
   }
 }
 

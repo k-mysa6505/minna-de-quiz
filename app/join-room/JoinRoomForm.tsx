@@ -91,6 +91,8 @@ export default function JoinRoomPage() {
 
     localStorage.setItem('currentPlayerId', playerId);
     localStorage.setItem('currentRoomId', targetRoomId);
+    sessionStorage.setItem('currentPlayerId', playerId);
+    sessionStorage.setItem('currentRoomId', targetRoomId);
     router.push(`/room/${targetRoomId}`);
   };
 

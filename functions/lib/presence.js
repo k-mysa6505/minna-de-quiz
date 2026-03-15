@@ -49,7 +49,13 @@ exports.syncPresenceToFirestore = (0, database_1.onValueWritten)({
             return;
         }
         // 1. Firestoreの isOnline を同期
-        await playerRef.update({ isOnline });
+        await playerRef.update({
+            isOnline,
+            presenceUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            offlineSince: isOnline
+                ? admin.firestore.FieldValue.delete()
+                : admin.firestore.FieldValue.serverTimestamp(),
+        });
         console.log(`[presence] Firestore isOnline updated: player=${playerId} → ${isOnline}`);
         // 2. オフラインになった場合のみマスター移譲チェック
         if (!isOnline) {

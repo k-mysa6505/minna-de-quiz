@@ -205,6 +205,13 @@ export function ResultDisplayPhase({
 
   return (
     <div className="space-y-6">
+      {/* 進捗表示 */}
+      <div className="flex justify-between px-3 items-center text-slate-200">
+        <p>問題 {gameState.currentQuestionIndex + 1} / {gameState.totalQuestions}</p>
+        <p className="italic">
+          作問者：{players.find(p => p.playerId === currentQuestion.authorId)?.nickname || 'unknown'}
+        </p>
+      </div>
       {!showAnswerReveal ? (
         /* 正解発表画面 */
         <div className="space-y-6">

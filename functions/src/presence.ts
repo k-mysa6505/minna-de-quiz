@@ -57,7 +57,13 @@ export const syncPresenceToFirestore = onValueWritten(
       }
 
       // 1. Firestoreの isOnline を同期
-      await playerRef.update({ isOnline });
+      await playerRef.update({
+        isOnline,
+        presenceUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        offlineSince: isOnline
+          ? admin.firestore.FieldValue.delete()
+          : admin.firestore.FieldValue.serverTimestamp(),
+      });
       console.log(`[presence] Firestore isOnline updated: player=${playerId} → ${isOnline}`);
 
       // 2. オフラインになった場合のみマスター移譲チェック
@@ -113,7 +119,7 @@ async function handleMasterHandoverIfNeeded(
 
   // ランダムに新しいマスターを選択（離脱したプレイヤーを除く）
   const candidates = playersSnap.docs.filter(doc => doc.id !== offlinePlayerId);
-  
+
   if (candidates.length === 0) {
     console.log(`[masterHandover] No other online players found. No handover performed.`);
     return;

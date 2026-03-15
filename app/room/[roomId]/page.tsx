@@ -16,8 +16,30 @@ import LoadingSpinner from '@/app/common/LoadingSpinner';
 // 初期状態を取得するヘルパー関数
 function getInitialPlayerState(roomId: string) {
   if (typeof window !== 'undefined') {
+    const sessionPlayerId = sessionStorage.getItem('currentPlayerId');
+    const sessionRoomId = sessionStorage.getItem('currentRoomId');
+
+    if (sessionPlayerId && sessionRoomId === roomId) {
+      return {
+        playerId: sessionPlayerId,
+        error: '',
+        loading: true
+      };
+    }
+
+    // Backward compatibility: migrate legacy localStorage identity into this tab.
     const storedPlayerId = localStorage.getItem('currentPlayerId');
     const storedRoomId = localStorage.getItem('currentRoomId');
+
+    if (storedPlayerId && storedRoomId === roomId) {
+      sessionStorage.setItem('currentPlayerId', storedPlayerId);
+      sessionStorage.setItem('currentRoomId', storedRoomId);
+      return {
+        playerId: storedPlayerId,
+        error: '',
+        loading: true
+      };
+    }
 
     if (!storedPlayerId || storedRoomId !== roomId) {
       return {
@@ -142,7 +164,6 @@ export default function RoomPage() {
               roomId={roomId}
               players={players}
               currentPlayerId={currentPlayerId}
-              isMaster={room.masterId === currentPlayerId}
               useScreenMode={room.useScreenMode ?? false}
             />
           )}

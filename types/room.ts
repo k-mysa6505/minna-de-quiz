@@ -43,6 +43,8 @@ export interface Room {
   lastCleanupDecisionAt?: Timestamp;
   useScreenMode?: boolean;
   displayDeviceId?: string;
+  replayResetInProgress?: boolean;
+  replayResetAt?: Timestamp;
 }
 
 /**

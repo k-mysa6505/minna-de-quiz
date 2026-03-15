@@ -3,9 +3,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { leaveRoomFlow, resetRoomForReplayFlow } from '@/lib/services/roomFlowService';
+import { leaveRoomFlow } from '@/lib/services/roomFlowService';
 import { runServiceAction } from '@/lib/services/serviceAction';
-import { updatePlayerOnlineStatus } from '@/lib/services/playerService';
+import { setPlayerReplayRequested, updatePlayerOnlineStatus } from '@/lib/services/playerService';
 import type { Player } from '@/types';
 import { PlayerListCard } from './PlayerListCard';
 
@@ -13,7 +13,6 @@ interface FinalResultPhaseProps {
   roomId: string;
   players: Player[];
   currentPlayerId: string;
-  isMaster: boolean;
   useScreenMode?: boolean;
 }
 
@@ -53,19 +52,28 @@ export function FinalResultPhase({
   roomId,
   players,
   currentPlayerId,
-  isMaster,
   useScreenMode = false,
 }: FinalResultPhaseProps) {
   const router = useRouter();
   const [hasLeft, setHasLeft] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [hasRequestedReplay, setHasRequestedReplay] = useState(false);
+  const [finalRankingPlayers, setFinalRankingPlayers] = useState<Player[]>([]);
+
+  const resolveCurrentPlayerId = () => {
+    const fromSession = sessionStorage.getItem('currentPlayerId');
+    if (fromSession) {
+      return fromSession;
+    }
+    return localStorage.getItem('currentPlayerId');
+  };
 
 
   // コンポーネントアンマウント時の処理
   useEffect(() => {
     return () => {
       if (!hasLeft) {
-        const currentPlayerId = localStorage.getItem('currentPlayerId');
+        const currentPlayerId = resolveCurrentPlayerId();
         if (currentPlayerId) {
           console.log('FinalResultPhase cleanup for player:', currentPlayerId);
           updatePlayerOnlineStatus(roomId, currentPlayerId, false).catch(console.error);
@@ -74,10 +82,33 @@ export function FinalResultPhase({
     };
   }, [roomId, hasLeft]);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (players.length === 0) {
+        return;
+      }
+
+      setFinalRankingPlayers((prev) => {
+        if (prev.length === 0) {
+          return players;
+        }
+
+        const merged = new Map(prev.map((player) => [player.playerId, player]));
+        for (const player of players) {
+          merged.set(player.playerId, { ...merged.get(player.playerId), ...player });
+        }
+        return Array.from(merged.values());
+      });
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [players]);
+
   const handleLeaveRoom = async () => {
-    const currentPlayerIdFromStorage = localStorage.getItem('currentPlayerId');
+    const currentPlayerIdFromStorage = resolveCurrentPlayerId();
     if (!currentPlayerIdFromStorage) {
-      localStorage.clear();
+      sessionStorage.removeItem('currentPlayerId');
+      sessionStorage.removeItem('currentRoomId');
       router.push('/');
       return;
     }
@@ -85,32 +116,28 @@ export function FinalResultPhase({
     setHasLeft(true);
     await runServiceAction('final.leaveRoom', () => leaveRoomFlow(roomId, currentPlayerIdFromStorage));
 
-    localStorage.removeItem('currentPlayerId');
-    localStorage.removeItem('currentRoomId');
+    // Keep localStorage untouched to avoid affecting other tabs on the same origin.
     sessionStorage.removeItem('currentPlayerId');
     sessionStorage.removeItem('currentRoomId');
     router.push('/');
   };
 
   const handlePlayAgain = async () => {
-    const currentPlayerIdFromStorage = localStorage.getItem('currentPlayerId');
+    const currentPlayerIdFromStorage = resolveCurrentPlayerId();
     if (!currentPlayerIdFromStorage) {
       return;
     }
 
-    if (!isMaster) {
-      alert('REPLAYはルーム作成者のみ実行できます。');
-      return;
-    }
-
     setIsResetting(true);
-    await runServiceAction('final.playAgain', () => resetRoomForReplayFlow(roomId, currentPlayerIdFromStorage), {
-      onError: () => alert('リセットに失敗しました。ページをリロードしてください。'),
+    await runServiceAction('final.playAgain', () => setPlayerReplayRequested(roomId, currentPlayerIdFromStorage), {
+      onError: () => alert('リプレイ申請に失敗しました。ページをリロードしてください。'),
     });
     setIsResetting(false);
+    setHasRequestedReplay(true);
   };
 
-  const sortedByScore = [...players].sort((a, b) => b.score - a.score);
+  const rankingSourcePlayers = finalRankingPlayers.length > 0 ? finalRankingPlayers : players;
+  const sortedByScore = [...rankingSourcePlayers].sort((a, b) => b.score - a.score);
   const competitionRanks = calculateCompetitionRanks(sortedByScore);
   const myIndex = sortedByScore.findIndex((player) => player.playerId === currentPlayerId);
   const myRank = myIndex >= 0 ? competitionRanks[myIndex] : 1;
@@ -121,7 +148,7 @@ export function FinalResultPhase({
 
       {!useScreenMode && (
         <PlayerListCard
-          players={players}
+          players={rankingSourcePlayers}
           currentPlayerId={currentPlayerId}
           sortMode="scoreDesc"
           showScores
@@ -142,9 +169,9 @@ export function FinalResultPhase({
           {/* もう一度遊ぶボタン */}
           <button
             onClick={handlePlayAgain}
-            disabled={isResetting || hasLeft || !isMaster}
+            disabled={isResetting || hasLeft || hasRequestedReplay}
             className="bg-emerald-700 disabled:bg-slate-600 text-white font-bold italic px-4 rounded-xl shadow-lg transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed"
-            title={isMaster ? 'もう一度遊ぶ' : 'REPLAYはルーム作成者のみ実行できます'}
+            title={hasRequestedReplay ? 'リプレイ申請済み' : 'もう一度遊ぶ'}
           >
             {isResetting ? (
               <div className="flex items-center justify-center gap-2">
@@ -152,7 +179,7 @@ export function FinalResultPhase({
                 <span>RESETTING...</span>
               </div>
             ) : (
-              'REPLAY'
+              hasRequestedReplay ? 'REQUESTED' : 'REPLAY'
             )}
           </button>
 

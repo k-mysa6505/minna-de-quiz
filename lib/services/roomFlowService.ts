@@ -4,12 +4,20 @@ import { clearQuestionsAndAnswers, initializeGame, resetGameState } from './game
 import { resetAllPlayersScores, updatePlayerOnlineStatus } from './playerService';
 import { getQuestions } from './questionService';
 import { requestDisbandRoomCommand } from './roomCommandService';
-import { getRoom, removePlayerFromRoom, requestRoomCleanup, resetRoomForReplay, updateRoomStatus } from './roomService';
+import {
+  getRoom,
+  handoverMasterOnPlayerLeave,
+  removePlayerFromRoom,
+  requestRoomCleanup,
+  resetRoomForReplay,
+  updateRoomStatus,
+} from './roomService';
 
 /**
  * 退室時に必要な room/player 系処理を統一実行する。
  */
 export async function leaveRoomFlow(roomId: string, playerId: string): Promise<void> {
+  await handoverMasterOnPlayerLeave(roomId, playerId);
   await updatePlayerOnlineStatus(roomId, playerId, false);
   const remainingPlayers = await removePlayerFromRoom(roomId, playerId);
 
@@ -28,8 +36,9 @@ export async function resetRoomForReplayFlow(roomId: string, actorPlayerId: stri
     throw new Error('Room does not exist');
   }
 
-  if (room.masterId !== actorPlayerId) {
-    throw new Error('Only the room master can start replay');
+  // In screen mode, only the host display device can trigger replay.
+  if (room.useScreenMode && room.masterId !== actorPlayerId) {
+    throw new Error('Only the room master can start replay in screen mode');
   }
 
   await resetGameState(roomId);

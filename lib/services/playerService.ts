@@ -146,6 +146,32 @@ export async function updatePlayerScore(
 }
 
 /**
+ * Mark that a player wants to replay (player-local intent only).
+ */
+export async function setPlayerReplayRequested(
+  roomId: string,
+  playerId: string,
+  requested: boolean = true
+): Promise<void> {
+  try {
+    const playerRef = doc(db, 'rooms', roomId, 'players', playerId);
+    const playerSnap = await getDoc(playerRef);
+    if (!playerSnap.exists()) {
+      serviceLogger.warn('player.replayRequest', `player not found: room=${roomId}, player=${playerId}`);
+      return;
+    }
+
+    await updateDoc(playerRef, {
+      wantsReplay: requested,
+      replayRequestedAt: requested ? serverTimestamp() : null,
+    });
+  } catch (error) {
+    serviceLogger.error('player.replayRequest', `failed: room=${roomId}, player=${playerId}`, error);
+    throw error;
+  }
+}
+
+/**
  * Reset all players' scores to zero
  */
 export async function resetAllPlayersScores(roomId: string): Promise<void> {

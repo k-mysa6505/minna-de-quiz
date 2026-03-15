@@ -82,6 +82,8 @@ export default function CreateRoomPage() {
     if (useScreenMode && displayDeviceId) {
       localStorage.removeItem('currentPlayerId');
       localStorage.setItem('currentRoomId', roomId);
+      sessionStorage.removeItem('currentPlayerId');
+      sessionStorage.setItem('currentRoomId', roomId);
       router.push(`/room/${roomId}/screen?deviceId=${displayDeviceId}`);
       return;
     }
@@ -89,6 +91,8 @@ export default function CreateRoomPage() {
     if (playerId) {
       localStorage.setItem('currentPlayerId', playerId);
       localStorage.setItem('currentRoomId', roomId);
+      sessionStorage.setItem('currentPlayerId', playerId);
+      sessionStorage.setItem('currentRoomId', roomId);
       router.push(`/room/${roomId}`);
       return;
     }
@@ -96,6 +100,8 @@ export default function CreateRoomPage() {
     // プレイヤーモードでは次画面でニックネーム入力して参加する
     localStorage.removeItem('currentPlayerId');
     localStorage.setItem('currentRoomId', roomId);
+    sessionStorage.removeItem('currentPlayerId');
+    sessionStorage.setItem('currentRoomId', roomId);
     router.push(`/join-room?roomId=${roomId}&mode=host-setup`);
   };
 

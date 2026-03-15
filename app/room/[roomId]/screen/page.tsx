@@ -6,7 +6,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import LoadingSpinner from '@/app/common/LoadingSpinner';
 import { disbandRoomFlow, resetRoomForReplayFlow } from '@/lib/services/roomFlowService';
-import { startGame, subscribeToRoom } from '@/lib/services/roomService';
+import { handoverMasterFromScreenDevice, startGame, subscribeToRoom } from '@/lib/services/roomService';
 import { subscribeToPlayers } from '@/lib/services/playerService';
 import { getAnswers, getGameState, getPrediction } from '@/lib/services/gameService';
 import { getQuestion, getQuestionProgress, getQuestions } from '@/lib/services/questionService';
@@ -121,6 +121,24 @@ export default function RoomScreenPage() {
       document.body.classList.remove('screen-lock');
     };
   }, []);
+
+  useEffect(() => {
+    if (!requestedDeviceId) {
+      return;
+    }
+
+    const handoverOnLeave = () => {
+      // Fire-and-forget: this runs during pagehide/unmount.
+      handoverMasterFromScreenDevice(roomId, requestedDeviceId).catch(console.error);
+    };
+
+    window.addEventListener('pagehide', handoverOnLeave);
+
+    return () => {
+      window.removeEventListener('pagehide', handoverOnLeave);
+      handoverOnLeave();
+    };
+  }, [roomId, requestedDeviceId]);
 
   useEffect(() => {
     const unsubscribeRoom = subscribeToRoom(roomId, (room) => {
