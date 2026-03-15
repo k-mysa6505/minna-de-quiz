@@ -9,6 +9,7 @@ import { sendRoomReaction, subscribeToRoomReactions, type RoomReaction } from '@
 import { toMillis } from '@/lib/utils/roundScoring';
 import type { Player } from '@/types';
 import LoadingSpinner from '@/app/common/LoadingSpinner';
+import { ReactionOverlay, type LocalReactionEffect } from './ReactionOverlay';
 
 interface GamePlayPhaseProps {
   roomId: string;
@@ -20,13 +21,6 @@ interface GamePlayPhaseProps {
   fastestAnswerBonusPoints: number;
   wrongAnswerPenalty: number;
   predictionHitBonusPoints: number;
-}
-
-interface LocalReactionEffect {
-  id: number;
-  content: string;
-  senderName: string;
-  type: 'reaction' | 'message';
 }
 
 function ReactionTriggerIcon() {
@@ -303,195 +297,186 @@ export function GamePlayPhase({
   }
 
   return (
-    <div className="space-y-6">
-      {/* 進捗表示 */}
-      <div className="flex justify-between px-3 items-center text-slate-200">
-        <p>問題 {gameState.currentQuestionIndex + 1} / {gameState.totalQuestions}</p>
-        <div className="flex items-center gap-3">
-          {timeLimit > 0 && gameState.phase === 'answering' && (
-            <span className={`rounded-full px-3 py-1 text-sm font-bold tabular-nums ${remainingSeconds <= 5 ? 'bg-red-500/30 text-red-200 border border-red-400/50' : 'bg-slate-700/60 text-slate-100 border border-slate-500/50'}`}>
-              {remainingSeconds}s
-            </span>
-          )}
-          <p className="italic">
-            作問者：{players.find(p => p.playerId === currentQuestion.authorId)?.nickname || 'unknown'}
-          </p>
-        </div>
-      </div>
-
-      {!useScreenMode && (
-        <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-8 space-y-6">
-          <h3 className="text-2xl font-bold text-white text-center">{currentQuestion.text}</h3>
-          {currentQuestion.imageUrl && (
-            <div className="w-full bg-slate-700/30 rounded p-4">
-              <Image
-                src={currentQuestion.imageUrl}
-                alt="Question"
-                width={1200}
-                height={800}
-                className="max-w-full rounded mx-auto"
-                priority={true}
-                onError={() => {
-                  console.error('Failed to load question image:', currentQuestion.imageUrl);
-                }}
-                onLoad={() => {
-                  console.log('Question image loaded successfully');
-                }}
-              />
-            </div>
-          )}
-        </div>
-      )}
-
-      {useScreenMode && (
-        <div className="p-4 sm:p-6">
-          <p className="text-center text-slate-300 text-sm sm:text-base font-medium">
-            問題はスクリーンに表示中です。スマホでは回答を選んで送信してください。
-          </p>
-        </div>
-      )}
-
-      {/* 回答フォーム（出題者以外）- 2×2グリッド */}
-      {!isAuthor && !hasSubmittedAnswer && (
-        <div className="space-y-6">
-          <div className={`grid gap-3 sm:gap-4 ${useScreenMode ? 'grid-cols-2' : 'grid-cols-2'}`}>
-            {currentQuestion.choices.map((choice, index) => (
-              <button
-                key={index}
-                onClick={() => setSelectedAnswer(index)}
-                className={`
-                  relative rounded-xl border-4 transition-all duration-200 font-bold text-lg flex flex-col items-center justify-center
-                  ${useScreenMode ? 'p-4 min-h-[32svh] sm:min-h-[220px]' : 'p-6 min-h-[120px]'}
-                  ${selectedAnswer === index
-                    ? `${CHOICE_COLORS[index].selected} ${CHOICE_COLORS[index].border} shadow-2xl scale-105`
-                    : `${CHOICE_COLORS[index].bg} ${CHOICE_COLORS[index].border} ${CHOICE_COLORS[index].hover} shadow-lg hover:scale-102`
-                  }
-                  ${CHOICE_COLORS[index].text}
-                `}
-              >
-                {useScreenMode ? (
-                  <div className="text-5xl sm:text-6xl font-black leading-none">{index + 1}</div>
-                ) : (
-                  <>
-                    <div className="text-sm opacity-80 mb-2">{index + 1}</div>
-                    <div className="break-words text-center">{choice}</div>
-                  </>
-                )}
-                {selectedAnswer === index && (
-                  <div className="absolute top-2 right-2 text-2xl">✓</div>
-                )}
-              </button>
-            ))}
+    <>
+      <div className="space-y-6">
+        {/* 進捗表示 */}
+        <div className="flex justify-between px-3 items-center text-slate-200">
+          <p>問題 {gameState.currentQuestionIndex + 1} / {gameState.totalQuestions}</p>
+          <div className="flex items-center gap-3">
+            {timeLimit > 0 && gameState.phase === 'answering' && (
+              <span className={`rounded-full px-3 py-1 text-sm font-bold tabular-nums ${remainingSeconds <= 5 ? 'bg-red-500/30 text-red-200 border border-red-400/50' : 'bg-slate-700/60 text-slate-100 border border-slate-500/50'}`}>
+                {remainingSeconds}s
+              </span>
+            )}
+            <p className="italic">
+              作問者：{players.find(p => p.playerId === currentQuestion.authorId)?.nickname || 'unknown'}
+            </p>
           </div>
-          <button
-            onClick={handleAnswerSubmit}
-            disabled={selectedAnswer === null}
-            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 disabled:from-slate-600 disabled:to-slate-700 text-white font-semibold py-4 sm:py-5 px-6 rounded-md shadow-lg transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed text-base sm:text-lg"
-          >
-            回答を送信
-          </button>
         </div>
-      )}
 
-      {/* 予想フォーム（出題者のみ） */}
-      {isAuthor && !hasSubmittedPrediction && (
-        <div className="space-y-6">
-          <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50">
-            <label className="block text-sm text-slate-300 mb-4 font-medium text-center">
-              正解者数を予想してください（0〜{otherPlayersCount}人）
-            </label>
-            <input
-              type="number"
-              min="0"
-              max={otherPlayersCount}
-              value={predictedCorrectCount}
-              onChange={(e) => setPredictedCorrectCount(parseInt(e.target.value) || 0)}
-              className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-md text-white text-center text-2xl font-bold focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-            />
-            {useScreenMode && (
-              <p className="text-xs text-slate-400 text-center mt-3">
-                問題文はスクリーンに表示されています
-              </p>
+        {!useScreenMode && (
+          <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-8 space-y-6">
+            <h3 className="text-2xl font-bold text-white text-center">{currentQuestion.text}</h3>
+            {currentQuestion.imageUrl && (
+              <div className="w-full bg-slate-700/30 rounded p-4">
+                <Image
+                  src={currentQuestion.imageUrl}
+                  alt="Question"
+                  width={1200}
+                  height={800}
+                  className="max-w-full rounded mx-auto"
+                  priority={true}
+                  onError={() => {
+                    console.error('Failed to load question image:', currentQuestion.imageUrl);
+                  }}
+                  onLoad={() => {
+                    console.log('Question image loaded successfully');
+                  }}
+                />
+              </div>
             )}
           </div>
-          <button
-            onClick={handlePredictionSubmit}
-            className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 text-white font-semibold py-4 px-6 rounded-md shadow-lg"
-          >
-            予想を送信
-          </button>
-        </div>
-      )}
+        )}
 
-      {/* 待機中 */}
-      {(hasSubmittedAnswer || (isAuthor && hasSubmittedPrediction)) && (
-        <div className="text-center p-30">
-          <p className="text-lg text-slate-300 font-medium italic">他のプレイヤーの回答を待っています...</p>
-          <p className="text-sm text-slate-400 mt-2">
-            解答済みプレイヤー {currentAnswerCount} / {players.length}
-          </p>
-        </div>
-      )}
+        {useScreenMode && (
+          <div className="p-4 sm:p-6">
+            <p className="text-center text-slate-300 text-sm sm:text-base font-medium">
+              問題はスクリーンに表示中です。スマホでは回答を選んで送信してください。
+            </p>
+          </div>
+        )}
 
-      {currentPlayer && (
-        <div className="fixed z-50 [bottom:clamp(0.75rem,2.6vh,1.5rem)] [right:clamp(0.75rem,3.5vw,1.75rem)]">
-          {isReactionPanelOpen && (
-            <div ref={reactionPanelRef} className="absolute bottom-16 right-0 w-[min(88vw,320px)] origin-bottom-right space-y-3 rounded-2xl border border-slate-700/80 bg-slate-900/90 p-3 shadow-2xl backdrop-blur-sm">
-              <div className="grid grid-cols-3 gap-2">
-                {REACTION_STAMPS.map((stamp) => (
-                  <button
-                    key={stamp}
-                    type="button"
-                    onClick={(event) => handleSendReaction('reaction', stamp, event.timeStamp)}
-                    className="rounded-lg border border-slate-700 bg-slate-800 px-2 py-2 text-xl leading-none text-slate-100 transition hover:bg-slate-700 active:scale-95"
-                  >
-                    {stamp}
-                  </button>
-                ))}
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {QUICK_MESSAGES.map((message) => (
-                  <button
-                    key={message}
-                    type="button"
-                    onClick={(event) => handleSendReaction('message', message, event.timeStamp)}
-                    className="rounded-lg border border-slate-700 bg-slate-800 px-2 py-2 text-xs text-slate-100 transition hover:bg-slate-700 active:scale-95 sm:text-sm"
-                  >
-                    {message}
-                  </button>
-                ))}
-              </div>
-              <p className="text-[11px] text-slate-400">送信は1秒に1回までです</p>
+        {/* 回答フォーム（出題者以外）- 2×2グリッド */}
+        {!isAuthor && !hasSubmittedAnswer && (
+          <div className="space-y-6">
+            <div className={`grid gap-3 sm:gap-4 ${useScreenMode ? 'grid-cols-2' : 'grid-cols-2'}`}>
+              {currentQuestion.choices.map((choice, index) => (
+                <button
+                  key={index}
+                  onClick={() => setSelectedAnswer(index)}
+                  className={`
+                    relative rounded-xl border-4 transition-all duration-200 font-bold text-lg flex flex-col items-center justify-center
+                    ${useScreenMode ? 'p-4 min-h-[32svh] sm:min-h-[220px]' : 'p-6 min-h-[120px]'}
+                    ${selectedAnswer === index
+                      ? `${CHOICE_COLORS[index].selected} ${CHOICE_COLORS[index].border} shadow-2xl scale-105`
+                      : `${CHOICE_COLORS[index].bg} ${CHOICE_COLORS[index].border} ${CHOICE_COLORS[index].hover} shadow-lg hover:scale-102`
+                    }
+                    ${CHOICE_COLORS[index].text}
+                  `}
+                >
+                  {useScreenMode ? (
+                    <div className="text-5xl sm:text-6xl font-black leading-none">{index + 1}</div>
+                  ) : (
+                    <>
+                      <div className="text-sm opacity-80 mb-2">{index + 1}</div>
+                      <div className="break-words text-center">{choice}</div>
+                    </>
+                  )}
+                  {selectedAnswer === index && (
+                    <div className="absolute top-2 right-2 text-2xl">✓</div>
+                  )}
+                </button>
+              ))}
             </div>
-          )}
+            <button
+              onClick={handleAnswerSubmit}
+              disabled={selectedAnswer === null}
+              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 disabled:from-slate-600 disabled:to-slate-700 text-white font-semibold py-4 sm:py-5 px-6 rounded-md shadow-lg transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed text-base sm:text-lg"
+            >
+              回答を送信
+            </button>
+          </div>
+        )}
 
-          <button
-            ref={reactionToggleButtonRef}
-            type="button"
-            aria-label="リアクションを開く"
-            aria-expanded={isReactionPanelOpen}
-            onClick={() => setIsReactionPanelOpen((prev) => !prev)}
-            className="grid h-14 w-14 place-items-center rounded-full border border-slate-500/70 bg-slate-800/90 text-slate-100 shadow-lg hover:bg-slate-700"
-          >
-            <span className="block">
-              <ReactionTriggerIcon />
-            </span>
-          </button>
-        </div>
-      )}
-
-      {reactionEffects.length > 0 && (
-        <div className="pointer-events-none fixed bottom-24 left-1/2 z-[90] flex w-[min(94vw,520px)] -translate-x-1/2 flex-col items-center gap-2 px-2">
-          {reactionEffects.map((effect) => (
-            <div key={effect.id} className="animate-float-up max-w-full px-3 text-center">
-              <p className={effect.type === 'reaction' ? 'text-3xl leading-none sm:text-4xl' : 'break-words text-sm font-semibold text-slate-100 sm:text-base'}>
-                {effect.content}
-              </p>
-              <p className="mx-auto mt-1 max-w-full break-words text-[10px] text-slate-200 sm:text-xs">{effect.senderName}</p>
+        {/* 予想フォーム（出題者のみ） */}
+        {isAuthor && !hasSubmittedPrediction && (
+          <div className="space-y-6">
+            <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50">
+              <label className="block text-sm text-slate-300 mb-4 font-medium text-center">
+                正解者数を予想してください（0〜{otherPlayersCount}人）
+              </label>
+              <input
+                type="number"
+                min="0"
+                max={otherPlayersCount}
+                value={predictedCorrectCount}
+                onChange={(e) => setPredictedCorrectCount(parseInt(e.target.value) || 0)}
+                className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-md text-white text-center text-2xl font-bold focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              />
+              {useScreenMode && (
+                <p className="text-xs text-slate-400 text-center mt-3">
+                  問題文はスクリーンに表示されています
+                </p>
+              )}
             </div>
-          ))}
-        </div>
-      )}
-    </div>
+            <button
+              onClick={handlePredictionSubmit}
+              className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 text-white font-semibold py-4 px-6 rounded-md shadow-lg"
+            >
+              予想を送信
+            </button>
+          </div>
+        )}
+
+        {/* 待機中 */}
+        {(hasSubmittedAnswer || (isAuthor && hasSubmittedPrediction)) && (
+          <div className="text-center p-30">
+            <p className="text-lg text-slate-300 font-medium italic">他のプレイヤーの回答を待っています...</p>
+            <p className="text-sm text-slate-400 mt-2">
+              解答済みプレイヤー {currentAnswerCount} / {players.length}
+            </p>
+          </div>
+        )}
+
+        {currentPlayer && (
+          <div className="fixed z-50 [bottom:clamp(0.75rem,2.6vh,1.5rem)] [right:clamp(0.75rem,3.5vw,1.75rem)]">
+            {isReactionPanelOpen && (
+              <div ref={reactionPanelRef} className="absolute bottom-16 right-0 w-[min(88vw,320px)] origin-bottom-right space-y-3 rounded-2xl border border-slate-700/80 bg-slate-900/90 p-3 shadow-2xl backdrop-blur-sm">
+                <div className="grid grid-cols-3 gap-2">
+                  {REACTION_STAMPS.map((stamp) => (
+                    <button
+                      key={stamp}
+                      type="button"
+                      onClick={(event) => handleSendReaction('reaction', stamp, event.timeStamp)}
+                      className="rounded-lg border border-slate-700 bg-slate-800 px-2 py-2 text-xl leading-none text-slate-100 transition hover:bg-slate-700 active:scale-95"
+                    >
+                      {stamp}
+                    </button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {QUICK_MESSAGES.map((message) => (
+                    <button
+                      key={message}
+                      type="button"
+                      onClick={(event) => handleSendReaction('message', message, event.timeStamp)}
+                      className="rounded-lg border border-slate-700 bg-slate-800 px-2 py-2 text-xs text-slate-100 transition hover:bg-slate-700 active:scale-95 sm:text-sm"
+                    >
+                      {message}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-slate-400">送信は1秒に1回までです</p>
+              </div>
+            )}
+
+            <button
+              ref={reactionToggleButtonRef}
+              type="button"
+              aria-label="リアクションを開く"
+              aria-expanded={isReactionPanelOpen}
+              onClick={() => setIsReactionPanelOpen((prev) => !prev)}
+              className="grid h-14 w-14 place-items-center rounded-full border border-slate-500/70 bg-slate-800/90 text-slate-100 shadow-lg hover:bg-slate-700"
+            >
+              <span className="block">
+                <ReactionTriggerIcon />
+              </span>
+            </button>
+          </div>
+        )}
+
+      </div>
+      <ReactionOverlay effects={reactionEffects} />
+    </>
   );
 }

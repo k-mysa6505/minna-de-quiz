@@ -7,6 +7,7 @@ import {
   calculatePredictionPoints,
 } from '@/lib/utils/roundScoring';
 import type { Player, Answer, GameState, Question } from '@/types';
+import { ReactionOverlay, type LocalReactionEffect } from './ReactionOverlay';
 
 interface ResultDisplayPhaseProps {
   roomId: string;
@@ -24,13 +25,6 @@ interface ResultDisplayPhaseProps {
   fastestAnswerBonusPoints: number;
   wrongAnswerPenalty: number;
   predictionHitBonusPoints: number;
-}
-
-interface LocalReactionEffect {
-  id: number;
-  content: string;
-  senderName: string;
-  type: 'reaction' | 'message';
 }
 
 function ReactionTriggerIcon() {
@@ -348,18 +342,7 @@ export function ResultDisplayPhase({
         </button>
       </div>
 
-      {reactionEffects.length > 0 && (
-        <div className="pointer-events-none fixed bottom-28 left-1/2 z-[70] flex w-[min(92vw,420px)] -translate-x-1/2 flex-col items-center gap-1 overflow-x-hidden px-1">
-          {reactionEffects.map((effect) => (
-            <div key={effect.id} className="animate-float-up max-w-full px-2 text-center">
-              <p className={effect.type === 'reaction' ? 'text-3xl leading-none sm:text-4xl' : 'break-words text-sm font-semibold text-slate-100 sm:text-base'}>
-                {effect.content}
-              </p>
-              <p className="mx-auto mt-1 max-w-full truncate text-[10px] text-slate-200">{effect.senderName}</p>
-            </div>
-          ))}
-        </div>
-      )}
+      <ReactionOverlay effects={reactionEffects} />
     </>
   );
 

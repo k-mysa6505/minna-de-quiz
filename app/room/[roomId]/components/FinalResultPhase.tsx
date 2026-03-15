@@ -9,19 +9,13 @@ import { setPlayerReplayRequested, updatePlayerOnlineStatus } from '@/lib/servic
 import { sendRoomReaction, subscribeToRoomReactions, type RoomReaction } from '@/lib/services/reactionService';
 import type { Player } from '@/types';
 import { PlayerListCard } from './PlayerListCard';
+import { ReactionOverlay, type LocalReactionEffect } from './ReactionOverlay';
 
 interface FinalResultPhaseProps {
   roomId: string;
   players: Player[];
   currentPlayerId: string;
   useScreenMode?: boolean;
-}
-
-interface LocalReactionEffect {
-  id: number;
-  content: string;
-  senderName: string;
-  type: 'reaction' | 'message';
 }
 
 function ReactionTriggerIcon() {
@@ -292,116 +286,107 @@ export function FinalResultPhase({
   const myRank = myIndex >= 0 ? competitionRanks[myIndex] : 1;
 
   return (
-    <div className="space-y-8">
-      <h2 className="text-2xl font-bold text-white tracking-tight">総合ランキング</h2>
+    <>
+      <div className="space-y-8">
+        <h2 className="text-2xl font-bold text-white tracking-tight">総合ランキング</h2>
 
-      {!useScreenMode && (
-        <PlayerListCard
-          players={rankingSourcePlayers}
-          currentPlayerId={currentPlayerId}
-          sortMode="scoreDesc"
-          showScores
-          highlightTopScore
-        />
-      )}
+        {!useScreenMode && (
+          <PlayerListCard
+            players={rankingSourcePlayers}
+            currentPlayerId={currentPlayerId}
+            sortMode="scoreDesc"
+            showScores
+            highlightTopScore
+          />
+        )}
 
-      {useScreenMode && (
-        <div className="rounded-xl border border-slate-700/60 bg-slate-900/55 p-6 text-center space-y-3">
-          <p className="text-slate-300">あなたの最終順位は</p>
-          <p className="text-4xl sm:text-5xl font-black text-emerald-300">{formatOrdinalRank(myRank)}</p>
-          <p className="text-slate-300">でした！ 総合結果はスクリーンをご覧ください。</p>
-        </div>
-      )}
+        {useScreenMode && (
+          <div className="rounded-xl border border-slate-700/60 bg-slate-900/55 p-6 text-center space-y-3">
+            <p className="text-slate-300">あなたの最終順位は</p>
+            <p className="text-4xl sm:text-5xl font-black text-emerald-300">{formatOrdinalRank(myRank)}</p>
+            <p className="text-slate-300">でした！ 総合結果はスクリーンをご覧ください。</p>
+          </div>
+        )}
 
-      {!useScreenMode && (
-        <div className="flex gap-4 justify-center">
-          {/* もう一度遊ぶボタン */}
-          <button
-            onClick={handlePlayAgain}
-            disabled={isResetting || hasLeft || hasRequestedReplay}
-            className="bg-emerald-700 disabled:bg-slate-600 text-white font-bold italic px-4 rounded-xl shadow-lg transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed"
-            title={hasRequestedReplay ? 'リプレイ申請済み' : 'もう一度遊ぶ'}
-          >
-            {isResetting ? (
-              <div className="flex items-center justify-center gap-2">
-                <div className="animate-spin h-5 w-5 border-b-2 border-white rounded-full"></div>
-                <span>RESETTING...</span>
+        {!useScreenMode && (
+          <div className="flex gap-4 justify-center">
+            {/* もう一度遊ぶボタン */}
+            <button
+              onClick={handlePlayAgain}
+              disabled={isResetting || hasLeft || hasRequestedReplay}
+              className="bg-emerald-700 disabled:bg-slate-600 text-white font-bold italic px-4 rounded-xl shadow-lg transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed"
+              title={hasRequestedReplay ? 'リプレイ申請済み' : 'もう一度遊ぶ'}
+            >
+              {isResetting ? (
+                <div className="flex items-center justify-center gap-2">
+                  <div className="animate-spin h-5 w-5 border-b-2 border-white rounded-full"></div>
+                  <span>RESETTING...</span>
+                </div>
+              ) : (
+                hasRequestedReplay ? 'REQUESTED' : 'REPLAY'
+              )}
+            </button>
+
+            {/* ホームに戻るボタン */}
+            <button
+              onClick={handleLeaveRoom}
+              disabled={isResetting}
+              className="bg-slate-700/50 disabled:bg-slate-600 text-slate-200 font-bold italic px-4 rounded-xl border border-slate-600 transition-all duration-300 disabled:cursor-not-allowed"
+            >
+              HOME
+            </button>
+          </div>
+        )}
+
+        {currentPlayer && (
+          <div className="fixed bottom-6 right-4 z-40 sm:right-6">
+            {isReactionPanelOpen && (
+              <div ref={reactionPanelRef} className="absolute bottom-16 right-0 w-[min(88vw,320px)] space-y-3 rounded-2xl border border-slate-700/80 bg-slate-900/90 p-3 shadow-2xl backdrop-blur-sm">
+                <div className="grid grid-cols-3 gap-2">
+                  {REACTION_STAMPS.map((stamp) => (
+                    <button
+                      key={stamp}
+                      type="button"
+                      onClick={(event) => handleSendReaction('reaction', stamp, event.timeStamp)}
+                      className="rounded-lg border border-slate-700 bg-slate-800 px-2 py-2 text-xl leading-none text-slate-100 transition hover:bg-slate-700 active:scale-95"
+                    >
+                      {stamp}
+                    </button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {QUICK_MESSAGES.map((message) => (
+                    <button
+                      key={message}
+                      type="button"
+                      onClick={(event) => handleSendReaction('message', message, event.timeStamp)}
+                      className="rounded-lg border border-slate-700 bg-slate-800 px-2 py-2 text-xs text-slate-100 transition hover:bg-slate-700 active:scale-95 sm:text-sm"
+                    >
+                      {message}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-slate-400">送信は1秒に1回までです</p>
               </div>
-            ) : (
-              hasRequestedReplay ? 'REQUESTED' : 'REPLAY'
             )}
-          </button>
 
-          {/* ホームに戻るボタン */}
-          <button
-            onClick={handleLeaveRoom}
-            disabled={isResetting}
-            className="bg-slate-700/50 disabled:bg-slate-600 text-slate-200 font-bold italic px-4 rounded-xl border border-slate-600 transition-all duration-300 disabled:cursor-not-allowed"
-          >
-            HOME
-          </button>
-        </div>
-      )}
+            <button
+              ref={reactionToggleButtonRef}
+              type="button"
+              aria-label="リアクションを開く"
+              aria-expanded={isReactionPanelOpen}
+              onClick={() => setIsReactionPanelOpen((prev) => !prev)}
+              className="grid h-14 w-14 place-items-center rounded-full border border-slate-500/70 bg-slate-800/90 text-slate-100 shadow-lg hover:bg-slate-700"
+            >
+              <span className="block">
+                <ReactionTriggerIcon />
+              </span>
+            </button>
+          </div>
+        )}
 
-      {currentPlayer && (
-        <div className="fixed bottom-6 right-4 z-40 sm:right-6">
-          {isReactionPanelOpen && (
-            <div ref={reactionPanelRef} className="absolute bottom-16 right-0 w-[min(88vw,320px)] space-y-3 rounded-2xl border border-slate-700/80 bg-slate-900/90 p-3 shadow-2xl backdrop-blur-sm">
-              <div className="grid grid-cols-3 gap-2">
-                {REACTION_STAMPS.map((stamp) => (
-                  <button
-                    key={stamp}
-                    type="button"
-                    onClick={(event) => handleSendReaction('reaction', stamp, event.timeStamp)}
-                    className="rounded-lg border border-slate-700 bg-slate-800 px-2 py-2 text-xl leading-none text-slate-100 transition hover:bg-slate-700 active:scale-95"
-                  >
-                    {stamp}
-                  </button>
-                ))}
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {QUICK_MESSAGES.map((message) => (
-                  <button
-                    key={message}
-                    type="button"
-                    onClick={(event) => handleSendReaction('message', message, event.timeStamp)}
-                    className="rounded-lg border border-slate-700 bg-slate-800 px-2 py-2 text-xs text-slate-100 transition hover:bg-slate-700 active:scale-95 sm:text-sm"
-                  >
-                    {message}
-                  </button>
-                ))}
-              </div>
-              <p className="text-[11px] text-slate-400">送信は1秒に1回までです</p>
-            </div>
-          )}
-
-          <button
-            ref={reactionToggleButtonRef}
-            type="button"
-            aria-label="リアクションを開く"
-            aria-expanded={isReactionPanelOpen}
-            onClick={() => setIsReactionPanelOpen((prev) => !prev)}
-            className="grid h-14 w-14 place-items-center rounded-full border border-slate-500/70 bg-slate-800/90 text-slate-100 shadow-lg hover:bg-slate-700"
-          >
-            <span className="block">
-              <ReactionTriggerIcon />
-            </span>
-          </button>
-        </div>
-      )}
-
-      {reactionEffects.length > 0 && (
-        <div className="pointer-events-none fixed bottom-28 left-1/2 z-[70] flex w-[min(92vw,420px)] -translate-x-1/2 flex-col items-center gap-1 overflow-x-hidden px-1">
-          {reactionEffects.map((effect) => (
-            <div key={effect.id} className="animate-float-up max-w-full px-2 text-center">
-              <p className={effect.type === 'reaction' ? 'text-3xl leading-none sm:text-4xl' : 'break-words text-sm font-semibold text-slate-100 sm:text-base'}>
-                {effect.content}
-              </p>
-              <p className="mx-auto mt-1 max-w-full truncate text-[10px] text-slate-200">{effect.senderName}</p>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+      </div>
+      <ReactionOverlay effects={reactionEffects} />
+    </>
   );
 }
