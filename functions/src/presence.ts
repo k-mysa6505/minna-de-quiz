@@ -13,6 +13,13 @@ if (admin.apps.length === 0) {
 }
 
 const db = admin.firestore();
+const FORCE_LEAVE_GRACE_MS = 20 * 1000;
+
+type RoomLike = {
+  status?: string;
+  masterId?: string;
+  masterNickname?: string;
+};
 
 /**
  * RTDBのpresence (isOnline) が変化したとき:
@@ -69,6 +76,7 @@ export const syncPresenceToFirestore = onValueWritten(
       // 2. オフラインになった場合のみマスター移譲チェック
       if (!isOnline) {
         await handleMasterHandoverIfNeeded(roomId, playerId);
+        await forceLeaveIfOfflineAfterGrace(roomId, playerId);
       }
     } catch (err) {
       console.error('[presence] Error:', err);
@@ -152,4 +160,77 @@ async function handleMasterHandoverIfNeeded(
   );
   await batch.commit();
   console.log(`[masterHandover] Handover complete. New master: ${newMasterId}`);
+}
+
+async function forceLeaveIfOfflineAfterGrace(roomId: string, playerId: string): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, FORCE_LEAVE_GRACE_MS));
+
+  await db.runTransaction(async (tx) => {
+    const roomRef = db.collection('rooms').doc(roomId);
+    const roomSnap = await tx.get(roomRef);
+    if (!roomSnap.exists) {
+      return;
+    }
+
+    const room = roomSnap.data() as RoomLike;
+    if (!room.status || !['waiting', 'creating', 'playing', 'finished'].includes(room.status)) {
+      return;
+    }
+
+    const playerRef = roomRef.collection('players').doc(playerId);
+    const playerSnap = await tx.get(playerRef);
+    if (!playerSnap.exists) {
+      return;
+    }
+
+    const player = playerSnap.data() as { isOnline?: boolean };
+    if (player.isOnline) {
+      return;
+    }
+
+    const playersBefore = await tx.get(roomRef.collection('players'));
+    const remainingPlayers = Math.max(0, playersBefore.size - 1);
+
+    if (room.masterId === playerId && (room.status === 'waiting' || room.status === 'finished')) {
+      const candidates = playersBefore.docs.filter((docSnap) => {
+        if (docSnap.id === playerId) return false;
+        const data = docSnap.data() as { isOnline?: boolean };
+        return Boolean(data.isOnline);
+      });
+
+      if (candidates.length > 0) {
+        const randomIndex = Math.floor(Math.random() * candidates.length);
+        const nextMasterDoc = candidates[randomIndex];
+        const nextMasterData = nextMasterDoc.data() as { nickname?: string };
+
+        tx.update(roomRef, {
+          masterId: nextMasterDoc.id,
+          masterNickname: nextMasterData.nickname ?? room.masterNickname ?? 'unknown',
+        });
+
+        tx.update(nextMasterDoc.ref, {
+          isMaster: true,
+        });
+      }
+    }
+
+    tx.delete(playerRef);
+
+    const gameStateRef = roomRef.collection('gameState').doc('state');
+    const gameStateSnap = await tx.get(gameStateRef);
+    if (gameStateSnap.exists) {
+      tx.update(gameStateRef, {
+        playersReady: admin.firestore.FieldValue.arrayRemove(playerId),
+        requiredAnswerPlayerIds: admin.firestore.FieldValue.arrayRemove(playerId),
+      });
+    }
+
+    if (remainingPlayers === 0) {
+      tx.update(roomRef, {
+        cleanupRequestedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+  });
+
+  console.log(`[forceLeave.quick] Room ${roomId}: removed offline player ${playerId} after ${FORCE_LEAVE_GRACE_MS}ms`);
 }
