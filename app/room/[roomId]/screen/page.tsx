@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { QRCodeSVG } from 'qrcode.react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import LoadingSpinner from '@/app/common/LoadingSpinner';
+import { disbandRoomFlow, resetRoomForReplayFlow } from '@/lib/services/roomFlowService';
 import { startGame, subscribeToRoom } from '@/lib/services/roomService';
 import { subscribeToPlayers } from '@/lib/services/playerService';
 import { getAnswers, getGameState, getPrediction } from '@/lib/services/gameService';
@@ -111,6 +112,8 @@ export default function RoomScreenPage() {
   const [animatedPredictedCount, setAnimatedPredictedCount] = useState(0);
   const [animatedActualCount, setAnimatedActualCount] = useState(0);
   const [finishedRankingPlayers, setFinishedRankingPlayers] = useState<Player[]>([]);
+  const [isReplaying, setIsReplaying] = useState(false);
+  const [isDisbanding, setIsDisbanding] = useState(false);
 
   useEffect(() => {
     document.body.classList.add('screen-lock');
@@ -216,26 +219,30 @@ export default function RoomScreenPage() {
   }, [roomId, state.room]);
 
   useEffect(() => {
-    if (state.room?.status !== 'finished') {
-      setFinishedRankingPlayers((prev) => (prev.length > 0 ? [] : prev));
-      return;
-    }
-
-    if (state.players.length === 0) {
-      return;
-    }
-
-    setFinishedRankingPlayers((prev) => {
-      if (prev.length === 0) {
-        return state.players;
+    const timer = setTimeout(() => {
+      if (state.room?.status !== 'finished') {
+        setFinishedRankingPlayers((prev) => (prev.length > 0 ? [] : prev));
+        return;
       }
 
-      const merged = new Map(prev.map((player) => [player.playerId, player]));
-      for (const player of state.players) {
-        merged.set(player.playerId, { ...merged.get(player.playerId), ...player });
+      if (state.players.length === 0) {
+        return;
       }
-      return Array.from(merged.values());
-    });
+
+      setFinishedRankingPlayers((prev) => {
+        if (prev.length === 0) {
+          return state.players;
+        }
+
+        const merged = new Map(prev.map((player) => [player.playerId, player]));
+        for (const player of state.players) {
+          merged.set(player.playerId, { ...merged.get(player.playerId), ...player });
+        }
+        return Array.from(merged.values());
+      });
+    }, 0);
+
+    return () => clearTimeout(timer);
   }, [state.room?.status, state.players]);
 
   const rankingSourcePlayers =
@@ -511,6 +518,35 @@ export default function RoomScreenPage() {
 
   const handleBackFromScreen = () => {
     router.push(`/room/${roomId}`);
+  };
+
+  const handleReplayFromScreen = async () => {
+    if (!requestedDeviceId) {
+      return;
+    }
+
+    setIsReplaying(true);
+    await runServiceAction('screen.replay', () => resetRoomForReplayFlow(roomId, requestedDeviceId), {
+      onError: () => {
+        alert('リプレイに失敗しました。ページをリロードしてください。');
+      },
+    });
+    setIsReplaying(false);
+  };
+
+  const handleDisbandFromScreen = async () => {
+    if (!requestedDeviceId) {
+      return;
+    }
+
+    setIsDisbanding(true);
+    await runServiceAction('screen.disband', () => disbandRoomFlow(roomId, requestedDeviceId), {
+      onError: () => {
+        alert('ルーム解体に失敗しました。ページをリロードしてください。');
+      },
+    });
+    setIsDisbanding(false);
+    router.push('/');
   };
 
   if (!state.room && !state.error) {
@@ -865,6 +901,31 @@ export default function RoomScreenPage() {
             {hiddenFinishedPlayersCount > 0 && (
               <p className="mt-3 text-sm text-slate-300">他 {hiddenFinishedPlayersCount} 人</p>
             )}
+
+            <div className="mt-6 flex gap-4 justify-center">
+              <button
+                onClick={handleReplayFromScreen}
+                disabled={isReplaying || isDisbanding}
+                className="bg-emerald-700 disabled:bg-slate-600 text-white font-bold italic px-4 rounded-xl shadow-lg transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed"
+              >
+                {isReplaying ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="animate-spin h-5 w-5 border-b-2 border-white rounded-full"></div>
+                    <span>RESETTING...</span>
+                  </div>
+                ) : (
+                  'REPLAY'
+                )}
+              </button>
+
+              <button
+                onClick={handleDisbandFromScreen}
+                disabled={isReplaying || isDisbanding}
+                className="bg-slate-700/50 disabled:bg-slate-600 text-slate-200 font-bold italic px-4 rounded-xl border border-slate-600 transition-all duration-300 disabled:cursor-not-allowed"
+              >
+                {isDisbanding ? 'DISBANDING...' : 'DISBAND'}
+              </button>
+            </div>
           </section>
         )}
       </section>

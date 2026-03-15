@@ -13,6 +13,7 @@ interface FinalResultPhaseProps {
   roomId: string;
   players: Player[];
   currentPlayerId: string;
+  isMaster: boolean;
   useScreenMode?: boolean;
 }
 
@@ -48,7 +49,13 @@ function formatOrdinalRank(rank: number): string {
   }
 }
 
-export function FinalResultPhase({ roomId, players, currentPlayerId, useScreenMode = false }: FinalResultPhaseProps) {
+export function FinalResultPhase({
+  roomId,
+  players,
+  currentPlayerId,
+  isMaster,
+  useScreenMode = false,
+}: FinalResultPhaseProps) {
   const router = useRouter();
   const [hasLeft, setHasLeft] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
@@ -86,8 +93,18 @@ export function FinalResultPhase({ roomId, players, currentPlayerId, useScreenMo
   };
 
   const handlePlayAgain = async () => {
+    const currentPlayerIdFromStorage = localStorage.getItem('currentPlayerId');
+    if (!currentPlayerIdFromStorage) {
+      return;
+    }
+
+    if (!isMaster) {
+      alert('REPLAYはルーム作成者のみ実行できます。');
+      return;
+    }
+
     setIsResetting(true);
-    await runServiceAction('final.playAgain', () => resetRoomForReplayFlow(roomId), {
+    await runServiceAction('final.playAgain', () => resetRoomForReplayFlow(roomId, currentPlayerIdFromStorage), {
       onError: () => alert('リセットに失敗しました。ページをリロードしてください。'),
     });
     setIsResetting(false);
@@ -120,33 +137,35 @@ export function FinalResultPhase({ roomId, players, currentPlayerId, useScreenMo
         </div>
       )}
 
-      {/* ボタン群 */}
-      <div className="flex gap-4 justify-center">
-        {/* もう一度遊ぶボタン */}
-        <button
-          onClick={handlePlayAgain}
-          disabled={isResetting || hasLeft}
-          className="bg-emerald-700 disabled:bg-slate-600 text-white font-bold italic px-4 rounded-xl shadow-lg transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed"
-        >
-          {isResetting ? (
-            <div className="flex items-center justify-center gap-2">
-              <div className="animate-spin h-5 w-5 border-b-2 border-white rounded-full"></div>
-              <span>RESETTING...</span>
-            </div>
-          ) : (
-            'REPLAY'
-          )}
-        </button>
+      {!useScreenMode && (
+        <div className="flex gap-4 justify-center">
+          {/* もう一度遊ぶボタン */}
+          <button
+            onClick={handlePlayAgain}
+            disabled={isResetting || hasLeft || !isMaster}
+            className="bg-emerald-700 disabled:bg-slate-600 text-white font-bold italic px-4 rounded-xl shadow-lg transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed"
+            title={isMaster ? 'もう一度遊ぶ' : 'REPLAYはルーム作成者のみ実行できます'}
+          >
+            {isResetting ? (
+              <div className="flex items-center justify-center gap-2">
+                <div className="animate-spin h-5 w-5 border-b-2 border-white rounded-full"></div>
+                <span>RESETTING...</span>
+              </div>
+            ) : (
+              'REPLAY'
+            )}
+          </button>
 
-        {/* ホームに戻るボタン */}
-        <button
-          onClick={handleLeaveRoom}
-          disabled={isResetting}
-          className="bg-slate-700/50 disabled:bg-slate-600 text-slate-200 font-bold italic px-4 rounded-xl border border-slate-600 transition-all duration-300 disabled:cursor-not-allowed"
-        >
-          HOME
-        </button>
-      </div>
+          {/* ホームに戻るボタン */}
+          <button
+            onClick={handleLeaveRoom}
+            disabled={isResetting}
+            className="bg-slate-700/50 disabled:bg-slate-600 text-slate-200 font-bold italic px-4 rounded-xl border border-slate-600 transition-all duration-300 disabled:cursor-not-allowed"
+          >
+            HOME
+          </button>
+        </div>
+      )}
     </div>
   );
 }

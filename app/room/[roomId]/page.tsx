@@ -108,7 +108,7 @@ export default function RoomPage() {
     <main className="min-h-screen p-4">
       <div className="max-w-6xl mx-auto">
         {/* メインコンテンツ: ルーム状態に応じて切り替え */}
-        <div className="shadow py-6">
+        <div className="py-6">
           {room.status === 'waiting' && (
             <WaitingPhase
               roomId={roomId}
@@ -142,6 +142,7 @@ export default function RoomPage() {
               roomId={roomId}
               players={players}
               currentPlayerId={currentPlayerId}
+              isMaster={room.masterId === currentPlayerId}
               useScreenMode={room.useScreenMode ?? false}
             />
           )}
