@@ -7,7 +7,6 @@ import { useRouter } from 'next/navigation';
 import { createRoom } from '@/lib/services/roomService';
 import { runServiceAction } from '@/lib/services/serviceAction';
 import { Modal } from '@/app/room/[roomId]/components/Modal';
-import type { ScoringMode } from '@/types';
 
 type ParticipationStyle = 'player' | 'screen';
 
@@ -33,8 +32,10 @@ export default function CreateRoomPage() {
   const [showOptions, setShowOptions] = useState(false);
   const [description, setDescription] = useState('');
   const [timeLimit, setTimeLimit] = useState<number>(30);
-  const [scoringMode, setScoringMode] = useState<ScoringMode>('standard');
+  const [correctAnswerPoints, setCorrectAnswerPoints] = useState<number>(10);
+  const [fastestAnswerBonusPoints, setFastestAnswerBonusPoints] = useState<number>(10);
   const [wrongAnswerPenalty, setWrongAnswerPenalty] = useState<number>(0);
+  const [predictionHitBonusPoints, setPredictionHitBonusPoints] = useState<number>(50);
   const [maxPlayers, setMaxPlayers] = useState<number>(8);
 
   // 説明モーダル
@@ -62,8 +63,10 @@ export default function CreateRoomPage() {
           createHostPlayer: useScreenMode,
           description: description.trim() || undefined,
           timeLimit,
-          scoringMode,
+          correctAnswerPoints,
+          fastestAnswerBonusPoints,
           wrongAnswerPenalty,
+          predictionHitBonusPoints,
           maxPlayers,
           useScreenMode,
         }),
@@ -198,53 +201,108 @@ export default function CreateRoomPage() {
               />
             </div>
 
-            {/* 制限時間 */}
+            {/* 正解ポイント */}
             <div>
               <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
-                制限時間（秒）
-                <HelpIconButton onClick={() => showHelp('制限時間', '各問題の回答制限時間を設定します。0に設定すると制限時間なしになります。')} />
-              </label>
-              <input
-                type="number"
-                value={timeLimit}
-                onChange={(e) => setTimeLimit(Math.max(0, parseInt(e.target.value) || 0))}
-                min="0"
-                max="300"
-                className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* 点数加算方式 */}
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
-                点数加算方式
-                <HelpIconButton onClick={() => showHelp('点数加算方式', '標準：正解で10pt / 1位ボーナス：1位は20pt、他は10pt / 正解率ボーナス：正解率が低いほど高得点')} />
+                制限時間
+                <HelpIconButton onClick={() => showHelp('制限時間', '1問ごとの制限時間です。「なし」を選ぶと時間制限なしになります。')} />
               </label>
               <select
-                value={scoringMode}
-                onChange={(e) => setScoringMode(e.target.value as ScoringMode)}
+                value={timeLimit}
+                onChange={(e) => setTimeLimit(parseInt(e.target.value, 10))}
                 className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-blue-500"
               >
-                <option value="standard">標準</option>
-                <option value="firstBonus">1位ボーナス</option>
-                <option value="rateBonus">正解率ボーナス</option>
+                <option value={10}>10s</option>
+                <option value={20}>20s</option>
+                <option value={30}>30s</option>
+                <option value={40}>40s</option>
+                <option value={50}>50s</option>
+                <option value={60}>60s</option>
+                <option value={90}>90s</option>
+                <option value={120}>120s</option>
+                <option value={0}>なし</option>
+              </select>
+            </div>
+
+            {/* 正解ポイント */}
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
+                正解ポイント
+                <HelpIconButton onClick={() => showHelp('正解ポイント', '正解したプレイヤーに加点される基本ポイントです。10pt〜50ptを10pt刻みで設定できます。')} />
+              </label>
+              <select
+                value={correctAnswerPoints}
+                onChange={(e) => setCorrectAnswerPoints(parseInt(e.target.value, 10))}
+                className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-blue-500"
+              >
+                <option value={10}>10pt</option>
+                <option value={20}>20pt</option>
+                <option value={30}>30pt</option>
+                <option value={40}>40pt</option>
+                <option value={50}>50pt</option>
+              </select>
+            </div>
+
+            {/* 早押し1位ボーナス */}
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
+                早押し1位ボーナス
+                <HelpIconButton onClick={() => showHelp('早押し1位ボーナス', 'その問題で最初に正解したプレイヤーに追加されるポイントです。10pt〜50ptを10pt刻みで設定できます。')} />
+              </label>
+              <select
+                value={fastestAnswerBonusPoints}
+                onChange={(e) => setFastestAnswerBonusPoints(parseInt(e.target.value, 10))}
+                className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-blue-500"
+              >
+                <option value={10}>10pt</option>
+                <option value={20}>20pt</option>
+                <option value={30}>30pt</option>
+                <option value={40}>40pt</option>
+                <option value={50}>50pt</option>
               </select>
             </div>
 
             {/* 誤答ペナルティ */}
             <div>
               <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
-                誤答ペナルティ（pt）
-                <HelpIconButton onClick={() => showHelp('誤答ペナルティ', '不正解の場合に減点されるポイントです。0でペナルティなし。')} />
+                誤答ペナルティ
+                <HelpIconButton onClick={() => showHelp('誤答ペナルティ', '不正解時の減点です。0pt〜20ptを5pt刻みで設定できます。')} />
               </label>
-              <input
-                type="number"
+              <select
                 value={wrongAnswerPenalty}
-                onChange={(e) => setWrongAnswerPenalty(Math.max(0, parseInt(e.target.value) || 0))}
-                min="0"
-                max="50"
+                onChange={(e) => setWrongAnswerPenalty(parseInt(e.target.value, 10))}
                 className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-blue-500"
-              />
+              >
+                <option value={0}>-0pt</option>
+                <option value={5}>-5pt</option>
+                <option value={10}>-10pt</option>
+                <option value={15}>-15pt</option>
+                <option value={20}>-20pt</option>
+              </select>
+            </div>
+
+            {/* 予想チャレンジ的中ボーナス */}
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
+                予想チャレンジ的中
+                <HelpIconButton onClick={() => showHelp('予想チャレンジ的中', '作問者の予想がぴったり一致したときの加点です。10pt〜100ptを10pt刻みで設定できます。')} />
+              </label>
+              <select
+                value={predictionHitBonusPoints}
+                onChange={(e) => setPredictionHitBonusPoints(parseInt(e.target.value, 10))}
+                className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-blue-500"
+              >
+                <option value={10}>10pt</option>
+                <option value={20}>20pt</option>
+                <option value={30}>30pt</option>
+                <option value={40}>40pt</option>
+                <option value={50}>50pt</option>
+                <option value={60}>60pt</option>
+                <option value={70}>70pt</option>
+                <option value={80}>80pt</option>
+                <option value={90}>90pt</option>
+                <option value={100}>100pt</option>
+              </select>
             </div>
 
             {/* 最大参加人数 */}

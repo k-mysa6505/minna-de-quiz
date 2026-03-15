@@ -7,7 +7,6 @@
 | 名前 | 種別 | 用途 |
 |---|---|---|
 | `RoomStatus` | type | ルーム状態 |
-| `ScoringMode` | type | 得点方式 |
 | `Room` | interface | ルーム本体データ |
 | `CreateRoomParams` | interface | ルーム作成入力 |
 | `JoinRoomParams` | interface | ルーム参加入力 |
@@ -37,14 +36,6 @@
 | `'playing'` | ゲーム中 |
 | `'finished'` | ゲーム終了 |
 
-### `ScoringMode`
-
-| 値 | 意味 |
-|---|---|
-| `'standard'` | 標準配点 |
-| `'firstBonus'` | 1位ボーナス |
-| `'rateBonus'` | 正解率ボーナス |
-
 ## Room系
 
 ### `Room`
@@ -60,9 +51,11 @@
 | `minPlayers` | `number` | ✅ | 最小開始人数 |
 | `isClosed` | `boolean` | ✅ | 新規参加受付可否 |
 | `description` | `string` | 任意 | ルーム説明 |
-| `timeLimit` | `number` | 任意 | 制限時間（秒） |
-| `scoringMode` | `ScoringMode` | ✅ | 得点方式 |
+| `timeLimit` | `number` | ✅ | 制限時間（秒）。`0` はなし（時間制限なし） |
+| `correctAnswerPoints` | `number` | ✅ | 正解時の基本加点 |
+| `fastestAnswerBonusPoints` | `number` | ✅ | 最速正解者への追加加点 |
 | `wrongAnswerPenalty` | `number` | ✅ | 誤答ペナルティ |
+| `predictionHitBonusPoints` | `number` | ✅ | 予想チャレンジ的中時の加点 |
 
 ### `CreateRoomParams`
 
@@ -72,9 +65,11 @@
 | `maxPlayers` | `number` | 任意 | 最大参加人数 |
 | `minPlayers` | `number` | 任意 | 最小開始人数 |
 | `description` | `string` | 任意 | ルーム説明 |
-| `timeLimit` | `number` | 任意 | 制限時間（秒） |
-| `scoringMode` | `ScoringMode` | 任意 | 得点方式 |
+| `timeLimit` | `number` | 任意 | 制限時間（秒）。`0` はなし（時間制限なし） |
+| `correctAnswerPoints` | `number` | 任意 | 正解時の基本加点 |
+| `fastestAnswerBonusPoints` | `number` | 任意 | 最速正解者への追加加点 |
 | `wrongAnswerPenalty` | `number` | 任意 | 誤答ペナルティ |
+| `predictionHitBonusPoints` | `number` | 任意 | 予想チャレンジ的中時の加点 |
 
 ### `JoinRoomParams`
 

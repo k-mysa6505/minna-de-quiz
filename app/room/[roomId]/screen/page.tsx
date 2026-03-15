@@ -11,6 +11,10 @@ import { subscribeToPlayers } from '@/lib/services/playerService';
 import { getAnswers, getGameState, getPrediction } from '@/lib/services/gameService';
 import { getQuestion, getQuestionProgress, getQuestions } from '@/lib/services/questionService';
 import { subscribeToRoomReactions, type RoomReaction } from '@/lib/services/reactionService';
+import {
+  calculateCorrectAnswerPoints,
+  calculatePredictionPoints,
+} from '@/lib/utils/roundScoring';
 import { runServiceAction } from '@/lib/services/serviceAction';
 import type { Answer, GameState, Player, Prediction, Question, Room } from '@/types';
 import { PlayerListCard } from '../components/PlayerListCard';
@@ -111,6 +115,7 @@ export default function RoomScreenPage() {
   const [showPredictionBonus, setShowPredictionBonus] = useState(false);
   const [animatedPredictedCount, setAnimatedPredictedCount] = useState(0);
   const [animatedActualCount, setAnimatedActualCount] = useState(0);
+  const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [finishedRankingPlayers, setFinishedRankingPlayers] = useState<Player[]>([]);
   const [isReplaying, setIsReplaying] = useState(false);
   const [isDisbanding, setIsDisbanding] = useState(false);
@@ -355,6 +360,45 @@ export default function RoomScreenPage() {
   const questionStartTime = useMemo(() => {
     return toTimestamp(state.gameState?.questionStartedAt);
   }, [state.gameState?.questionStartedAt]);
+
+  useEffect(() => {
+    const timeLimit = state.room?.timeLimit ?? 30;
+    if (timeLimit <= 0) {
+      setRemainingSeconds(0);
+      return;
+    }
+
+    if (state.gameState?.phase !== 'answering') {
+      return;
+    }
+
+    const startedAtMs = toTimestamp(state.gameState?.questionStartedAt);
+    if (startedAtMs <= 0) {
+      return;
+    }
+
+    const tick = () => {
+      const deadlineMs = startedAtMs + timeLimit * 1000;
+      const remainMs = Math.max(0, deadlineMs - Date.now());
+      setRemainingSeconds(Math.ceil(remainMs / 1000));
+    };
+
+    tick();
+    const timer = setInterval(tick, 250);
+
+    return () => clearInterval(timer);
+  }, [state.room?.timeLimit, state.gameState?.phase, state.gameState?.questionStartedAt]);
+
+  const predictionPoints = useMemo(() => {
+    if (!state.currentPrediction) {
+      return 0;
+    }
+    return calculatePredictionPoints(
+      state.currentPrediction.predictedCount,
+      correctAnswers.length,
+      state.room?.predictionHitBonusPoints ?? 50
+    );
+  }, [state.currentPrediction, correctAnswers.length, state.room?.predictionHitBonusPoints]);
 
   useEffect(() => {
     let resetTimer: ReturnType<typeof setTimeout> | null = null;
@@ -716,9 +760,16 @@ export default function RoomScreenPage() {
                 <p className="text-slate-300">
                   問題 {state.gameState.currentQuestionIndex + 1} / {state.gameState.totalQuestions}
                 </p>
-                <p className="text-slate-300 text-right italic">
-                  作問者：<span className="font-bold text-emerald-300">{currentAuthorName}</span>
-                </p>
+                <div className="flex items-center gap-3">
+                  {(state.room?.timeLimit ?? 30) > 0 && state.gameState.phase === 'answering' && (
+                    <span className={`rounded-full px-3 py-1 text-sm font-bold tabular-nums ${remainingSeconds <= 5 ? 'bg-red-500/30 text-red-200 border border-red-400/50' : 'bg-slate-700/60 text-slate-100 border border-slate-500/50'}`}>
+                      {remainingSeconds}s
+                    </span>
+                  )}
+                  <p className="text-slate-300 text-right italic">
+                    作問者：<span className="font-bold text-emerald-300">{currentAuthorName}</span>
+                  </p>
+                </div>
               </div>
             )}
 
@@ -808,6 +859,11 @@ export default function RoomScreenPage() {
                             const timeDisplay = `${seconds}''${centiseconds.toString().padStart(2, '0')}`;
                             const isFastest = index === 0;
                             const isRevealed = revealedPlayers.includes(answer.playerId);
+                            const gainedPoints = calculateCorrectAnswerPoints({
+                              correctAnswerPoints: state.room?.correctAnswerPoints ?? 10,
+                              fastestAnswerBonusPoints: state.room?.fastestAnswerBonusPoints ?? 10,
+                              isFastestCorrect: isFastest,
+                            });
 
                             if (!isRevealed) {
                               return null;
@@ -824,7 +880,7 @@ export default function RoomScreenPage() {
                                   </span>
                                   <span className="text-sm text-slate-300 italic">{timeDisplay}</span>
                                 </div>
-                                <span className="text-emerald-300 font-bold">+10pt</span>
+                                <span className="text-emerald-300 font-bold">+{gainedPoints}pt</span>
                               </div>
                             );
                           })}
@@ -866,8 +922,8 @@ export default function RoomScreenPage() {
 
                           <div className={`rounded-xl border border-slate-500/40 bg-slate-900/30 p-4 transition-all duration-700 text-center ${showPredictionBonus ? 'opacity-100' : 'opacity-0'}`}>
                             <p className="text-lg md:text-xl text-slate-300">予想ボーナス</p>
-                            <p className={`mt-2 text-3xl md:text-4xl font-black ${state.currentPrediction.isCorrect ? 'text-amber-200' : 'text-slate-300'}`}>
-                              {state.currentPrediction.isCorrect ? '+20pt' : '+0pt'}
+                            <p className={`mt-2 text-3xl md:text-4xl font-black ${predictionPoints > 0 ? 'text-amber-200' : 'text-slate-300'}`}>
+                              +{predictionPoints}pt
                             </p>
                           </div>
                         </div>

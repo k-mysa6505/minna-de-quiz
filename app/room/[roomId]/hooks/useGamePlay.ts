@@ -18,53 +18,24 @@ import {
 } from '@/lib/services/gameService';
 import { getQuestions } from '@/lib/services/questionService';
 import { updatePlayerScore } from '@/lib/services/playerService';
-import { countQuestionReactions } from '@/lib/services/reactionService';
+import {
+  calculateAnswerScoreDelta,
+  calculatePredictionPoints,
+  dedupeAnswersByPlayer,
+  toMillis,
+} from '@/lib/utils/roundScoring';
 import type { GameState, GamePhase, Question, Answer, Prediction, Player } from '@/types';
 
-function toMillis(value: unknown): number {
-  if (value && typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
-    return value.toDate().getTime();
-  }
-  return 0;
-}
-
-function calculateAnswerPoints(
-  answer: Answer,
-  questionStartedAt: unknown,
-  timeLimit: number
-): number {
-  if (!answer.isCorrect) {
-    return 0;
-  }
-
-  const base = 100;
-  if (timeLimit <= 0) {
-    return base;
-  }
-
-  const startedAtMs = toMillis(questionStartedAt);
-  const answeredAtMs = toMillis(answer.answeredAt);
-  if (startedAtMs <= 0 || answeredAtMs <= 0) {
-    return base;
-  }
-
-  const elapsedSeconds = Math.max(0, Math.floor((answeredAtMs - startedAtMs) / 1000));
-  const remaining = Math.max(0, timeLimit - elapsedSeconds);
-  return base + remaining * 2;
-}
-
-function calculatePredictionPoints(predictedCount: number, actualCount: number): number {
-  const diff = Math.abs(predictedCount - actualCount);
-  if (diff === 0) {
-    return 150;
-  }
-  if (diff === 1) {
-    return 50;
-  }
-  return 0;
-}
-
-export function useGamePlay(roomId: string, currentPlayerId: string, players: Player[], timeLimit: number) {
+export function useGamePlay(
+  roomId: string,
+  currentPlayerId: string,
+  players: Player[],
+  timeLimit: number,
+  correctAnswerPoints: number,
+  fastestAnswerBonusPoints: number,
+  wrongAnswerPenalty: number,
+  predictionHitBonusPoints: number
+) {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
@@ -81,6 +52,7 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
   const prevQuestionIdRef = useRef<string | null>(null);
   const prevPhaseRef = useRef<GamePhase | undefined>(undefined);
   const hasCalculatedScoreRef = useRef<boolean>(false);
+  const timeoutHandledQuestionIdRef = useRef<string | null>(null);
 
   // ────────────────────────────────────────────
   // 問題一覧を初回ロード（変わらないので一回だけ取得）
@@ -99,6 +71,10 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
   // 最新の currentQuestion / players を ref で保持→関数を再生成せずとも常に最新値を参照できる
   const currentQuestionRef = useRef<Question | null>(null);
   const playersRef = useRef<Player[]>([]);
+  const correctAnswerPointsRef = useRef<number>(correctAnswerPoints);
+  const fastestAnswerBonusPointsRef = useRef<number>(fastestAnswerBonusPoints);
+  const wrongAnswerPenaltyRef = useRef<number>(wrongAnswerPenalty);
+  const predictionHitBonusPointsRef = useRef<number>(predictionHitBonusPoints);
 
   useEffect(() => {
     currentQuestionRef.current = currentQuestion;
@@ -108,42 +84,73 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
     playersRef.current = players;
   }, [players]);
 
+  useEffect(() => {
+    correctAnswerPointsRef.current = correctAnswerPoints;
+  }, [correctAnswerPoints]);
+
+  useEffect(() => {
+    fastestAnswerBonusPointsRef.current = fastestAnswerBonusPoints;
+  }, [fastestAnswerBonusPoints]);
+
+  useEffect(() => {
+    wrongAnswerPenaltyRef.current = wrongAnswerPenalty;
+  }, [wrongAnswerPenalty]);
+
+  useEffect(() => {
+    predictionHitBonusPointsRef.current = predictionHitBonusPoints;
+  }, [predictionHitBonusPoints]);
+
   const calculateScores = useRef(async (allAnswers: Answer[], pred: Prediction) => {
     const q = currentQuestionRef.current;
     const ps = playersRef.current;
     if (!q) return;
 
+    const uniqueAnswers = dedupeAnswersByPlayer(allAnswers);
+
     const increments = new Map<string, number>();
     const addIncrement = (playerId: string, points: number) => {
-      if (points <= 0) {
+      if (points === 0) {
         return;
       }
       increments.set(playerId, (increments.get(playerId) ?? 0) + points);
     };
 
-    const correctAnswersCount = allAnswers.filter((a) => a.isCorrect).length;
-    const predictionPoints = calculatePredictionPoints(pred.predictedCount, correctAnswersCount);
-    const isCorrect = predictionPoints >= 150;
+    const sortedCorrectAnswers = uniqueAnswers
+      .filter((a) => a.isCorrect)
+      .sort((left, right) => toMillis(left.answeredAt) - toMillis(right.answeredAt));
+
+    const correctAnswersCount = sortedCorrectAnswers.length;
+    const fastestCorrectPlayerId = sortedCorrectAnswers[0]?.playerId;
+
+    const predictionPoints = calculatePredictionPoints(
+      pred.predictedCount,
+      correctAnswersCount,
+      predictionHitBonusPointsRef.current
+    );
+    const isPredictionHit = Math.abs(pred.predictedCount - correctAnswersCount) === 0;
 
     await updatePredictionResult(
       roomId,
       q.questionId,
       correctAnswersCount,
-      isCorrect
+      isPredictionHit
     ).catch(console.error);
 
     // 回答ポイントを集計
-    for (const answer of allAnswers) {
+    for (const answer of uniqueAnswers) {
       const player = ps.find((p) => p.playerId === answer.playerId);
       if (!player) {
         continue;
       }
 
-      const gained = calculateAnswerPoints(answer, gameState?.questionStartedAt, timeLimit);
-      if (gained <= 0) {
-        continue;
-      }
-      addIncrement(answer.playerId, gained);
+      const delta = calculateAnswerScoreDelta({
+        isCorrect: answer.isCorrect,
+        correctAnswerPoints: correctAnswerPointsRef.current,
+        fastestAnswerBonusPoints: fastestAnswerBonusPointsRef.current,
+        wrongAnswerPenalty: wrongAnswerPenaltyRef.current,
+        isFastestCorrect: answer.playerId === fastestCorrectPlayerId,
+      });
+      addIncrement(answer.playerId, delta);
     }
 
     // 作問者の予想ポイントを集計
@@ -151,24 +158,10 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
       addIncrement(q.authorId, predictionPoints);
     }
 
-    // 難問ブレイカー: 正解者が1人だけなら +50
-    if (correctAnswersCount === 1) {
-      const breaker = allAnswers.find((a) => a.isCorrect);
-      if (breaker) {
-        addIncrement(breaker.playerId, 50);
-      }
-    }
-
-    // 盛り上げ賞: 1問あたりリアクション10件以上で作問者に +20
-    const reactionCount = await countQuestionReactions(roomId, q.questionId).catch(() => 0);
-    if (reactionCount >= 10) {
-      addIncrement(q.authorId, 20);
-    }
-
     // 1プレイヤー1回でスコア更新する
     for (const player of ps) {
       const gained = increments.get(player.playerId) ?? 0;
-      if (gained <= 0) {
+      if (gained === 0) {
         continue;
       }
       await updatePlayerScore(roomId, player.playerId, player.score + gained).catch(console.error);
@@ -194,6 +187,7 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
       // ────── 問題が切り替わったときのリセット ──────
       if (question && prevQuestionIdRef.current !== question.questionId) {
         prevQuestionIdRef.current = question.questionId;
+        timeoutHandledQuestionIdRef.current = null;
         prevPhaseRef.current = undefined;
         setSelectedAnswer(null);
         setPredictedCorrectCount(0);
@@ -332,6 +326,78 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
       unsubPred();
     };
   }, [roomId, currentQuestion]);
+
+  // ────────────────────────────────────────────
+  // 制限時間ありの場合、時間切れで未提出プレイヤーの送信を自動実行
+  // ────────────────────────────────────────────
+  useEffect(() => {
+    if (timeLimit <= 0) return;
+    if (!currentQuestion || !gameState) return;
+    if (gameState.phase !== 'answering') return;
+
+    const questionId = currentQuestion.questionId;
+    if (timeoutHandledQuestionIdRef.current === questionId) {
+      return;
+    }
+
+    const startedAtMs = toMillis(gameState.questionStartedAt);
+    if (startedAtMs <= 0) {
+      return;
+    }
+
+    const isAuthor = currentQuestion.authorId === currentPlayerId;
+
+    const submitOnTimeout = async () => {
+      if (timeoutHandledQuestionIdRef.current === questionId) {
+        return;
+      }
+      timeoutHandledQuestionIdRef.current = questionId;
+
+      try {
+        if (isAuthor) {
+          if (!hasSubmittedPrediction) {
+            await submitPrediction(roomId, questionId, currentPlayerId, predictedCorrectCount);
+            setHasSubmittedPrediction(true);
+          }
+          return;
+        }
+
+        if (hasSubmittedAnswer) {
+          return;
+        }
+
+        // タイムアウト時は必ず不正解になる選択肢を送信する。
+        const fallbackAnswer = currentQuestion.correctAnswer === 0 ? 1 : 0;
+        await submitAnswer(roomId, questionId, currentPlayerId, fallbackAnswer, false);
+        setHasSubmittedAnswer(true);
+      } catch (error) {
+        console.error('Failed to submit timeout fallback:', error);
+      }
+    };
+
+    const deadlineMs = startedAtMs + timeLimit * 1000;
+    const remainingMs = deadlineMs - Date.now();
+
+    if (remainingMs <= 0) {
+      void submitOnTimeout();
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      void submitOnTimeout();
+    }, remainingMs + 50);
+
+    return () => clearTimeout(timer);
+  }, [
+    roomId,
+    currentPlayerId,
+    currentQuestion,
+    gameState,
+    hasSubmittedAnswer,
+    hasSubmittedPrediction,
+    predictedCorrectCount,
+    timeLimit,
+  ]);
 
   // ────────────────────────────────────────────
   // ハンドラ

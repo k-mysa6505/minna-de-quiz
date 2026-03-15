@@ -58,12 +58,14 @@ export async function createRoom(params: CreateRoomParams): Promise<{ roomId: st
       masterNickname: params.nickname,
       status: 'waiting',
       createdAt: Timestamp.now(),
-      maxPlayers: params.maxPlayers || 8,
-      minPlayers: params.minPlayers || 2,
+      maxPlayers: params.maxPlayers ?? 8,
+      minPlayers: params.minPlayers ?? 2,
       isClosed: false,
-      timeLimit: params.timeLimit || 30,
-      scoringMode: params.scoringMode || 'standard',
-      wrongAnswerPenalty: params.wrongAnswerPenalty || 0,
+      timeLimit: params.timeLimit ?? 30,
+      correctAnswerPoints: params.correctAnswerPoints ?? 10,
+      fastestAnswerBonusPoints: params.fastestAnswerBonusPoints ?? 10,
+      wrongAnswerPenalty: params.wrongAnswerPenalty ?? 0,
+      predictionHitBonusPoints: params.predictionHitBonusPoints ?? 50,
       useScreenMode,
     };
 
@@ -227,6 +229,28 @@ export async function updateRoomStatus(
     console.log(`Room status updated: ${roomId} -> ${status}`);
   } catch (error) {
     serviceLogger.error('room.updateStatus', `failed: ${roomId}`, error);
+    throw error;
+  }
+}
+
+/**
+ * ルームのオプション設定を更新
+ */
+export async function updateRoomOptions(
+  roomId: string,
+  options: Pick<Room, 'timeLimit' | 'correctAnswerPoints' | 'fastestAnswerBonusPoints' | 'wrongAnswerPenalty' | 'predictionHitBonusPoints'>
+): Promise<void> {
+  try {
+    const roomRef = doc(db, 'rooms', roomId);
+    await updateDoc(roomRef, {
+      timeLimit: options.timeLimit,
+      correctAnswerPoints: options.correctAnswerPoints,
+      fastestAnswerBonusPoints: options.fastestAnswerBonusPoints,
+      wrongAnswerPenalty: options.wrongAnswerPenalty,
+      predictionHitBonusPoints: options.predictionHitBonusPoints,
+    });
+  } catch (error) {
+    serviceLogger.error('room.updateOptions', `failed: ${roomId}`, error);
     throw error;
   }
 }

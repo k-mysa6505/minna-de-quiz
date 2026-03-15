@@ -1,11 +1,12 @@
 // app/room/[roomId]/components/GamePlayPhase.tsx
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useGamePlay } from '../hooks/useGamePlay';
 import { ResultDisplayPhase } from './ResultDisplayPhase';
-import { sendRoomReaction } from '@/lib/services/reactionService';
+import { sendRoomReaction, subscribeToRoomReactions, type RoomReaction } from '@/lib/services/reactionService';
+import { toMillis } from '@/lib/utils/roundScoring';
 import type { Player } from '@/types';
 import LoadingSpinner from '@/app/common/LoadingSpinner';
 
@@ -15,6 +16,10 @@ interface GamePlayPhaseProps {
   currentPlayerId: string;
   useScreenMode: boolean;
   timeLimit: number;
+  correctAnswerPoints: number;
+  fastestAnswerBonusPoints: number;
+  wrongAnswerPenalty: number;
+  predictionHitBonusPoints: number;
 }
 
 interface LocalReactionEffect {
@@ -72,8 +77,19 @@ const CHOICE_COLORS = [
 
 const REACTION_STAMPS = ['👏', '🔥', '😆', '😱', '🤯', '🎉'];
 const QUICK_MESSAGES = ['難しい！', '天才か？', 'ドボンw', 'いい問題！'];
+const MAX_REACTIONS = 3;
 
-export function GamePlayPhase({ roomId, players, currentPlayerId, useScreenMode, timeLimit }: GamePlayPhaseProps) {
+export function GamePlayPhase({
+  roomId,
+  players,
+  currentPlayerId,
+  useScreenMode,
+  timeLimit,
+  correctAnswerPoints,
+  fastestAnswerBonusPoints,
+  wrongAnswerPenalty,
+  predictionHitBonusPoints,
+}: GamePlayPhaseProps) {
   const {
     gameState,
     currentQuestion,
@@ -92,12 +108,59 @@ export function GamePlayPhase({ roomId, players, currentPlayerId, useScreenMode,
     handleAnswerSubmit,
     handlePredictionSubmit,
     handleNextQuestion,
-  } = useGamePlay(roomId, currentPlayerId, players, timeLimit);
+  } = useGamePlay(
+    roomId,
+    currentPlayerId,
+    players,
+    timeLimit,
+    correctAnswerPoints,
+    fastestAnswerBonusPoints,
+    wrongAnswerPenalty,
+    predictionHitBonusPoints
+  );
 
   const currentPlayer = players.find((player) => player.playerId === currentPlayerId);
   const [lastReactionAt, setLastReactionAt] = useState(0);
   const [reactionEffects, setReactionEffects] = useState<LocalReactionEffect[]>([]);
+  const [reactions, setReactions] = useState<RoomReaction[]>([]);
   const [isReactionPanelOpen, setIsReactionPanelOpen] = useState(false);
+  const [remainingSeconds, setRemainingSeconds] = useState<number>(0);
+
+  useEffect(() => {
+    const unsubscribeReactions = subscribeToRoomReactions(roomId, (nextReactions) => {
+      setReactions(nextReactions);
+    });
+
+    return () => {
+      unsubscribeReactions();
+    };
+  }, [roomId]);
+
+  useEffect(() => {
+    if (timeLimit <= 0) {
+      setRemainingSeconds(0);
+      return;
+    }
+
+    if (gameState?.phase !== 'answering') {
+      return;
+    }
+
+    const startedAtMs = toMillis(gameState.questionStartedAt);
+    if (startedAtMs <= 0) {
+      return;
+    }
+
+    const tick = () => {
+      const deadlineMs = startedAtMs + timeLimit * 1000;
+      const remainMs = Math.max(0, deadlineMs - Date.now());
+      setRemainingSeconds(Math.ceil(remainMs / 1000));
+    };
+
+    tick();
+    const timer = setInterval(tick, 250);
+    return () => clearInterval(timer);
+  }, [gameState?.phase, gameState?.questionStartedAt, timeLimit]);
 
   const handleSendReaction = async (
     type: 'reaction' | 'message',
@@ -155,6 +218,7 @@ export function GamePlayPhase({ roomId, players, currentPlayerId, useScreenMode,
   if (showResults) {
     return (
       <ResultDisplayPhase
+        roomId={roomId}
         gameState={gameState}
         currentQuestion={currentQuestion}
         players={players}
@@ -165,6 +229,10 @@ export function GamePlayPhase({ roomId, players, currentPlayerId, useScreenMode,
         waitingForPlayers={waitingForPlayers}
         handleNextQuestion={handleNextQuestion}
         useScreenMode={useScreenMode}
+        correctAnswerPoints={correctAnswerPoints}
+        fastestAnswerBonusPoints={fastestAnswerBonusPoints}
+        wrongAnswerPenalty={wrongAnswerPenalty}
+        predictionHitBonusPoints={predictionHitBonusPoints}
       />
     );
   }
@@ -174,9 +242,16 @@ export function GamePlayPhase({ roomId, players, currentPlayerId, useScreenMode,
       {/* 進捗表示 */}
       <div className="flex justify-between px-3 items-center text-slate-200">
         <p>問題 {gameState.currentQuestionIndex + 1} / {gameState.totalQuestions}</p>
-        <p className="italic">
-          作問者：{players.find(p => p.playerId === currentQuestion.authorId)?.nickname || 'unknown'}
-        </p>
+        <div className="flex items-center gap-3">
+          {timeLimit > 0 && gameState.phase === 'answering' && (
+            <span className={`rounded-full px-3 py-1 text-sm font-bold tabular-nums ${remainingSeconds <= 5 ? 'bg-red-500/30 text-red-200 border border-red-400/50' : 'bg-slate-700/60 text-slate-100 border border-slate-500/50'}`}>
+              {remainingSeconds}s
+            </span>
+          )}
+          <p className="italic">
+            作問者：{players.find(p => p.playerId === currentQuestion.authorId)?.nickname || 'unknown'}
+          </p>
+        </div>
       </div>
 
       {!useScreenMode && (
@@ -293,7 +368,7 @@ export function GamePlayPhase({ roomId, players, currentPlayerId, useScreenMode,
         </div>
       )}
 
-      {useScreenMode && (
+      {currentPlayer && (
         <div className="fixed bottom-6 right-4 z-40 flex flex-col items-end gap-3 sm:right-6">
           {isReactionPanelOpen && (
             <div className="w-[min(88vw,320px)] space-y-3 rounded-2xl border border-slate-700/80 bg-slate-900/90 p-3 shadow-2xl backdrop-blur-sm">
@@ -337,6 +412,22 @@ export function GamePlayPhase({ roomId, players, currentPlayerId, useScreenMode,
             </span>
           </button>
         </div>
+      )}
+
+      {reactions.length > 0 && (
+        <aside className="fixed bottom-24 right-4 z-30 w-[min(80vw,280px)] rounded-xl border border-slate-700 bg-slate-900/80 p-3 backdrop-blur-sm sm:right-6">
+          <p className="mb-2 text-xs text-slate-400">LIVE REACTIONS</p>
+          <div className="space-y-1">
+            {reactions.slice(0, MAX_REACTIONS).map((reaction) => (
+              <div key={reaction.id} className="flex items-center justify-between gap-2 text-xs">
+                <span className="truncate text-slate-300">{reaction.userName}</span>
+                <span className={reaction.type === 'reaction' ? 'text-lg leading-none' : 'text-slate-100'}>
+                  {reaction.content}
+                </span>
+              </div>
+            ))}
+          </div>
+        </aside>
       )}
 
       {reactionEffects.length > 0 && (

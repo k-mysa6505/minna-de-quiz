@@ -156,6 +156,10 @@ export default function RoomPage() {
               currentPlayerId={currentPlayerId}
               useScreenMode={room.useScreenMode ?? false}
               timeLimit={room.timeLimit ?? 30}
+              correctAnswerPoints={room.correctAnswerPoints ?? 10}
+              fastestAnswerBonusPoints={room.fastestAnswerBonusPoints ?? 10}
+              wrongAnswerPenalty={room.wrongAnswerPenalty ?? 0}
+              predictionHitBonusPoints={room.predictionHitBonusPoints ?? 50}
             />
           )}
 

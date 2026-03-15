@@ -1,13 +1,14 @@
 // app/room/[roomId]/components/WaitingPhase.tsx
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { updateRoomStatus } from '@/lib/services/roomService';
+import { updateRoomOptions, updateRoomStatus } from '@/lib/services/roomService';
 import { leaveRoomFlow } from '@/lib/services/roomFlowService';
 import { runServiceAction } from '@/lib/services/serviceAction';
-import { sendRoomReaction } from '@/lib/services/reactionService';
+import { sendRoomReaction, subscribeToRoomReactions, type RoomReaction } from '@/lib/services/reactionService';
 import type { Player, Room } from '@/types';
+import { Modal } from './Modal';
 import { InviteModal } from '@/app/room/[roomId]/components/InviteModal';
 import { LeaveRoomModal } from '@/app/room/[roomId]/components/LeaveRoomModal';
 import { PlayerListCard } from './PlayerListCard';
@@ -25,17 +26,44 @@ interface LocalReactionEffect {
   content: string;
 }
 
+function ReactionTriggerIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className="h-7 w-7"
+      fill="none"
+    >
+      <path d="M4 12.5L14.5 8V16.5L4 12.5Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M14.5 10.5V14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M7 13L8.5 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M17.5 9.5C18.6 10.4 19.2 11.6 19.2 12.8C19.2 14 18.6 15.2 17.5 16.1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M19.6 7.8C21.1 9.1 22 10.9 22 12.8C22 14.7 21.1 16.5 19.6 17.8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 const REACTION_STAMPS = ['👏', '🔥', '😆', '😱', '🤯', '🎉'];
 const QUICK_MESSAGES = ['よろしく！', '楽しみ！', '準備OK', 'はやく！'];
+const MAX_REACTIONS = 3;
 
 export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster }: WaitingPhaseProps) {
   const router = useRouter();
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [showOptionsModal, setShowOptionsModal] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
+  const [isSavingOptions, setIsSavingOptions] = useState(false);
   const [isCopyingScreenUrl, setIsCopyingScreenUrl] = useState(false);
   const [lastReactionAt, setLastReactionAt] = useState(0);
   const [reactionEffects, setReactionEffects] = useState<LocalReactionEffect[]>([]);
+  const [reactions, setReactions] = useState<RoomReaction[]>([]);
+  const [isReactionPanelOpen, setIsReactionPanelOpen] = useState(false);
+  const [timeLimit, setTimeLimit] = useState(room.timeLimit ?? 30);
+  const [correctAnswerPoints, setCorrectAnswerPoints] = useState(room.correctAnswerPoints ?? 10);
+  const [fastestAnswerBonusPoints, setFastestAnswerBonusPoints] = useState(room.fastestAnswerBonusPoints ?? 10);
+  const [wrongAnswerPenalty, setWrongAnswerPenalty] = useState(room.wrongAnswerPenalty ?? 0);
+  const [predictionHitBonusPoints, setPredictionHitBonusPoints] = useState(room.predictionHitBonusPoints ?? 50);
 
   const screenUrl = useMemo(() => {
     if (!room.useScreenMode || !room.displayDeviceId || typeof window === 'undefined') {
@@ -84,6 +112,60 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
   const currentPlayer = players.find((player) => player.playerId === currentPlayerId);
   const isScreenModePlayerView = room.useScreenMode === true;
 
+  useEffect(() => {
+    const unsubscribeReactions = subscribeToRoomReactions(roomId, (nextReactions) => {
+      setReactions(nextReactions);
+    });
+
+    return () => {
+      unsubscribeReactions();
+    };
+  }, [roomId]);
+
+  useEffect(() => {
+    if (!showOptionsModal) {
+      return;
+    }
+    setTimeLimit(room.timeLimit ?? 30);
+    setCorrectAnswerPoints(room.correctAnswerPoints ?? 10);
+    setFastestAnswerBonusPoints(room.fastestAnswerBonusPoints ?? 10);
+    setWrongAnswerPenalty(room.wrongAnswerPenalty ?? 0);
+    setPredictionHitBonusPoints(room.predictionHitBonusPoints ?? 50);
+  }, [
+    room.timeLimit,
+    room.correctAnswerPoints,
+    room.fastestAnswerBonusPoints,
+    room.wrongAnswerPenalty,
+    room.predictionHitBonusPoints,
+    showOptionsModal,
+  ]);
+
+  const handleSaveOptions = async () => {
+    setIsSavingOptions(true);
+    const success = await runServiceAction(
+      'waiting.updateOptions',
+      async () => {
+        await updateRoomOptions(roomId, {
+          timeLimit,
+          correctAnswerPoints,
+          fastestAnswerBonusPoints,
+          wrongAnswerPenalty,
+          predictionHitBonusPoints,
+        });
+        return true;
+      },
+      {
+        fallback: false,
+        onError: () => alert('オプションの更新に失敗しました。'),
+      }
+    );
+
+    if (success) {
+      setShowOptionsModal(false);
+    }
+    setIsSavingOptions(false);
+  };
+
   const handleSendReaction = async (
     type: 'reaction' | 'message',
     content: string,
@@ -119,6 +201,14 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-white tracking-tight">プレイヤー待機中</h2>
         <div className="flex gap-2">
+          {isMaster && (
+            <button
+              onClick={() => setShowOptionsModal(true)}
+              className="bg-gradient-to-b from-slate-600 to-slate-800 text-slate-100 font-semibold px-3 py-1 rounded-md"
+            >
+              オプション
+            </button>
+          )}
           <button
             onClick={() => setShowInviteModal(true)}
             className="bg-gradient-to-b from-blue-500 to-blue-700 text-slate-200 font-semibold px-3 py-1 rounded-md"
@@ -159,19 +249,26 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
         <div className="pt-2 border-t border-slate-700/50 flex flex-wrap gap-3">
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-slate-400 italic">TIME LIMIT</span>
-            <span className="text-xs text-white font-semibold">{room.timeLimit ? `${room.timeLimit}s` : 'なし'}</span>
+            <span className="text-xs text-white font-semibold">{(room.timeLimit ?? 30) === 0 ? 'なし' : `${room.timeLimit ?? 30}s`}</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="text-xs text-slate-400 italic">SCORING</span>
-            <span className="text-xs text-white font-semibold">
-              {room.scoringMode === 'standard' ? '標準' :
-                room.scoringMode === 'firstBonus' ? '1位ボーナス' : '正解率ボーナス'}
-            </span>
+            <span className="text-xs text-slate-400 italic">CORRECT</span>
+            <span className="text-xs text-white font-semibold">+{room.correctAnswerPoints ?? 10}pt</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-400 italic">FASTEST</span>
+            <span className="text-xs text-white font-semibold">+{room.fastestAnswerBonusPoints ?? 10}pt</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-slate-400 italic">PENALTY</span>
             <span className={`text-xs font-semibold ${room.wrongAnswerPenalty !== 0 ? 'text-red-400' : 'text-slate-400'}`}>
-              {room.wrongAnswerPenalty !== 0 ? `${room.wrongAnswerPenalty}pt` : 'なし'}
+              {room.wrongAnswerPenalty !== 0 ? `-${room.wrongAnswerPenalty}pt` : '-0pt'}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-400 italic">PREDICT HIT</span>
+            <span className="text-xs text-white font-semibold">
+              +{room.predictionHitBonusPoints ?? 50}pt
             </span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -234,35 +331,66 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
         </>
       )}
 
-      {!isScreenModePlayerView && room.useScreenMode && currentPlayer && (
-        <div className="space-y-4 bg-slate-800/50 border border-slate-700/60 rounded-xl p-4 sm:p-5">
-          <p className="text-sm text-slate-300 font-medium">リアクション</p>
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-            {REACTION_STAMPS.map((stamp) => (
-              <button
-                key={stamp}
-                type="button"
-                onClick={(event) => handleSendReaction('reaction', stamp, event.timeStamp)}
-                className="py-2 rounded-lg bg-slate-700/70 hover:bg-slate-600 text-xl transition-all active:scale-90"
-              >
-                {stamp}
-              </button>
-            ))}
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {QUICK_MESSAGES.map((message) => (
-              <button
-                key={message}
-                type="button"
-                onClick={(event) => handleSendReaction('message', message, event.timeStamp)}
-                className="py-2 px-3 rounded-lg bg-slate-700/70 hover:bg-slate-600 text-xs sm:text-sm text-slate-100 transition-all active:scale-95"
-              >
-                {message}
-              </button>
-            ))}
-          </div>
-          <p className="text-xs text-slate-400">送信は1秒に1回までです</p>
+      {currentPlayer && (
+        <div className="fixed bottom-6 right-4 z-40 flex flex-col items-end gap-3 sm:right-6">
+          {isReactionPanelOpen && (
+            <div className="w-[min(88vw,320px)] space-y-3 rounded-2xl border border-slate-700/80 bg-slate-900/90 p-3 shadow-2xl backdrop-blur-sm">
+              <div className="grid grid-cols-3 gap-2">
+                {REACTION_STAMPS.map((stamp) => (
+                  <button
+                    key={stamp}
+                    type="button"
+                    onClick={(event) => handleSendReaction('reaction', stamp, event.timeStamp)}
+                    className="rounded-lg border border-slate-700 bg-slate-800 px-2 py-2 text-xl leading-none text-slate-100 transition hover:bg-slate-700 active:scale-95"
+                  >
+                    {stamp}
+                  </button>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {QUICK_MESSAGES.map((message) => (
+                  <button
+                    key={message}
+                    type="button"
+                    onClick={(event) => handleSendReaction('message', message, event.timeStamp)}
+                    className="rounded-lg border border-slate-700 bg-slate-800 px-2 py-2 text-xs text-slate-100 transition hover:bg-slate-700 active:scale-95 sm:text-sm"
+                  >
+                    {message}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-slate-400">送信は1秒に1回までです</p>
+            </div>
+          )}
+
+          <button
+            type="button"
+            aria-label="リアクションを開く"
+            aria-expanded={isReactionPanelOpen}
+            onClick={() => setIsReactionPanelOpen((prev) => !prev)}
+            className="grid h-14 w-14 place-items-center rounded-full border border-slate-500/70 bg-slate-800/90 text-slate-100 shadow-lg transition hover:bg-slate-700 active:scale-95"
+          >
+            <span className={isReactionPanelOpen ? '' : 'motion-safe:animate-pulse'}>
+              <ReactionTriggerIcon />
+            </span>
+          </button>
         </div>
+      )}
+
+      {reactions.length > 0 && (
+        <aside className="fixed bottom-24 right-4 z-30 w-[min(80vw,280px)] rounded-xl border border-slate-700 bg-slate-900/80 p-3 backdrop-blur-sm sm:right-6">
+          <p className="mb-2 text-xs text-slate-400">LIVE REACTIONS</p>
+          <div className="space-y-1">
+            {reactions.slice(0, MAX_REACTIONS).map((reaction) => (
+              <div key={reaction.id} className="flex items-center justify-between gap-2 text-xs">
+                <span className="truncate text-slate-300">{reaction.userName}</span>
+                <span className={reaction.type === 'reaction' ? 'text-lg leading-none' : 'text-slate-100'}>
+                  {reaction.content}
+                </span>
+              </div>
+            ))}
+          </div>
+        </aside>
       )}
 
       {/* 招待モーダル */}
@@ -280,6 +408,119 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
           onCancel={() => setShowLeaveModal(false)}
           onConfirm={handleLeaveRoom}
         />
+      )}
+
+      {/* オプションモーダル（ホストのみ） */}
+      {showOptionsModal && isMaster && (
+        <Modal
+          onClose={() => !isSavingOptions && setShowOptionsModal(false)}
+          panelClassName="max-w-md w-full max-h-[80vh] overflow-y-auto"
+        >
+          <h3 className="text-2xl font-bold text-white mb-6 text-center">オプション設定</h3>
+
+          <div className="space-y-5">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">制限時間</label>
+              <select
+                value={timeLimit}
+                onChange={(e) => setTimeLimit(parseInt(e.target.value, 10))}
+                className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm"
+              >
+                <option value={10}>10s</option>
+                <option value={20}>20s</option>
+                <option value={30}>30s</option>
+                <option value={40}>40s</option>
+                <option value={50}>50s</option>
+                <option value={60}>60s</option>
+                <option value={90}>90s</option>
+                <option value={120}>120s</option>
+                <option value={0}>なし</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">正解ポイント</label>
+              <select
+                value={correctAnswerPoints}
+                onChange={(e) => setCorrectAnswerPoints(parseInt(e.target.value, 10))}
+                className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm"
+              >
+                <option value={10}>10pt</option>
+                <option value={20}>20pt</option>
+                <option value={30}>30pt</option>
+                <option value={40}>40pt</option>
+                <option value={50}>50pt</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">早押し1位ボーナス</label>
+              <select
+                value={fastestAnswerBonusPoints}
+                onChange={(e) => setFastestAnswerBonusPoints(parseInt(e.target.value, 10))}
+                className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm"
+              >
+                <option value={10}>10pt</option>
+                <option value={20}>20pt</option>
+                <option value={30}>30pt</option>
+                <option value={40}>40pt</option>
+                <option value={50}>50pt</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">誤答ペナルティ</label>
+              <select
+                value={wrongAnswerPenalty}
+                onChange={(e) => setWrongAnswerPenalty(parseInt(e.target.value, 10))}
+                className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm"
+              >
+                <option value={0}>-0pt</option>
+                <option value={5}>-5pt</option>
+                <option value={10}>-10pt</option>
+                <option value={15}>-15pt</option>
+                <option value={20}>-20pt</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">予想チャレンジ的中</label>
+              <select
+                value={predictionHitBonusPoints}
+                onChange={(e) => setPredictionHitBonusPoints(parseInt(e.target.value, 10))}
+                className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm"
+              >
+                <option value={10}>10pt</option>
+                <option value={20}>20pt</option>
+                <option value={30}>30pt</option>
+                <option value={40}>40pt</option>
+                <option value={50}>50pt</option>
+                <option value={60}>60pt</option>
+                <option value={70}>70pt</option>
+                <option value={80}>80pt</option>
+                <option value={90}>90pt</option>
+                <option value={100}>100pt</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex gap-3 mt-6">
+            <button
+              onClick={() => setShowOptionsModal(false)}
+              disabled={isSavingOptions}
+              className="flex-1 bg-slate-700 disabled:bg-slate-600 text-white font-medium py-2 px-4 rounded-lg"
+            >
+              キャンセル
+            </button>
+            <button
+              onClick={handleSaveOptions}
+              disabled={isSavingOptions}
+              className="flex-1 bg-blue-600 disabled:bg-slate-600 text-white font-medium py-2 px-4 rounded-lg"
+            >
+              {isSavingOptions ? '保存中...' : '保存'}
+            </button>
+          </div>
+        </Modal>
       )}
 
       {reactionEffects.length > 0 && (

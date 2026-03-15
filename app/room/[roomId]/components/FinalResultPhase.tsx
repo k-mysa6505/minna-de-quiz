@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { leaveRoomFlow } from '@/lib/services/roomFlowService';
 import { runServiceAction } from '@/lib/services/serviceAction';
 import { setPlayerReplayRequested, updatePlayerOnlineStatus } from '@/lib/services/playerService';
+import { sendRoomReaction, subscribeToRoomReactions, type RoomReaction } from '@/lib/services/reactionService';
 import type { Player } from '@/types';
 import { PlayerListCard } from './PlayerListCard';
 
@@ -15,6 +16,32 @@ interface FinalResultPhaseProps {
   currentPlayerId: string;
   useScreenMode?: boolean;
 }
+
+interface LocalReactionEffect {
+  id: number;
+  content: string;
+}
+
+function ReactionTriggerIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className="h-7 w-7"
+      fill="none"
+    >
+      <path d="M4 12.5L14.5 8V16.5L4 12.5Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M14.5 10.5V14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M7 13L8.5 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M17.5 9.5C18.6 10.4 19.2 11.6 19.2 12.8C19.2 14 18.6 15.2 17.5 16.1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M19.6 7.8C21.1 9.1 22 10.9 22 12.8C22 14.7 21.1 16.5 19.6 17.8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+const REACTION_STAMPS = ['👏', '🔥', '😆', '😱', '🤯', '🎉'];
+const QUICK_MESSAGES = ['お疲れさま！', 'GG！', '最高！', 'またやろう'];
+const MAX_REACTIONS = 3;
 
 function calculateCompetitionRanks(players: Player[]): number[] {
   const ranks: number[] = [];
@@ -59,6 +86,10 @@ export function FinalResultPhase({
   const [isResetting, setIsResetting] = useState(false);
   const [hasRequestedReplay, setHasRequestedReplay] = useState(false);
   const [finalRankingPlayers, setFinalRankingPlayers] = useState<Player[]>([]);
+  const [lastReactionAt, setLastReactionAt] = useState(0);
+  const [reactionEffects, setReactionEffects] = useState<LocalReactionEffect[]>([]);
+  const [reactions, setReactions] = useState<RoomReaction[]>([]);
+  const [isReactionPanelOpen, setIsReactionPanelOpen] = useState(false);
 
   const resolveCurrentPlayerId = () => {
     const fromSession = sessionStorage.getItem('currentPlayerId');
@@ -104,6 +135,16 @@ export function FinalResultPhase({
     return () => clearTimeout(timer);
   }, [players]);
 
+  useEffect(() => {
+    const unsubscribeReactions = subscribeToRoomReactions(roomId, (nextReactions) => {
+      setReactions(nextReactions);
+    });
+
+    return () => {
+      unsubscribeReactions();
+    };
+  }, [roomId]);
+
   const handleLeaveRoom = async () => {
     const currentPlayerIdFromStorage = resolveCurrentPlayerId();
     if (!currentPlayerIdFromStorage) {
@@ -134,6 +175,37 @@ export function FinalResultPhase({
     });
     setIsResetting(false);
     setHasRequestedReplay(true);
+  };
+
+  const currentPlayer = players.find((player) => player.playerId === currentPlayerId);
+
+  const handleSendReaction = async (
+    type: 'reaction' | 'message',
+    content: string,
+    eventTimestamp: number
+  ) => {
+    if (eventTimestamp - lastReactionAt < 1000 || !currentPlayer) {
+      return;
+    }
+
+    setLastReactionAt(eventTimestamp);
+    try {
+      await sendRoomReaction({
+        roomId,
+        userId: currentPlayerId,
+        userName: currentPlayer.nickname,
+        type,
+        content,
+      });
+
+      const effectId = eventTimestamp;
+      setReactionEffects((prev) => [...prev, { id: effectId, content }]);
+      setTimeout(() => {
+        setReactionEffects((prev) => prev.filter((effect) => effect.id !== effectId));
+      }, 900);
+    } catch (error) {
+      console.error('Failed to send final reaction:', error);
+    }
   };
 
   const rankingSourcePlayers = finalRankingPlayers.length > 0 ? finalRankingPlayers : players;
@@ -191,6 +263,78 @@ export function FinalResultPhase({
           >
             HOME
           </button>
+        </div>
+      )}
+
+      {currentPlayer && (
+        <div className="fixed bottom-6 right-4 z-40 flex flex-col items-end gap-3 sm:right-6">
+          {isReactionPanelOpen && (
+            <div className="w-[min(88vw,320px)] space-y-3 rounded-2xl border border-slate-700/80 bg-slate-900/90 p-3 shadow-2xl backdrop-blur-sm">
+              <div className="grid grid-cols-3 gap-2">
+                {REACTION_STAMPS.map((stamp) => (
+                  <button
+                    key={stamp}
+                    type="button"
+                    onClick={(event) => handleSendReaction('reaction', stamp, event.timeStamp)}
+                    className="rounded-lg border border-slate-700 bg-slate-800 px-2 py-2 text-xl leading-none text-slate-100 transition hover:bg-slate-700 active:scale-95"
+                  >
+                    {stamp}
+                  </button>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {QUICK_MESSAGES.map((message) => (
+                  <button
+                    key={message}
+                    type="button"
+                    onClick={(event) => handleSendReaction('message', message, event.timeStamp)}
+                    className="rounded-lg border border-slate-700 bg-slate-800 px-2 py-2 text-xs text-slate-100 transition hover:bg-slate-700 active:scale-95 sm:text-sm"
+                  >
+                    {message}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-slate-400">送信は1秒に1回までです</p>
+            </div>
+          )}
+
+          <button
+            type="button"
+            aria-label="リアクションを開く"
+            aria-expanded={isReactionPanelOpen}
+            onClick={() => setIsReactionPanelOpen((prev) => !prev)}
+            className="grid h-14 w-14 place-items-center rounded-full border border-slate-500/70 bg-slate-800/90 text-slate-100 shadow-lg transition hover:bg-slate-700 active:scale-95"
+          >
+            <span className={isReactionPanelOpen ? '' : 'motion-safe:animate-pulse'}>
+              <ReactionTriggerIcon />
+            </span>
+          </button>
+        </div>
+      )}
+
+      {reactions.length > 0 && (
+        <aside className="fixed bottom-24 right-4 z-30 w-[min(80vw,280px)] rounded-xl border border-slate-700 bg-slate-900/80 p-3 backdrop-blur-sm sm:right-6">
+          <p className="mb-2 text-xs text-slate-400">LIVE REACTIONS</p>
+          <div className="space-y-1">
+            {reactions.slice(0, MAX_REACTIONS).map((reaction) => (
+              <div key={reaction.id} className="flex items-center justify-between gap-2 text-xs">
+                <span className="truncate text-slate-300">{reaction.userName}</span>
+                <span className={reaction.type === 'reaction' ? 'text-lg leading-none' : 'text-slate-100'}>
+                  {reaction.content}
+                </span>
+              </div>
+            ))}
+          </div>
+        </aside>
+      )}
+
+      {reactionEffects.length > 0 && (
+        <div className="pointer-events-none fixed bottom-28 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-1">
+          {reactionEffects.map((effect) => (
+            <div key={effect.id} className="animate-float-up text-3xl sm:text-4xl">
+              {effect.content}
+            </div>
+          ))}
         </div>
       )}
     </div>

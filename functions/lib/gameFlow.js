@@ -6,7 +6,7 @@
 //  1. answers/predictions に書き込まれたとき、参加者全員分揃ったら結果フェーズへ自動移行
 //  2. playersReady が更新されたとき、参加者全員 ready なら次の問題 or 終了へ自動移行
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onPlayerReadyChanged = exports.onPredictionWritten = exports.onAnswerWritten = void 0;
+exports.onPlayerReadyChanged = exports.onGameStateCreated = exports.onGameStateChanged = exports.onPredictionWritten = exports.onAnswerWritten = void 0;
 const firestore_1 = require("firebase-functions/v2/firestore");
 const admin = require("firebase-admin");
 if (admin.apps.length === 0) {
@@ -15,6 +15,12 @@ if (admin.apps.length === 0) {
 const db = admin.firestore();
 const REGION = 'asia-northeast1';
 const MIN_REVEAL_DURATION_MS = 7000;
+function sleep(ms) {
+    if (ms <= 0) {
+        return Promise.resolve();
+    }
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
 // ────────────────────────────────────────────
 // Helper: ルーム参加中プレイヤーID一覧を取得
 // ────────────────────────────────────────────
@@ -94,6 +100,32 @@ exports.onPredictionWritten = (0, firestore_1.onDocumentCreated)({
         return;
     await checkAndReveal(roomId, predData.questionId);
 });
+async function transitionToRevealing(roomId, questionId, reason) {
+    var _a, _b;
+    const gameStateRef = db
+        .collection('rooms')
+        .doc(roomId)
+        .collection('gameState')
+        .doc('state');
+    const currentSnap = await gameStateRef.get();
+    if (!currentSnap.exists) {
+        return false;
+    }
+    const current = currentSnap.data();
+    if (current.phase && current.phase !== 'answering') {
+        return false;
+    }
+    const currentQuestionId = (_a = current.questionOrder) === null || _a === void 0 ? void 0 : _a[(_b = current.currentQuestionIndex) !== null && _b !== void 0 ? _b : 0];
+    if (!currentQuestionId || currentQuestionId !== questionId) {
+        return false;
+    }
+    await gameStateRef.update({
+        phase: 'revealing',
+        revealStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    console.log(`[gameFlow] room=${roomId} question=${questionId} -> revealing (${reason})`);
+    return true;
+}
 /**
  * 参加者全員が回答+予想を提出済みか確認し、
  * 揃っていたら gameState の phase を 'revealing' に更新する。
@@ -171,16 +203,65 @@ async function checkAndReveal(roomId, questionId) {
         `missingPlayers=[${formatPlayerLabels(missingPlayerIds, nicknameMap)}]`);
     if (allParticipantsSubmitted) {
         console.log(`[onAnswerWritten] All participants submitted. Moving to revealing.`);
-        await db
-            .collection('rooms')
-            .doc(roomId)
-            .collection('gameState')
-            .doc('state')
-            .update({
-            phase: 'revealing',
-            revealStartedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
+        await transitionToRevealing(roomId, questionId, 'submitted');
     }
+}
+// ────────────────────────────────────────────
+// Trigger 1.5: gameState が更新されたとき
+//   answering フェーズの期限まで待機し、未遷移なら timeout で revealing へ
+// ────────────────────────────────────────────
+exports.onGameStateChanged = (0, firestore_1.onDocumentUpdated)({
+    document: 'rooms/{roomId}/gameState/state',
+    region: REGION,
+    timeoutSeconds: 180,
+}, async (event) => {
+    var _a;
+    const roomId = event.params.roomId;
+    const after = (_a = event.data) === null || _a === void 0 ? void 0 : _a.after.data();
+    if (!after) {
+        return;
+    }
+    await scheduleTimeoutReveal(roomId, after);
+});
+exports.onGameStateCreated = (0, firestore_1.onDocumentCreated)({
+    document: 'rooms/{roomId}/gameState/state',
+    region: REGION,
+    timeoutSeconds: 180,
+}, async (event) => {
+    var _a;
+    const roomId = event.params.roomId;
+    const after = (_a = event.data) === null || _a === void 0 ? void 0 : _a.data();
+    if (!after) {
+        return;
+    }
+    await scheduleTimeoutReveal(roomId, after);
+});
+async function scheduleTimeoutReveal(roomId, after) {
+    var _a, _b, _c;
+    if (after.phase !== 'answering') {
+        return;
+    }
+    const questionId = (_a = after.questionOrder) === null || _a === void 0 ? void 0 : _a[(_b = after.currentQuestionIndex) !== null && _b !== void 0 ? _b : 0];
+    if (!questionId) {
+        return;
+    }
+    const roomSnap = await db.collection('rooms').doc(roomId).get();
+    const room = roomSnap.data();
+    const timeLimit = (_c = room === null || room === void 0 ? void 0 : room.timeLimit) !== null && _c !== void 0 ? _c : 30;
+    if (timeLimit <= 0) {
+        return;
+    }
+    const startedAt = after.questionStartedAt;
+    const startedAtMs = typeof (startedAt === null || startedAt === void 0 ? void 0 : startedAt.toMillis) === 'function' ? startedAt.toMillis() : 0;
+    if (startedAtMs <= 0) {
+        return;
+    }
+    const deadlineMs = startedAtMs + timeLimit * 1000;
+    const waitMs = deadlineMs - Date.now();
+    if (waitMs > 0) {
+        await sleep(waitMs + 200);
+    }
+    await transitionToRevealing(roomId, questionId, 'timeout');
 }
 // ────────────────────────────────────────────
 // Trigger 2: playersReady が更新されたとき

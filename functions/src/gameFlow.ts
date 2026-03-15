@@ -16,6 +16,13 @@ const db = admin.firestore();
 const REGION = 'asia-northeast1';
 const MIN_REVEAL_DURATION_MS = 7000;
 
+function sleep(ms: number): Promise<void> {
+  if (ms <= 0) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 // ────────────────────────────────────────────
 // Helper: ルーム参加中プレイヤーID一覧を取得
 // ────────────────────────────────────────────
@@ -107,6 +114,42 @@ export const onPredictionWritten = onDocumentCreated(
     await checkAndReveal(roomId, predData.questionId);
   }
 );
+
+async function transitionToRevealing(roomId: string, questionId: string, reason: 'submitted' | 'timeout') {
+  const gameStateRef = db
+    .collection('rooms')
+    .doc(roomId)
+    .collection('gameState')
+    .doc('state');
+
+  const currentSnap = await gameStateRef.get();
+  if (!currentSnap.exists) {
+    return false;
+  }
+
+  const current = currentSnap.data() as {
+    phase?: string;
+    questionOrder?: string[];
+    currentQuestionIndex?: number;
+  };
+
+  if (current.phase && current.phase !== 'answering') {
+    return false;
+  }
+
+  const currentQuestionId = current.questionOrder?.[current.currentQuestionIndex ?? 0];
+  if (!currentQuestionId || currentQuestionId !== questionId) {
+    return false;
+  }
+
+  await gameStateRef.update({
+    phase: 'revealing',
+    revealStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  console.log(`[gameFlow] room=${roomId} question=${questionId} -> revealing (${reason})`);
+  return true;
+}
 
 /**
  * 参加者全員が回答+予想を提出済みか確認し、
@@ -200,16 +243,80 @@ async function checkAndReveal(roomId: string, questionId: string) {
 
   if (allParticipantsSubmitted) {
     console.log(`[onAnswerWritten] All participants submitted. Moving to revealing.`);
-    await db
-      .collection('rooms')
-      .doc(roomId)
-      .collection('gameState')
-      .doc('state')
-      .update({
-        phase: 'revealing',
-        revealStartedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+    await transitionToRevealing(roomId, questionId, 'submitted');
   }
+}
+
+// ────────────────────────────────────────────
+// Trigger 1.5: gameState が更新されたとき
+//   answering フェーズの期限まで待機し、未遷移なら timeout で revealing へ
+// ────────────────────────────────────────────
+export const onGameStateChanged = onDocumentUpdated(
+  {
+    document: 'rooms/{roomId}/gameState/state',
+    region: REGION,
+    timeoutSeconds: 180,
+  },
+  async (event) => {
+    const roomId = event.params.roomId;
+    const after = event.data?.after.data();
+    if (!after) {
+      return;
+    }
+
+    await scheduleTimeoutReveal(roomId, after);
+  }
+);
+
+export const onGameStateCreated = onDocumentCreated(
+  {
+    document: 'rooms/{roomId}/gameState/state',
+    region: REGION,
+    timeoutSeconds: 180,
+  },
+  async (event) => {
+    const roomId = event.params.roomId;
+    const after = event.data?.data();
+    if (!after) {
+      return;
+    }
+
+    await scheduleTimeoutReveal(roomId, after);
+  }
+);
+
+async function scheduleTimeoutReveal(roomId: string, after: FirebaseFirestore.DocumentData) {
+
+  if (after.phase !== 'answering') {
+    return;
+  }
+
+  const questionId = after.questionOrder?.[after.currentQuestionIndex ?? 0];
+  if (!questionId) {
+    return;
+  }
+
+  const roomSnap = await db.collection('rooms').doc(roomId).get();
+  const room = roomSnap.data() as { timeLimit?: number } | undefined;
+  const timeLimit = room?.timeLimit ?? 30;
+
+  if (timeLimit <= 0) {
+    return;
+  }
+
+  const startedAt = after.questionStartedAt;
+  const startedAtMs = typeof startedAt?.toMillis === 'function' ? startedAt.toMillis() : 0;
+  if (startedAtMs <= 0) {
+    return;
+  }
+
+  const deadlineMs = startedAtMs + timeLimit * 1000;
+  const waitMs = deadlineMs - Date.now();
+  if (waitMs > 0) {
+    await sleep(waitMs + 200);
+  }
+
+  await transitionToRevealing(roomId, questionId, 'timeout');
 }
 
 // ────────────────────────────────────────────

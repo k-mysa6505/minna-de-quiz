@@ -5,7 +5,7 @@
 // gameFlow.ts: ゲーム進行を制御（全員回答で結果へ、全員ready で次の問題へ）
 
 export { syncPresenceToFirestore } from './presence';
-export { onAnswerWritten, onPredictionWritten, onPlayerReadyChanged } from './gameFlow';
+export { onAnswerWritten, onPredictionWritten, onGameStateChanged, onGameStateCreated, onPlayerReadyChanged } from './gameFlow';
 export { onRoomCleanupRequested, runScheduledRoomCleanup } from './roomCleanup';
 export { onRoomCommandCreated } from './roomCommands';
 export { onReplayRequestChanged } from './replayFlow';
