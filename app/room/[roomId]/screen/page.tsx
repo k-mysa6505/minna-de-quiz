@@ -50,6 +50,38 @@ function toTimestamp(value: unknown): number {
   return 0;
 }
 
+function calculateCompetitionRanks(players: Player[]): number[] {
+  const ranks: number[] = [];
+  let currentRank = 1;
+
+  players.forEach((player, index) => {
+    if (index > 0 && player.score < players[index - 1].score) {
+      currentRank = index + 1;
+    }
+    ranks.push(currentRank);
+  });
+
+  return ranks;
+}
+
+function formatOrdinalRank(rank: number): string {
+  const mod100 = rank % 100;
+  if (mod100 >= 11 && mod100 <= 13) {
+    return `${rank}th`;
+  }
+
+  switch (rank % 10) {
+    case 1:
+      return `${rank}st`;
+    case 2:
+      return `${rank}nd`;
+    case 3:
+      return `${rank}rd`;
+    default:
+      return `${rank}th`;
+  }
+}
+
 export default function RoomScreenPage() {
   const params = useParams();
   const router = useRouter();
@@ -253,6 +285,10 @@ export default function RoomScreenPage() {
   const visibleFinishedPlayers = useMemo(() => {
     return sortedPlayers.slice(0, MAX_FINISHED_PLAYERS);
   }, [sortedPlayers]);
+
+  const visibleFinishedRanks = useMemo(() => {
+    return calculateCompetitionRanks(sortedPlayers).slice(0, visibleFinishedPlayers.length);
+  }, [sortedPlayers, visibleFinishedPlayers.length]);
 
   const hiddenFinishedPlayersCount = Math.max(0, sortedPlayers.length - visibleFinishedPlayers.length);
 
@@ -790,8 +826,10 @@ export default function RoomScreenPage() {
                   className="flex items-center justify-between rounded-lg border border-slate-700 bg-slate-800/60 px-4 py-2"
                 >
                   <div className="flex items-center gap-3 text-lg md:text-xl">
-                    <span className="text-emerald-300 font-black w-8">#{index + 1}</span>
-                    <span className="font-semibold italic">{player.nickname}</span>
+                    <span className="text-emerald-300 font-black w-12">{formatOrdinalRank(visibleFinishedRanks[index])}</span>
+                    <span className={`font-semibold italic ${visibleFinishedRanks[index] === 1 ? 'text-yellow-400' : ''}`}>
+                      {player.nickname}
+                    </span>
                   </div>
                   <span className="text-xl font-black text-white">{player.score} pt</span>
                 </div>

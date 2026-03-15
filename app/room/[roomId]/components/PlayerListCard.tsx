@@ -40,6 +40,24 @@ function calculateDenseRanks(players: Player[]): number[] {
   return ranks;
 }
 
+function formatOrdinalRank(rank: number): string {
+  const mod100 = rank % 100;
+  if (mod100 >= 11 && mod100 <= 13) {
+    return `${rank}th`;
+  }
+
+  switch (rank % 10) {
+    case 1:
+      return `${rank}st`;
+    case 2:
+      return `${rank}nd`;
+    case 3:
+      return `${rank}rd`;
+    default:
+      return `${rank}th`;
+  }
+}
+
 export function PlayerListCard({
   players,
   currentPlayerId,
@@ -70,7 +88,7 @@ export function PlayerListCard({
         {visiblePlayers.map((player, idx) => {
           const isCurrentPlayer = player.playerId === currentPlayerId;
           const isWinner = highlightTopScore && topScore > 0 && player.score === topScore;
-          const prefix = sortMode === 'scoreDesc' ? `${ranks[idx]}．` : `${idx + 1}．`;
+          const prefix = sortMode === 'scoreDesc' ? `${formatOrdinalRank(ranks[idx])} ` : `${idx + 1}．`;
 
           return (
             <li
