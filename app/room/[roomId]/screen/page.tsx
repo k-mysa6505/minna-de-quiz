@@ -709,22 +709,20 @@ export default function RoomScreenPage() {
                 {revealingPhase === 'answer' && (
                   <>
                     <h2 className="text-3xl md:text-5xl font-black text-center">答え合わせ</h2>
-                    <div className="grid grid-cols-2 gap-4 md:gap-5">
+                    <div className="grid grid-cols-2 gap-3">
                       {state.currentQuestion.choices.map((choice, index) => {
                         const isCorrect = index === state.currentQuestion?.correctAnswer;
                         const choiceColor = SCREEN_CHOICE_COLORS[index] ?? SCREEN_CHOICE_COLORS[0];
                         return (
                           <div
                             key={`${choice}-${index}`}
-                            className={`rounded-2xl border-2 p-5 md:p-6 min-h-36 flex flex-col justify-between text-white ${isCorrect ? 'border-emerald-300 bg-slate-800/60 ring-2 ring-emerald-300 shadow-[0_0_24px_rgba(16,185,129,0.35)]' : 'border-slate-700 bg-slate-800/35 opacity-50'}`}
+                            className={`rounded-xl border p-3 md:p-4 min-h-24 text-base md:text-xl font-semibold flex items-center text-white ${isCorrect ? 'border-emerald-300 bg-slate-800/70 ring-2 ring-emerald-300 shadow-[0_0_24px_rgba(16,185,129,0.35)]' : 'border-slate-600 bg-slate-800/45 opacity-65'}`}
                           >
-                            <div className="text-lg md:text-2xl font-bold leading-snug flex items-center">
-                              <span className={`mr-3 inline-flex h-10 w-10 md:h-12 md:w-12 shrink-0 items-center justify-center rounded-full text-lg md:text-2xl font-black text-white ${choiceColor.badgeBg}`}>
-                                {index + 1}
-                              </span>
-                              {choice}
-                            </div>
-                            <div className="mt-4 text-sm md:text-lg text-slate-100 flex items-center gap-2">
+                            <span className={`mr-3 inline-flex h-9 w-9 md:h-11 md:w-11 shrink-0 items-center justify-center rounded-full text-lg md:text-2xl font-black text-white ${choiceColor.badgeBg}`}>
+                              {index + 1}
+                            </span>
+                            <span className="max-h-[3rem] md:max-h-[3.4rem] overflow-hidden flex-1">{choice}</span>
+                            <div className="ml-3 shrink-0 rounded-md border border-slate-500/60 bg-slate-900/40 px-2 py-1 text-xs md:text-sm text-slate-100 flex items-center gap-1">
                               <span>👥</span>
                               <span>{answerDistribution[index]}人</span>
                             </div>
