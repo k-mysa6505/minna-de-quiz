@@ -82,7 +82,7 @@ export function PlayerListCard({
   const topScore = sortedPlayers.length > 0 ? sortedPlayers[0].score : 0;
 
   return (
-    <div className="bg-gradient-to-br from-slate-800/70 to-slate-900/70 pb-4 rounded border border-slate-700/50">
+    <div className="bg-gradient-to-br from-slate-800/70 to-slate-900/70 pb-20 rounded border border-slate-700/50 overflow-visible">
       <div className="font-bold text-slate-400 pt-3 px-8 italic">PLAYER</div>
       <ul className="space-y-1">
         {visiblePlayers.map((player, idx) => {

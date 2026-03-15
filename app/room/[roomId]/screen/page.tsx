@@ -39,7 +39,6 @@ const MAX_WAITING_PLAYERS = 10;
 const MAX_CREATING_PLAYERS = 12;
 const MAX_RANKING_PLAYERS = 8;
 const MAX_FINISHED_PLAYERS = 10;
-const MAX_REACTIONS = 3;
 
 const SCREEN_CHOICE_COLORS = [
   { badgeBg: 'bg-blue-600' },
@@ -1004,21 +1003,6 @@ export default function RoomScreenPage() {
         )}
       </section>
 
-      {state.reactions.length > 0 && (
-        <aside className="fixed bottom-3 right-3 sm:bottom-5 sm:right-5 w-[78vw] max-w-sm rounded-xl border border-slate-700 bg-slate-900/80 backdrop-blur-md p-3">
-          <p className="text-xs text-slate-400 mb-2">LIVE REACTIONS</p>
-          <div className="space-y-1">
-            {state.reactions.slice(0, MAX_REACTIONS).map((reaction) => (
-              <div key={reaction.id} className="flex items-center justify-between text-xs">
-                <span className="text-slate-300 truncate mr-2">{reaction.userName}</span>
-                <span className={reaction.type === 'reaction' ? 'text-lg leading-none' : 'text-slate-100'}>
-                  {reaction.content}
-                </span>
-              </div>
-            ))}
-          </div>
-        </aside>
-      )}
     </main>
   );
 }

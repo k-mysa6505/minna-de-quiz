@@ -26,6 +26,11 @@ body {
   min-height: 100vh;
 }
 
+html,
+body {
+  overflow-x: clip;
+}
+
 /* 日本語を少し横に広く見せる */
 :lang(ja) {
   letter-spacing: 0.04em;
@@ -97,20 +102,20 @@ i,
 @keyframes float-up {
   0% {
     opacity: 0;
-    transform: translateY(8px) scale(0.9);
+    transform: translateY(14px) scale(0.9);
   }
 
   15% {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(-10px) scale(1);
   }
 
   100% {
     opacity: 0;
-    transform: translateY(-48px) scale(1.1);
+    transform: translateY(-220px) scale(1.08);
   }
 }
 
 .animate-float-up {
-  animation: float-up 0.9s ease-out forwards;
+  animation: float-up 3.4s cubic-bezier(0.16, 0.72, 0.22, 1) forwards;
 }

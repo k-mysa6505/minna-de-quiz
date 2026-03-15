@@ -1,7 +1,7 @@
 // app/room/[roomId]/components/WaitingPhase.tsx
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateRoomOptions, updateRoomStatus } from '@/lib/services/roomService';
 import { leaveRoomFlow } from '@/lib/services/roomFlowService';
@@ -24,6 +24,8 @@ interface WaitingPhaseProps {
 interface LocalReactionEffect {
   id: number;
   content: string;
+  senderName: string;
+  type: 'reaction' | 'message';
 }
 
 function ReactionTriggerIcon() {
@@ -45,7 +47,7 @@ function ReactionTriggerIcon() {
 
 const REACTION_STAMPS = ['👏', '🔥', '😆', '😱', '🤯', '🎉'];
 const QUICK_MESSAGES = ['よろしく！', '楽しみ！', '準備OK', 'はやく！'];
-const MAX_REACTIONS = 3;
+const REACTION_EFFECT_DURATION_MS = 2700;
 
 export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster }: WaitingPhaseProps) {
   const router = useRouter();
@@ -57,8 +59,11 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
   const [isCopyingScreenUrl, setIsCopyingScreenUrl] = useState(false);
   const [lastReactionAt, setLastReactionAt] = useState(0);
   const [reactionEffects, setReactionEffects] = useState<LocalReactionEffect[]>([]);
-  const [reactions, setReactions] = useState<RoomReaction[]>([]);
   const [isReactionPanelOpen, setIsReactionPanelOpen] = useState(false);
+  const reactionPanelRef = useRef<HTMLDivElement | null>(null);
+  const reactionToggleButtonRef = useRef<HTMLButtonElement | null>(null);
+  const hasInitialReactionSnapshotRef = useRef(false);
+  const seenReactionIdsRef = useRef<Set<string>>(new Set());
   const [timeLimit, setTimeLimit] = useState(room.timeLimit ?? 30);
   const [correctAnswerPoints, setCorrectAnswerPoints] = useState(room.correctAnswerPoints ?? 10);
   const [fastestAnswerBonusPoints, setFastestAnswerBonusPoints] = useState(room.fastestAnswerBonusPoints ?? 10);
@@ -112,15 +117,71 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
   const currentPlayer = players.find((player) => player.playerId === currentPlayerId);
   const isScreenModePlayerView = room.useScreenMode === true;
 
+  const showReactionEffect = (reaction: Pick<RoomReaction, 'content' | 'userName' | 'type'>, eventTimestamp = Date.now()) => {
+    const effectId = eventTimestamp + Math.random();
+    setReactionEffects((prev) => [
+      ...prev,
+      {
+        id: effectId,
+        content: reaction.content,
+        senderName: reaction.userName,
+        type: reaction.type,
+      },
+    ]);
+    setTimeout(() => {
+      setReactionEffects((prev) => prev.filter((effect) => effect.id !== effectId));
+    }, REACTION_EFFECT_DURATION_MS);
+  };
+
   useEffect(() => {
+    hasInitialReactionSnapshotRef.current = false;
+    seenReactionIdsRef.current = new Set();
+
     const unsubscribeReactions = subscribeToRoomReactions(roomId, (nextReactions) => {
-      setReactions(nextReactions);
+      if (!hasInitialReactionSnapshotRef.current) {
+        seenReactionIdsRef.current = new Set(nextReactions.map((reaction) => reaction.id));
+        hasInitialReactionSnapshotRef.current = true;
+        return;
+      }
+
+      const newReactions = [...nextReactions]
+        .reverse()
+        .filter((reaction) => !seenReactionIdsRef.current.has(reaction.id));
+
+      for (const reaction of newReactions) {
+        seenReactionIdsRef.current.add(reaction.id);
+        if (reaction.userId === currentPlayerId) {
+          continue;
+        }
+        showReactionEffect(reaction);
+      }
     });
 
     return () => {
       unsubscribeReactions();
     };
-  }, [roomId]);
+  }, [roomId, currentPlayerId]);
+
+  useEffect(() => {
+    if (!isReactionPanelOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node;
+      if (reactionPanelRef.current?.contains(target) || reactionToggleButtonRef.current?.contains(target)) {
+        return;
+      }
+      setIsReactionPanelOpen(false);
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+    };
+  }, [isReactionPanelOpen]);
 
   useEffect(() => {
     if (!showOptionsModal) {
@@ -185,11 +246,15 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
         content,
       });
 
-      const effectId = eventTimestamp;
-      setReactionEffects((prev) => [...prev, { id: effectId, content }]);
-      setTimeout(() => {
-        setReactionEffects((prev) => prev.filter((effect) => effect.id !== effectId));
-      }, 900);
+      showReactionEffect(
+        {
+          content,
+          userName: currentPlayer.nickname,
+          type,
+        },
+        eventTimestamp
+      );
+      setIsReactionPanelOpen(false);
     } catch (error) {
       console.error('Failed to send waiting reaction:', error);
     }
@@ -332,9 +397,9 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
       )}
 
       {currentPlayer && (
-        <div className="fixed bottom-6 right-4 z-40 flex flex-col items-end gap-3 sm:right-6">
+        <div className="fixed z-50 [bottom:clamp(0.75rem,2.6vh,1.5rem)] [right:clamp(0.75rem,3.5vw,1.75rem)]">
           {isReactionPanelOpen && (
-            <div className="w-[min(88vw,320px)] space-y-3 rounded-2xl border border-slate-700/80 bg-slate-900/90 p-3 shadow-2xl backdrop-blur-sm">
+            <div ref={reactionPanelRef} className="absolute bottom-16 right-0 w-[min(88vw,320px)] origin-bottom-right space-y-3 rounded-2xl border border-slate-700/80 bg-slate-900/90 p-3 shadow-2xl backdrop-blur-sm">
               <div className="grid grid-cols-3 gap-2">
                 {REACTION_STAMPS.map((stamp) => (
                   <button
@@ -364,33 +429,18 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
           )}
 
           <button
+            ref={reactionToggleButtonRef}
             type="button"
             aria-label="リアクションを開く"
             aria-expanded={isReactionPanelOpen}
             onClick={() => setIsReactionPanelOpen((prev) => !prev)}
-            className="grid h-14 w-14 place-items-center rounded-full border border-slate-500/70 bg-slate-800/90 text-slate-100 shadow-lg transition hover:bg-slate-700 active:scale-95"
+            className="grid h-14 w-14 place-items-center rounded-full border border-slate-500/70 bg-slate-800/90 text-slate-100 shadow-lg hover:bg-slate-700"
           >
-            <span className={isReactionPanelOpen ? '' : 'motion-safe:animate-pulse'}>
+            <span className="block">
               <ReactionTriggerIcon />
             </span>
           </button>
         </div>
-      )}
-
-      {reactions.length > 0 && (
-        <aside className="fixed bottom-24 right-4 z-30 w-[min(80vw,280px)] rounded-xl border border-slate-700 bg-slate-900/80 p-3 backdrop-blur-sm sm:right-6">
-          <p className="mb-2 text-xs text-slate-400">LIVE REACTIONS</p>
-          <div className="space-y-1">
-            {reactions.slice(0, MAX_REACTIONS).map((reaction) => (
-              <div key={reaction.id} className="flex items-center justify-between gap-2 text-xs">
-                <span className="truncate text-slate-300">{reaction.userName}</span>
-                <span className={reaction.type === 'reaction' ? 'text-lg leading-none' : 'text-slate-100'}>
-                  {reaction.content}
-                </span>
-              </div>
-            ))}
-          </div>
-        </aside>
       )}
 
       {/* 招待モーダル */}
@@ -524,10 +574,13 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
       )}
 
       {reactionEffects.length > 0 && (
-        <div className="pointer-events-none fixed bottom-28 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-1">
+        <div className="pointer-events-none fixed bottom-24 left-1/2 z-[90] flex w-[min(94vw,520px)] -translate-x-1/2 flex-col items-center gap-2 px-2">
           {reactionEffects.map((effect) => (
-            <div key={effect.id} className="animate-float-up text-3xl sm:text-4xl">
-              {effect.content}
+            <div key={effect.id} className="animate-float-up max-w-full px-3 text-center">
+              <p className={effect.type === 'reaction' ? 'text-3xl leading-none sm:text-4xl' : 'break-words text-sm font-semibold text-slate-100 sm:text-base'}>
+                {effect.content}
+              </p>
+              <p className="mx-auto mt-1 max-w-full break-words text-[10px] text-slate-200 sm:text-xs">{effect.senderName}</p>
             </div>
           ))}
         </div>
