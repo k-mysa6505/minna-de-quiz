@@ -147,9 +147,8 @@ export function ResultDisplayPhase({
   if (useScreenMode) {
     return (
       <div className="space-y-6">
-        <div className="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 sm:p-8 text-center">
+        <div className="p-6 sm:p-8 text-center">
           <h4 className="font-bold text-white text-2xl sm:text-3xl">結果はスクリーンで発表中！</h4>
-          <p className="text-slate-300 text-sm sm:text-base mt-3">前（スクリーン）をご覧ください</p>
         </div>
 
         <div className="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 sm:p-8 text-center">
@@ -173,15 +172,6 @@ export function ResultDisplayPhase({
 
         {showNextButton && (
           <div className="space-y-4">
-            <div className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-slate-300">準備完了</span>
-                <span className={`font-bold text-lg ${allReady ? 'text-green-400' : 'text-yellow-400'}`}>
-                  {readyCount}/{totalPlayers}人
-                </span>
-              </div>
-            </div>
-
             <button
               onClick={handleNextQuestion}
               disabled={allReady}
@@ -194,8 +184,19 @@ export function ResultDisplayPhase({
                 ${allReady ? 'opacity-75 cursor-not-allowed' : ''}
               `}
             >
-              {allReady ? '全員準備完了 - 自動で進みます...' : isReady ? '準備完了 - 他のプレイヤーを待っています...' : `準備完了 (${gameState.currentQuestionIndex >= gameState.totalQuestions - 1 ? '結果を見る' : '次の問題へ'})`}
+              {allReady ? '全員準備完了 - 自動で進みます...' 
+                        : isReady ? '準備完了 - 他のプレイヤーを待っています...' 
+                        : `準備完了 (${gameState.currentQuestionIndex >= gameState.totalQuestions - 1 ? '結果を見る' : '次の問題へ'})`}
             </button>
+
+            <div className="py-2">
+              <div className="flex justify-center items-center">
+                <span className="text-sm text-slate-300">準備完了：</span>
+                <span className={`font-bold text-lg ${allReady ? 'text-green-400' : 'text-yellow-400'}`}>
+                  {readyCount}/{totalPlayers}人
+                </span>
+              </div>
+            </div>
           </div>
         )}
       </div>
