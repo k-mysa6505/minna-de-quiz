@@ -14,7 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Player } from '@/types';
-import { serviceLogger } from './serviceLogger';
+import { serviceLogger } from '../core/serviceLogger';
 
 /**
  * プレイヤーを追加

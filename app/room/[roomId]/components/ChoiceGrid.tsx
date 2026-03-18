@@ -1,4 +1,4 @@
-// app/room/[roomId]/components/ui/ChoiceGrid.tsx
+// app/room/[roomId]/ChoiceGrid.tsx
 'use client';
 
 const CHOICE_COLORS = [

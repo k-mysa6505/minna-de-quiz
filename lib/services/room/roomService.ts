@@ -17,8 +17,8 @@ import {
 import { db } from '@/lib/firebase';
 import type { Room, CreateRoomParams, JoinRoomParams } from '@/types';
 import { generateRoomId, isValidRoomId } from '@/lib/utils/generateRoomId';
-import { addPlayer, getPlayers } from './playerService';
-import { serviceLogger } from './serviceLogger';
+import { addPlayer, getPlayers } from '../auth/playerService';
+import { serviceLogger } from '../core/serviceLogger';
 
 /**
  * 新しいルームを作成

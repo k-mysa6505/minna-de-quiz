@@ -1,4 +1,4 @@
-// app/room/[roomId]/hooks/useTimer.ts
+// app/room/[roomId]/useTimer.ts
 'use client';
 
 import { useState, useEffect } from 'react';

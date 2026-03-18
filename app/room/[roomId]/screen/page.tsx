@@ -5,17 +5,17 @@ import Image from 'next/image';
 import { QRCodeSVG } from 'qrcode.react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import LoadingSpinner from '@/app/common/LoadingSpinner';
-import { disbandRoomFlow, resetRoomForReplayFlow } from '@/lib/services/roomFlowService';
-import { handoverMasterFromScreenDevice, startGame, subscribeToRoom } from '@/lib/services/roomService';
-import { subscribeToPlayers } from '@/lib/services/playerService';
-import { getAnswers, getGameState, getPrediction } from '@/lib/services/gameService';
-import { getQuestion, getQuestionProgress, getQuestions } from '@/lib/services/questionService';
-import { subscribeToRoomReactions, type RoomReaction } from '@/lib/services/reactionService';
+import { disbandRoomFlow, resetRoomForReplayFlow } from '@/lib/services/room/roomFlowService';
+import { handoverMasterFromScreenDevice, startGame, subscribeToRoom } from '@/lib/services/room/roomService';
+import { subscribeToPlayers } from '@/lib/services/auth/playerService';
+import { getAnswers, getGameState, getPrediction } from '@/lib/services/game/gameService';
+import { getQuestion, getQuestionProgress, getQuestions } from '@/lib/services/game/questionService';
+import { subscribeToRoomReactions, type RoomReaction } from '@/lib/services/game/reactionService';
 import {
   calculateCorrectAnswerPoints,
   calculatePredictionPoints,
 } from '@/lib/utils/roundScoring';
-import { runServiceAction } from '@/lib/services/serviceAction';
+import { runServiceAction } from '@/lib/services/core/serviceAction';
 import type { Answer, GameState, Player, Prediction, Question, Room } from '@/types';
 import { PlayerListCard } from '../components/PlayerListCard';
 

@@ -1,4 +1,4 @@
-// app/room/[roomId]/components/ResultDisplayPhase.tsx
+// app/room/[roomId]/ResultDisplayPhase.tsx
 'use client';
 
 import { useEffect, useMemo } from 'react';
@@ -7,11 +7,11 @@ import {
   calculatePredictionPoints,
 } from '@/lib/utils/roundScoring';
 import type { Player, Answer, GameState, Question } from '@/types';
-import { ReactionOverlay } from './ReactionOverlay';
-import { ReactionTrigger } from './ReactionTrigger';
+import { ReactionOverlay } from '../components/ReactionOverlay';
+import { ReactionTrigger } from '../components/ReactionTrigger';
 import { useReactions } from '../hooks/useReactions';
 import { useResultReveal } from '../hooks/useResultReveal';
-import { GameProgressHeader } from './ui/GameProgressHeader';
+import { GameProgressHeader } from '../components/GameProgressHeader';
 
 interface ResultDisplayPhaseProps {
   roomId: string;
@@ -202,7 +202,7 @@ export function ResultDisplayPhase({
           authorNickname={players.find(p => p.playerId === currentQuestion.authorId)?.nickname}
           timeLimit={0}
           remainingSeconds={0}
-          phase={gameState.phase}
+          phase={gameState.phase ?? ''}
         />
 
         {!showPredictionResult && revealedPlayers.length === 0 ? (

@@ -4,8 +4,8 @@
 
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { joinRoom, getRoom } from '@/lib/services/roomService';
-import { runServiceAction } from '@/lib/services/serviceAction';
+import { joinRoom, getRoom } from '@/lib/services/room/roomService';
+import { runServiceAction } from '@/lib/services/core/serviceAction';
 import { RoomEntryFormCard } from './components/RoomEntryFormCard';
 import { RoomJoinConfirmCard } from './components/RoomJoinConfirmCard';
 import type { Room } from '@/types';

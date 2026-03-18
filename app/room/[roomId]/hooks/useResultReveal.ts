@@ -1,4 +1,4 @@
-// app/room/[roomId]/hooks/useResultReveal.ts
+// app/room/[roomId]/useResultReveal.ts
 'use client';
 
 import { useState, useEffect } from 'react';

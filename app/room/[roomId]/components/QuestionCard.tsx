@@ -1,4 +1,4 @@
-// app/room/[roomId]/components/ui/QuestionCard.tsx
+// app/room/[roomId]/QuestionCard.tsx
 'use client';
 
 import Image from 'next/image';

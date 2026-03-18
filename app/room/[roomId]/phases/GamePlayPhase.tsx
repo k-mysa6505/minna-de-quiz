@@ -1,4 +1,4 @@
-// app/room/[roomId]/components/GamePlayPhase.tsx
+// app/room/[roomId]/GamePlayPhase.tsx
 'use client';
 
 import { useGamePlay } from '../hooks/useGamePlay';
@@ -7,11 +7,11 @@ import { useReactions } from '../hooks/useReactions';
 import { useTimer } from '../hooks/useTimer';
 import type { Player } from '@/types';
 import LoadingSpinner from '@/app/common/LoadingSpinner';
-import { ReactionOverlay } from './ReactionOverlay';
-import { ReactionTrigger } from './ReactionTrigger';
-import { GameProgressHeader } from './ui/GameProgressHeader';
-import { QuestionCard } from './ui/QuestionCard';
-import { ChoiceGrid } from './ui/ChoiceGrid';
+import { ReactionOverlay } from '../components/ReactionOverlay';
+import { ReactionTrigger } from '../components/ReactionTrigger';
+import { GameProgressHeader } from '../components/GameProgressHeader';
+import { QuestionCard } from '../components/QuestionCard';
+import { ChoiceGrid } from '../components/ChoiceGrid';
 
 interface GamePlayPhaseProps {
   roomId: string;
@@ -137,7 +137,7 @@ export function GamePlayPhase({
           authorNickname={players.find(p => p.playerId === currentQuestion.authorId)?.nickname}
           timeLimit={timeLimit}
           remainingSeconds={remainingSeconds}
-          phase={gameState.phase}
+          phase={gameState.phase ?? ''}
         />
 
         <QuestionCard

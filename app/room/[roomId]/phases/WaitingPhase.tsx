@@ -1,18 +1,17 @@
-// app/room/[roomId]/components/WaitingPhase.tsx
 'use client';
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { updateRoomStatus } from '@/lib/services/roomService';
-import { leaveRoomFlow } from '@/lib/services/roomFlowService';
-import { runServiceAction } from '@/lib/services/serviceAction';
+import { updateRoomStatus } from '@/lib/services/room/roomService';
+import { leaveRoomFlow } from '@/lib/services/room/roomFlowService';
+import { runServiceAction } from '@/lib/services/core/serviceAction';
 import type { Player, Room } from '@/types';
-import { Modal } from './Modal';
-import { InviteModal } from '@/app/room/[roomId]/components/InviteModal';
-import { LeaveRoomModal } from '@/app/room/[roomId]/components/LeaveRoomModal';
-import { PlayerListCard } from './PlayerListCard';
-import { ReactionOverlay } from './ReactionOverlay';
-import { ReactionTrigger } from './ReactionTrigger';
+import { Modal } from "@/app/common/Modal";
+import { InviteModal } from '../modals/InviteModal';
+import { LeaveRoomModal } from '../modals/LeaveRoomModal';
+import { PlayerListCard } from '../components/PlayerListCard';
+import { ReactionOverlay } from '../components/ReactionOverlay';
+import { ReactionTrigger } from '../components/ReactionTrigger';
 import { useReactions } from '../hooks/useReactions';
 import { useRoomOptions } from '../hooks/useRoomOptions';
 

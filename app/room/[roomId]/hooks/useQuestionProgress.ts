@@ -1,10 +1,10 @@
-// app/room/[roomId]/hooks/useQuestionProgress.ts
+// app/room/[roomId]/useQuestionProgress.ts
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getQuestionProgress } from '@/lib/services/questionService';
-import { initializeAndStartPlayingFlow } from '@/lib/services/roomFlowService';
-import { runServiceAction } from '@/lib/services/serviceAction';
+import { getQuestionProgress } from '@/lib/services/game/questionService';
+import { initializeAndStartPlayingFlow } from '@/lib/services/room/roomFlowService';
+import { runServiceAction } from '@/lib/services/core/serviceAction';
 
 export function useQuestionProgress(roomId: string, totalPlayers: number) {
   const [progress, setProgress] = useState({ created: 0, total: totalPlayers });

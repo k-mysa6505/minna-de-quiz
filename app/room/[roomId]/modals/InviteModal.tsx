@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Modal } from './Modal';
+import { Modal } from "@/app/common/Modal";
 
 interface InviteModalProps {
   roomId: string;

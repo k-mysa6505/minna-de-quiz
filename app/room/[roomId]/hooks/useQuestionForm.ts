@@ -1,10 +1,10 @@
-// app/room/[roomId]/hooks/useQuestionForm.ts
+// app/room/[roomId]/useQuestionForm.ts
 'use client';
 
 import { useState } from 'react';
-import { uploadQuestionImage } from '@/lib/services/storageService';
-import { createQuestion } from '@/lib/services/questionService';
-import { runServiceAction } from '@/lib/services/serviceAction';
+import { uploadQuestionImage } from '@/lib/services/core/storageService';
+import { createQuestion } from '@/lib/services/game/questionService';
+import { runServiceAction } from '@/lib/services/core/serviceAction';
 import { type QuestionFormData } from '@/types';
 
 export function useQuestionForm(roomId: string, currentPlayerId: string) {

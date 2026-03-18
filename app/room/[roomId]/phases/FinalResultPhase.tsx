@@ -1,15 +1,15 @@
-// app/room/[roomId]/components/FinalResultPhase.tsx
+// app/room/[roomId]/FinalResultPhase.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { leaveRoomFlow } from '@/lib/services/roomFlowService';
-import { runServiceAction } from '@/lib/services/serviceAction';
-import { setPlayerReplayRequested, updatePlayerOnlineStatus } from '@/lib/services/playerService';
+import { leaveRoomFlow } from '@/lib/services/room/roomFlowService';
+import { runServiceAction } from '@/lib/services/core/serviceAction';
+import { setPlayerReplayRequested, updatePlayerOnlineStatus } from '@/lib/services/auth/playerService';
 import type { Player } from '@/types';
-import { PlayerListCard } from './PlayerListCard';
-import { ReactionOverlay } from './ReactionOverlay';
-import { ReactionTrigger } from './ReactionTrigger';
+import { PlayerListCard } from '../components/PlayerListCard';
+import { ReactionOverlay } from '../components/ReactionOverlay';
+import { ReactionTrigger } from '../components/ReactionTrigger';
 import { useReactions } from '../hooks/useReactions';
 
 interface FinalResultPhaseProps {

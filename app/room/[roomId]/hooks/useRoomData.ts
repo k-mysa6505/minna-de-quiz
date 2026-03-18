@@ -1,10 +1,10 @@
-// app/room/[roomId]/hooks/useRoomData.ts
+// app/room/[roomId]/useRoomData.ts
 // ルームとプレイヤー情報を管理するカスタムフック
 'use client';
 
 import { useEffect, useState } from 'react';
-import { subscribeToRoom } from '@/lib/services/roomService';
-import { subscribeToPlayers, updatePlayerOnlineStatus } from '@/lib/services/playerService';
+import { subscribeToRoom } from '@/lib/services/room/roomService';
+import { subscribeToPlayers, updatePlayerOnlineStatus } from '@/lib/services/auth/playerService';
 import type { Room, Player } from '@/types';
 
 export function useRoomData(roomId: string, currentPlayerId: string) {

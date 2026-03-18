@@ -6,11 +6,11 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useRoomData } from './hooks/useRoomData';
 import { usePlayerStatus } from './hooks/usePlayerStatus';
-import { setupPresence } from '@/lib/services/presenceService';
-import { WaitingPhase } from './components/WaitingPhase';
-import { QuestionCreationPhase } from './components/QuestionCreationPhase';
-import { GamePlayPhase } from './components/GamePlayPhase';
-import { FinalResultPhase } from './components/FinalResultPhase';
+import { setupPresence } from '@/lib/services/auth/presenceService';
+import { WaitingPhase } from './phases/WaitingPhase';
+import { QuestionCreationPhase } from './phases/QuestionCreationPhase';
+import { GamePlayPhase } from './phases/GamePlayPhase';
+import { FinalResultPhase } from './phases/FinalResultPhase';
 import LoadingSpinner from '@/app/common/LoadingSpinner';
 
 // 初期状態を取得するヘルパー関数

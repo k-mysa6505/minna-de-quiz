@@ -1,9 +1,9 @@
-// app/room/[roomId]/hooks/useRoomOptions.ts
+// app/room/[roomId]/useRoomOptions.ts
 'use client';
 
 import { useState, useEffect } from 'react';
-import { updateRoomOptions } from '@/lib/services/roomService';
-import { runServiceAction } from '@/lib/services/serviceAction';
+import { updateRoomOptions } from '@/lib/services/room/roomService';
+import { runServiceAction } from '@/lib/services/core/serviceAction';
 import { type Room } from '@/types';
 
 export function useRoomOptions(roomId: string, room: Room) {

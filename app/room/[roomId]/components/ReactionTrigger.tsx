@@ -1,4 +1,4 @@
-// app/room/[roomId]/components/ReactionTrigger.tsx
+// app/room/[roomId]/ReactionTrigger.tsx
 'use client';
 
 import { type RefObject } from 'react';

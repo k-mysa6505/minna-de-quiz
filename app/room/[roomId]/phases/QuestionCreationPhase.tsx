@@ -1,11 +1,10 @@
-// app/room/[roomId]/components/QuestionCreationPhase.tsx
 'use client';
 
 import { useState } from 'react';
 import Image from 'next/image';
 import type { Player } from '@/types';
-import { Modal } from './Modal';
-import templateDataset from './questionTemplateDataset.json';
+import { Modal } from "@/app/common/Modal";
+import templateDataset from '../data/questionTemplateDataset.json';
 import { useQuestionForm } from '../hooks/useQuestionForm';
 import { useQuestionProgress } from '../hooks/useQuestionProgress';
 

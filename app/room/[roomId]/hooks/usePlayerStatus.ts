@@ -1,9 +1,9 @@
-// app/room/[roomId]/hooks/usePlayerStatus.ts
+// app/room/[roomId]/usePlayerStatus.ts
 // プレイヤーのオンライン状態を管理するカスタムフック
 'use client';
 
 import { useEffect } from 'react';
-import { updatePlayerOnlineStatus } from '@/lib/services/playerService';
+import { updatePlayerOnlineStatus } from '@/lib/services/auth/playerService';
 
 export function usePlayerStatus(roomId: string, currentPlayerId: string) {
   useEffect(() => {

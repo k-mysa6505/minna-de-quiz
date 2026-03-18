@@ -1,8 +1,8 @@
 // lib/services/roomFlowService.ts
 
-import { clearQuestionsAndAnswers, initializeGame, resetGameState } from './gameService';
-import { resetAllPlayersScores, updatePlayerOnlineStatus } from './playerService';
-import { getQuestions } from './questionService';
+import { clearQuestionsAndAnswers, initializeGame, resetGameState } from '../game/gameService';
+import { resetAllPlayersScores, updatePlayerOnlineStatus } from '../auth/playerService';
+import { getQuestions } from '../game/questionService';
 import { requestDisbandRoomCommand } from './roomCommandService';
 import {
   getRoom,

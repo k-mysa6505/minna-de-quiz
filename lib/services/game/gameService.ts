@@ -7,7 +7,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { GameState, Answer, Prediction } from '@/types';
-import { serviceLogger } from './serviceLogger';
+import { serviceLogger } from '../core/serviceLogger';
 
 /**
  * ゲーム状態を初期化

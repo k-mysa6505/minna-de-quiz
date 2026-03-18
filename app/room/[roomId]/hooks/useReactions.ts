@@ -1,8 +1,8 @@
-// app/room/[roomId]/hooks/useReactions.ts
+// app/room/[roomId]/useReactions.ts
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { subscribeToRoomReactions, sendRoomReaction, type RoomReaction } from '@/lib/services/reactionService';
+import { subscribeToRoomReactions, sendRoomReaction, type RoomReaction } from '@/lib/services/game/reactionService';
 import { type LocalReactionEffect } from '../components/ReactionOverlay';
 import { type Player } from '@/types';
 

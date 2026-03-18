@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { signInAnonymouslyIfNeeded } from '@/lib/services/authService';
+import { signInAnonymouslyIfNeeded } from '@/lib/services/auth/authService';
 import LoadingSpinner from '@/app/common/LoadingSpinner';
 
 export default function AuthProvider({ children }: { children: React.ReactNode }) {

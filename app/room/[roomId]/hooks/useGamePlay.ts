@@ -1,4 +1,4 @@
-// app/room/[roomId]/hooks/useGamePlay.ts
+// app/room/[roomId]/useGamePlay.ts
 // ゲームプレイのロジックを管理するカスタムフック
 // Phase 3 リファクタリング: ポーリング廃止 → Firestore onSnapshot で監視
 // ゲーム進行（次の問題へ・終了）はFunctions側が担うため、クライアントは送信と表示のみ担当
@@ -15,9 +15,9 @@ import {
   submitPrediction,
   markPlayerReady,
   updatePredictionResult,
-} from '@/lib/services/gameService';
-import { getQuestions } from '@/lib/services/questionService';
-import { updatePlayerScore } from '@/lib/services/playerService';
+} from '@/lib/services/game/gameService';
+import { getQuestions } from '@/lib/services/game/questionService';
+import { updatePlayerScore } from '@/lib/services/auth/playerService';
 import {
   calculateAnswerScoreDelta,
   calculatePredictionPoints,

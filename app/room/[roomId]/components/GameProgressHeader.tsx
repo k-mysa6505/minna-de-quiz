@@ -1,4 +1,4 @@
-// app/room/[roomId]/components/ui/GameProgressHeader.tsx
+// app/room/[roomId]/GameProgressHeader.tsx
 'use client';
 
 import { type Player } from '@/types';
