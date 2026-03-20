@@ -13,9 +13,6 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans), var(--font-noto-sans-jp), sans-serif;
   --font-mono: var(--font-geist-sans), var(--font-noto-sans-jp), sans-serif;
-  
-  /* Tailwind v4 方式でアニメーションを登録 */
-  /* 秒数やベジェ曲線は元の手書き設定を反映しました */
   --animate-float-up: float-up 3.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
@@ -24,7 +21,7 @@ body {
   background-attachment: fixed;
   color: var(--foreground);
   font-family: var(--font-geist-sans), var(--font-noto-sans-jp), sans-serif;
-  font-weight: 700;
+  /* font-weight: 700; */
   letter-spacing: 0.02em;
   line-height: 1.45;
   min-height: 100vh;
@@ -69,22 +66,8 @@ i,
   font-style: italic !important;
 }
 
-/* GeoGuessr風のカスタムスクロールバー */
 ::-webkit-scrollbar {
-  width: 10px;
-}
-
-::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(52, 152, 219, 0.5);
-  border-radius: 5px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(52, 152, 219, 0.8);
+  width: 0px;
 }
 
 /* フェードインアニメーション */

@@ -20,7 +20,6 @@ export interface GameState {
   totalQuestions: number;
   playersReady?: string[]; // 次の問題への準備が完了したプレイヤーIDのリスト
   questionStartedAt?: Timestamp; // 現在の問題が開始された時刻
-  // --- Phase 3で追加 ---
   phase?: GamePhase;           // 現在の詳細フェーズ（Functionsが管理）
   phaseDeadline?: Timestamp;   // フェーズの終了予定時刻（タイムアウト管理用）
   revealStartedAt?: Timestamp; // 結果表示フェーズが始まった時刻（最低表示時間の制御用）

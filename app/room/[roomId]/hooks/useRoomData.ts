@@ -26,7 +26,7 @@ export function useRoomData(roomId: string, currentPlayerId: string) {
         setRoom(roomData);
         setError('');
       } else {
-        setError('ルームが存在しません');
+        setError('ルームが終了したか、存在しません');
       }
     });
 

@@ -112,6 +112,7 @@ export default function JoinRoomPage() {
     return (
       <RoomJoinConfirmCard
         roomInfo={roomInfo}
+        nickname={nickname}
         isLoading={isLoading}
         error={error}
         onConfirm={() => handleJoinRoom(roomId.trim())}

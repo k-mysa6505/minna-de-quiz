@@ -11,6 +11,7 @@ import { PlayerListCard } from '../components/PlayerListCard';
 import { ReactionOverlay } from '../components/ReactionOverlay';
 import { ReactionTrigger } from '../components/ReactionTrigger';
 import { useReactions } from '../hooks/useReactions';
+import { PhaseHeader } from '../components/PhaseHeader';
 
 interface FinalResultPhaseProps {
   roomId: string;
@@ -114,7 +115,7 @@ export function FinalResultPhase({ roomId, players, currentPlayerId, useScreenMo
   return (
     <>
       <div className="space-y-8">
-        <h2 className="text-2xl font-bold text-white tracking-tight">総合ランキング</h2>
+        <PhaseHeader title="総合ランキング" />
         {!useScreenMode && (
           <PlayerListCard players={rankingSourcePlayers} currentPlayerId={currentPlayerId} sortMode="scoreDesc" showScores highlightTopScore />
         )}

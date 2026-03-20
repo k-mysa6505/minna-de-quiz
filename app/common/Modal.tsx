@@ -23,14 +23,14 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50"
+      className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50"
       onClick={handleOverlayClick}
       role="presentation"
     >
       <div
         role="dialog"
         aria-modal="true"
-        className={`bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border border-slate-700 p-6 ${panelClassName}`}
+        className={`bg-slate-900 rounded-xl border border-slate-700/60 p-8 ${panelClassName}`}
         onClick={(e) => e.stopPropagation()}
       >
         {children}

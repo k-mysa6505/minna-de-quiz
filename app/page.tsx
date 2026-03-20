@@ -69,7 +69,7 @@ export default function Home() {
         <div className="text-center mt-6">
           <Link
             href="/how-to-play"
-            className="text-sm text-slate-400 italic underline underline-offset-2"
+            className="bg-slate-700/50 text-slate-200 font-bold italic px-4 rounded-xl border border-slate-600"
           >
             HOW TO PLAY
           </Link>

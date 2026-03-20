@@ -37,7 +37,9 @@ export function InviteModal({ roomId, onClose }: InviteModalProps) {
 
   return (
     <Modal onClose={onClose} panelClassName="max-w-md w-full">
-      <h3 className="text-xl text-center font-bold text-white mb-4">友達を招待</h3>
+      <h3 className="text-xl text-center font-semibold italic tracking-widest text-white mb-4">
+        友達を招待
+      </h3>
 
       <div className="bg-slate-700/30 rounded-lg p-4 mb-4 text-center">
         <p className="text-xs text-slate-400 mb-2">QRコード</p>
@@ -58,7 +60,9 @@ export function InviteModal({ roomId, onClose }: InviteModalProps) {
           </code>
           <button
             onClick={() => handleCopy('roomId')}
-            className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-2 rounded transition-all"
+            className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400
+                      text-xs px-3 py-2 rounded border border-blue-400/30
+                      transition-all"
           >
             {copiedTarget === 'roomId' ? 'コピー済み' : 'コピー'}
           </button>
@@ -76,7 +80,9 @@ export function InviteModal({ roomId, onClose }: InviteModalProps) {
           />
           <button
             onClick={() => handleCopy('link')}
-            className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-2 rounded transition-all"
+            className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400
+                       text-xs px-3 py-2 rounded border border-blue-400/30
+                       transition-all"
           >
             {copiedTarget === 'link' ? 'コピー済み' : 'コピー'}
           </button>
@@ -85,7 +91,9 @@ export function InviteModal({ roomId, onClose }: InviteModalProps) {
 
       <button
         onClick={onClose}
-        className="w-full bg-slate-700 hover:bg-slate-600 text-white font-medium py-2 px-4 rounded-lg transition-all"
+        className="w-full bg-slate-700/60 hover:bg-slate-600/60
+                  text-slate-300 font-medium py-2 px-4 rounded-lg
+                  transition-all"
       >
         閉じる
       </button>

@@ -6,28 +6,38 @@ interface LeaveRoomModalProps {
   isLeaving: boolean;
   onCancel: () => void;
   onConfirm: () => Promise<void>;
+  title?: string;
+  description?: string;
+  confirmLabel?: string;
 }
 
-export function LeaveRoomModal({ isLeaving, onCancel, onConfirm }: LeaveRoomModalProps) {
+export function LeaveRoomModal({ 
+  isLeaving, onCancel, onConfirm, 
+  title = "ルームを退室", 
+  description = "本当にこのルームを退室しますか？\n進行中のデータには戻れません。",
+  confirmLabel = "退室する"
+}: LeaveRoomModalProps) {
   return (
     <Modal
       onClose={onCancel}
       closeOnOverlayClick={!isLeaving}
       panelClassName="max-w-sm w-full"
     >
-      <h3 className="text-xl text-center font-bold text-white mb-3">ルームを退室</h3>
-      <p className="text-sm text-slate-300 text-center mb-6">
-        本当にこのルームを退室しますか？
-        <br />
-        進行中のデータには戻れません。
-      </p>
+      <h3 className="text-lg text-center font-semibold italic tracking-widest text-white mb-3">
+        {title}
+      </h3>
+      <div className="text-sm text-slate-400 text-center mb-8 whitespace-pre-line leading-relaxed">
+        {description}
+      </div>
 
       <div className="flex gap-2">
         <button
           type="button"
           disabled={isLeaving}
           onClick={onCancel}
-          className="flex-1 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-700/50 text-white font-medium py-2 px-4 rounded-lg transition-all disabled:cursor-not-allowed"
+          className="flex-1 bg-slate-700/60 hover:bg-slate-600/60 disabled:opacity-40
+                    text-slate-300 font-medium py-2 px-4 rounded-lg
+                    transition-all disabled:cursor-not-allowed"
         >
           キャンセル
         </button>
@@ -35,9 +45,12 @@ export function LeaveRoomModal({ isLeaving, onCancel, onConfirm }: LeaveRoomModa
           type="button"
           disabled={isLeaving}
           onClick={onConfirm}
-          className="flex-1 bg-gradient-to-b from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 disabled:from-slate-600 disabled:to-slate-700 text-white font-semibold py-2 px-4 rounded-lg transition-all disabled:cursor-not-allowed"
+          className="flex-1 bg-red-500/20 hover:bg-red-500/30 disabled:opacity-40
+                    text-red-400 font-semibold py-2 px-4 rounded-lg
+                    border border-red-400/30
+                    transition-all disabled:cursor-not-allowed"
         >
-          {isLeaving ? '退室中...' : '退室する'}
+          {isLeaving ? '処理中...' : confirmLabel}
         </button>
       </div>
     </Modal>

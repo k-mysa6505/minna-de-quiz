@@ -147,7 +147,7 @@ export function GamePlayPhase({
         />
 
         {/* 回答フォーム（出題者以外） */}
-        {!isAuthor && !hasSubmittedAnswer && (
+        {!isAuthor && (
           <div className="space-y-6">
             <ChoiceGrid
               choices={currentQuestion.choices}
@@ -157,16 +157,21 @@ export function GamePlayPhase({
             />
             <button
               onClick={handleAnswerSubmit}
-              disabled={selectedAnswer === null}
-              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 disabled:from-slate-600 disabled:to-slate-700 text-white font-semibold py-4 sm:py-5 px-6 rounded-md shadow-lg transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed text-base sm:text-lg"
+              disabled={selectedAnswer === null || hasSubmittedAnswer}
+              className="
+                w-full
+                bg-gradient-to-r from-blue-600 to-blue-700 disabled:from-slate-600 disabled:to-slate-700
+                text-white font-semibold py-4 sm:py-5 px-6 rounded-md shadow-lg
+                transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed text-base sm:text-lg
+              "
             >
-              回答を送信
+              {hasSubmittedAnswer ? '回答済み' : '回答を送信'}
             </button>
           </div>
         )}
 
         {/* 予想フォーム（出題者のみ） */}
-        {isAuthor && !hasSubmittedPrediction && (
+        {isAuthor && (
           <div className="space-y-6">
             <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50">
               <label className="block text-sm text-slate-300 mb-4 font-medium text-center">
@@ -188,20 +193,11 @@ export function GamePlayPhase({
             </div>
             <button
               onClick={handlePredictionSubmit}
-              className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 text-white font-semibold py-4 px-6 rounded-md shadow-lg"
+              disabled={isAuthor && hasSubmittedPrediction}
+              className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 disabled:from-slate-600 disabled:to-slate-700 text-white font-semibold py-4 px-6 rounded-md shadow-lg disabled:cursor-not-allowed"
             >
-              予想を送信
+              {isAuthor && hasSubmittedPrediction ? '予想済み' : '予想を送信'}
             </button>
-          </div>
-        )}
-
-        {/* 待機中 */}
-        {(hasSubmittedAnswer || (isAuthor && hasSubmittedPrediction)) && (
-          <div className="text-center p-30">
-            <p className="text-lg text-slate-300 font-medium italic">他のプレイヤーの回答を待っています...</p>
-            <p className="text-sm text-slate-400 mt-2">
-              解答済みプレイヤー {currentAnswerCount} / {players.length}
-            </p>
           </div>
         )}
 

@@ -97,6 +97,18 @@ export default function RoomPage() {
     };
   }, [currentPlayerId, roomId]);
 
+  // ルーム解体時の自動遷移
+  useEffect(() => {
+    if (roomError === 'ルームが終了したか、存在しません') {
+      const timer = setTimeout(() => {
+        sessionStorage.removeItem('currentPlayerId');
+        sessionStorage.removeItem('currentRoomId');
+        router.push('/');
+      }, 3000); // 3秒後に遷移（メッセージを読ませるため）
+      return () => clearTimeout(timer);
+    }
+  }, [roomError, router]);
+
   const error = initialState.error || roomError;
   const loading = !room && !error;
 

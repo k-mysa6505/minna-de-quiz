@@ -7,6 +7,7 @@ import { Modal } from "@/app/common/Modal";
 import templateDataset from '../data/questionTemplateDataset.json';
 import { useQuestionForm } from '../hooks/useQuestionForm';
 import { useQuestionProgress } from '../hooks/useQuestionProgress';
+import { PhaseHeader } from '../components/PhaseHeader';
 
 interface QuestionCreationPhaseProps {
   roomId: string;
@@ -63,11 +64,11 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
 
   return (
     <div className="space-y-8">
-      <h2 className="text-2xl font-bold text-center text-white tracking-tight">問題を作りましょう</h2>
+      <div className="flex justify-between items-center">
+        <PhaseHeader title="問題を作りましょう" />
+        <button type="button" onClick={() => setShowTemplateModal(true)} className="w-8 h-8 rounded-full border border-slate-500/80 text-slate-200 bg-slate-700/70 hover:bg-slate-600/80 transition-all text-sm font-bold">?</button>
+      </div>
       <form onSubmit={(e) => { e.preventDefault(); setShowConfirmModal(true); }} className="space-y-6">
-        <div className="flex justify-end">
-          <button type="button" onClick={() => setShowTemplateModal(true)} className="w-8 h-8 rounded-full border border-slate-500/80 text-slate-200 bg-slate-700/70 hover:bg-slate-600/80 transition-all text-sm font-bold">?</button>
-        </div>
         <div>
           <label className="block text-sm font-semibold text-slate-300 mb-3">問題文 *</label>
           <textarea value={questionText} onChange={(e) => setQuestionText(e.target.value)} className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" rows={3} placeholder="問題文を入力してください" required />
