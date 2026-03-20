@@ -1,49 +1,54 @@
 import { ReactNode } from 'react';
+import { SecondaryButton } from '../../common/SecondaryButton';
+import { PrimaryButton } from '../../common/PrimaryButton';
 
 interface RoomEntryFormCardProps {
-  title: string;
-  roomId: string;
-  nickname: string;
-  onRoomIdChange?: (value: string) => void;
-  onNicknameChange: (value: string) => void;
-  onSubmit: () => void;
-  onBack: () => void;
-  isLoading: boolean;
-  error: string;
-  submitLabel: string;
-  loadingLabel: string;
-  showRoomIdInput?: boolean;
-  roomIdReadOnly?: boolean;
-  roomIdPlaceholder?: string;
-  nicknamePlaceholder?: string;
-  disableSubmit?: boolean;
-  footerNote?: ReactNode;
+    title: string;
+    roomId: string;
+    nickname: string;
+    onRoomIdChange?: (value: string) => void;
+    onNicknameChange: (value: string) => void;
+    onSubmit: () => void;
+    onBack: () => void;
+    isLoading: boolean;
+    error: string;
+    submitLabel: string;
+    loadingLabel: string;
+    showRoomIdInput?: boolean;
+    roomIdReadOnly?: boolean;
+    roomIdPlaceholder?: string;
+    nicknamePlaceholder?: string;
+    disableSubmit?: boolean;
+    footerNote?: ReactNode;
+    isShaking?: boolean;
 }
 
 export function RoomEntryFormCard({
-  title,
-  roomId,
-  nickname,
-  onRoomIdChange,
-  onNicknameChange,
-  onSubmit,
-  onBack,
-  isLoading,
-  error,
-  submitLabel,
-  loadingLabel,
-  showRoomIdInput = true,
-  roomIdReadOnly = false,
-  roomIdPlaceholder = '123456',
-  nicknamePlaceholder = 'あなたの代名詞は？',
-  disableSubmit = false,
-  footerNote,
+    title,
+    roomId,
+    nickname,
+    onRoomIdChange,
+    onNicknameChange,
+    onSubmit,
+    onBack,
+    isLoading,
+    error,
+    submitLabel,
+    loadingLabel,
+    showRoomIdInput = true,
+    roomIdReadOnly = false,
+    roomIdPlaceholder = '123456',
+    nicknamePlaceholder = 'あなたの代名詞は？',
+    disableSubmit = false,
+    footerNote,
+    isShaking = false,
 }: RoomEntryFormCardProps) {
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8">
-      <div className="space-y-6 w-full max-w-md">
+    return (
+        <main className="flex min-h-screen flex-col items-center justify-center p-8">
+            <div className={`space-y-6 w-full max-w-md ${isShaking ? 'animate-shake' : ''}`}>
+
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-3 tracking-tight">
+          <h1 className="text-3xl font-bold text-white mb-3 tracking-tight italic">
             {title}
           </h1>
         </div>
@@ -88,20 +93,17 @@ export function RoomEntryFormCard({
         {footerNote}
 
         <div className="flex gap-4 justify-center">
-          <button
+          <PrimaryButton
             onClick={onSubmit}
             disabled={disableSubmit}
-            className="bg-emerald-700 disabled:bg-slate-600 text-white font-bold italic px-4 rounded-xl shadow-lg transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed"
+            color="emerald"
           >
             {isLoading ? loadingLabel : submitLabel}
-          </button>
+          </PrimaryButton>
 
-          <button
-            onClick={onBack}
-            className="bg-slate-700/50 text-slate-200 font-bold italic px-4 rounded-xl border border-slate-600 transition-all duration-300"
-          >
+          <SecondaryButton onClick={onBack}>
             BACK
-          </button>
+          </SecondaryButton>
         </div>
       </div>
     </main>

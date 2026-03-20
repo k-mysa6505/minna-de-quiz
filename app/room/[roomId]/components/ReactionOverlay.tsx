@@ -5,6 +5,7 @@ export interface LocalReactionEffect {
   content: string;
   senderName: string;
   type: 'reaction' | 'message';
+  xOffset: number; // -100 to 100 (percentage-like offset from center)
 }
 
 interface ReactionOverlayProps {
@@ -16,14 +17,18 @@ export function ReactionOverlay({ effects }: ReactionOverlayProps) {
 
   return (
     <div 
-      className="pointer-events-none fixed bottom-28 left-1/2 z-[70] flex w-[min(92vw,420px)] -translate-x-1/2 flex-col-reverse items-center gap-2 h-0 overflow-visible"
+      className="pointer-events-none fixed bottom-28 left-1/2 z-[70] flex w-full -translate-x-1/2 flex-col-reverse items-center h-0 overflow-visible"
     >
       {effects.map((effect) => (
         <div 
           key={effect.id} 
-          className="animate-float-up flex flex-col items-center drop-shadow-xl"
+          className="animate-float-up absolute flex flex-col items-center drop-shadow-xl"
+          style={{ 
+            left: `calc(50% + ${effect.xOffset}px)`,
+            transform: 'translateX(-50%)' 
+          }}
         >
-          <div className="rounded-2xl bg-slate-800/60 px-4 py-2 backdrop-blur-md border border-white/10 shadow-2xl">
+          <div className="rounded-2xl bg-slate-800/80 px-4 py-2 backdrop-blur-md border border-white/20 shadow-2xl">
             <p className={
               effect.type === 'reaction' 
                 ? 'text-4xl leading-none sm:text-5xl' 

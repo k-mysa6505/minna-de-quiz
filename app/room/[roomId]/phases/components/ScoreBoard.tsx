@@ -2,6 +2,7 @@
 
 import type { Answer, Player } from '@/types';
 import { calculateCorrectAnswerPoints, toMillis } from '@/lib/utils/roundScoring';
+import { NumberTicker } from '@/app/common/NumberTicker';
 
 interface ScoreBoardProps {
   correctAnswers: Answer[];
@@ -33,9 +34,11 @@ export function ScoreBoard({
           <div key={answer.playerId} className="flex justify-between items-center px-4 py-1 animate-fade-in">
             <div className="flex items-center gap-10">
               <span className={`font-bold text-lg ${idx === 0 ? 'text-yellow-400' : 'text-white'}`}>{idx + 1}．{player?.nickname || 'unknown'}</span>
-              <span className="text-ms text-slate-300 italic">{timeDisplay}</span>
+              <span className="text-ms text-slate-300 italic font-mono">{timeDisplay}</span>
             </div>
-            <span className="text-emerald-400 font-bold">+{gainedPoints}pt</span>
+            <div className="text-emerald-400 font-bold font-mono">
+              +<NumberTicker value={gainedPoints} duration={600} />pt
+            </div>
           </div>
         );
       })}

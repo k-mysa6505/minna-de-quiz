@@ -2,6 +2,7 @@
 'use client';
 
 import { type RefObject } from 'react';
+import { motion } from 'framer-motion';
 
 interface ReactionTriggerProps {
   isReactionPanelOpen: boolean;
@@ -51,33 +52,39 @@ export function ReactionTrigger({
         >
           <div className="grid grid-cols-3 gap-2">
             {reactionStamps.map((stamp) => (
-              <button
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
                 key={stamp}
                 type="button"
                 onClick={(event) => handleSendReaction('reaction', stamp, event.timeStamp)}
-                className="rounded-lg border border-slate-700 bg-slate-800 px-2 py-2 text-xl leading-none text-slate-100 transition hover:bg-slate-700 active:scale-95"
+                className="rounded-lg border border-slate-700 bg-slate-800 px-2 py-2 text-xl leading-none text-slate-100 transition hover:bg-slate-700"
               >
                 {stamp}
-              </button>
+              </motion.button>
             ))}
           </div>
           <div className="grid grid-cols-2 gap-2">
             {quickMessages.map((message) => (
-              <button
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 key={message}
                 type="button"
                 onClick={(event) => handleSendReaction('message', message, event.timeStamp)}
-                className="rounded-lg border border-slate-700 bg-slate-800 px-2 py-2 text-xs text-slate-100 transition hover:bg-slate-700 active:scale-95 sm:text-sm"
+                className="rounded-lg border border-slate-700 bg-slate-800 px-2 py-2 text-xs text-slate-100 transition hover:bg-slate-700 sm:text-sm"
               >
                 {message}
-              </button>
+              </motion.button>
             ))}
           </div>
           <p className="text-[11px] text-slate-400">送信は1秒に1回までです</p>
         </div>
       )}
 
-      <button
+      <motion.button
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
         ref={reactionToggleButtonRef}
         type="button"
         aria-label="リアクションを開く"
@@ -88,7 +95,7 @@ export function ReactionTrigger({
         <span className="block">
           <ReactionTriggerIcon />
         </span>
-      </button>
+      </motion.button>
     </div>
   );
 }

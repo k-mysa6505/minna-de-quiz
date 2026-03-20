@@ -3,9 +3,12 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
 import { createRoom } from '@/lib/services/room/roomService';
 import { runServiceAction } from '@/lib/services/core/serviceAction';
 import { RoomOptionsForm } from './RoomOptionsForm';
+import { SecondaryButton } from '../common/SecondaryButton';
+import { PrimaryButton } from '../common/PrimaryButton';
 
 type ParticipationStyle = 'player' | 'screen';
 
@@ -138,13 +141,15 @@ export default function CreateRoomPage() {
       <div className="max-w-md w-full space-y-6">
 
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-3 tracking-tight">ルームを作成</h1>
+          <h1 className="text-3xl font-bold text-white mb-3 tracking-tight italic">ルームを作成</h1>
         </div>
 
         {/* モード選択 */}
         <div className="grid grid-cols-2 gap-3">
           {/* プレイヤーモード */}
-          <button
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             type="button"
             onClick={() => setParticipationStyle('player')}
             className={`
@@ -166,12 +171,14 @@ export default function CreateRoomPage() {
             >
               <PlayerModeIllustration />
             </div>
-            <p className="font-semibold text-white text-sm">プレイヤーモード</p>
-            <p className="text-xs text-slate-300 mt-1 italic">この端末でプレイ</p>
-          </button>
+            <p className="text-xl font-bold text-white italic">プレイヤーモード</p>
+            <p className="text-sm text-slate-300 mt-1">この端末でプレイ</p>
+          </motion.button>
 
           {/* スクリーンモード */}
-          <button
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             type="button"
             onClick={() => setParticipationStyle('screen')}
             className={`
@@ -191,13 +198,15 @@ export default function CreateRoomPage() {
             >
               <ScreenModeIllustration />
             </div>
-            <p className="font-semibold text-white text-sm">スクリーンモード</p>
-            <p className="text-xs text-slate-300 mt-1 italic">表示専用にする</p>
-          </button>
+            <p className="text-xl font-bold text-white text-sm italic">スクリーンモード</p>
+            <p className="text-sm text-slate-300 mt-1">表示専用にする</p>
+          </motion.button>
         </div>
 
         {/* オプション設定ボタン */}
-        <button
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           type="button"
           onClick={() => setShowOptions(true)}
           className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-slate-600 bg-slate-700/40 hover:bg-slate-700/60 hover:border-slate-500 transition-all duration-150 group"
@@ -213,7 +222,7 @@ export default function CreateRoomPage() {
           <svg className="w-4 h-4 text-slate-500 group-hover:text-slate-400 transition-colors" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
           </svg>
-        </button>
+        </motion.button>
 
         {/* エラー */}
         {error && (
@@ -222,17 +231,17 @@ export default function CreateRoomPage() {
           </div>
         )}
 
-        {/* ボタン */}
         <div className="flex gap-4 justify-center">
-          <button
+          <PrimaryButton
             onClick={handleCreateRoom}
             disabled={isCreating}
-            className="bg-gradient-to-b from-green-700 to-green-800 disabled:bg-slate-600 text-white font-bold italic px-3 rounded-xl shadow-lg transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed"
+            color="green"
           >
             {isCreating ? 'CREATING...' : 'CREATE'}
-          </button>
-          <button onClick={() => router.push('/')} className="bg-slate-700/50 text-slate-200 font-medium italic px-4 rounded-xl border border-slate-600 transition-all duration-300">BACK</button>
+          </PrimaryButton>
+          <SecondaryButton onClick={() => router.push('/')}>BACK</SecondaryButton>
         </div>
+
       </div>
 
       {/* オプションモーダル */}

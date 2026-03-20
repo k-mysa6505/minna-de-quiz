@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import type { Answer, Prediction, Question, Player, Room } from '@/types';
 import { calculateCorrectAnswerPoints } from '@/lib/utils/roundScoring';
 import { toTimestamp } from '../utils/screenUtils';
+import { motion } from 'framer-motion';
 
 interface RevealingScreenProps {
   revealingPhase: 'answer' | 'ranking' | 'prediction';
@@ -43,18 +44,37 @@ export function RevealingScreen({
     <section className="h-full p-4 md:p-6 space-y-6 overflow-hidden">
       {revealingPhase === 'answer' && (
         <>
-          <h2 className="text-3xl md:text-5xl font-black text-center">答え合わせ</h2>
-          <div className="grid grid-cols-2 gap-3">
+          <h2 className="text-3xl md:text-5xl font-black text-center mb-8">答え合わせ</h2>
+          <div className="grid grid-cols-2 gap-4">
             {currentQuestion.choices.map((choice, index) => {
               const isCorrect = index === currentQuestion.correctAnswer;
               return (
-                <div key={index} className={`rounded-xl border p-3 md:p-4 min-h-24 text-base md:text-xl font-semibold flex items-center text-white ${isCorrect ? 'border-emerald-300 bg-slate-800/70 ring-2 ring-emerald-300 shadow-[0_0_24px_rgba(16,185,129,0.35)]' : 'border-slate-600 bg-slate-800/45 opacity-65'}`}>
-                  <span className={`mr-3 inline-flex h-9 w-9 md:h-11 md:w-11 shrink-0 items-center justify-center rounded-full text-lg md:text-2xl font-black text-white ${SCREEN_CHOICE_COLORS[index].badgeBg}`}>{index + 1}</span>
-                  <span className="max-h-[3rem] md:max-h-[3.4rem] overflow-hidden flex-1">{choice}</span>
-                  <div className="ml-3 shrink-0 rounded-md border border-slate-500/60 bg-slate-900/40 px-2 py-1 text-xs md:text-sm text-slate-100 flex items-center gap-1">
-                    <span>👥</span><span>{answerDistribution[index]}人</span>
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 1 }}
+                  animate={{ 
+                    opacity: !isCorrect ? 0.1 : 1,
+                    borderWidth: isCorrect ? '2px' : '1px'
+                  }}
+                  transition={{ duration: 0.3 }}
+                  className={`
+                    rounded-xl border p-3 md:p-4 min-h-24 text-base md:text-xl font-semibold flex items-center text-white 
+                    ${isCorrect ? 'border-emerald-400 bg-slate-800/40' : 'border-slate-700 bg-slate-900/40'}
+                  `}
+                >
+                  <span className={`
+                    mr-3 inline-flex h-9 w-9 md:h-11 md:w-11 shrink-0 items-center justify-center rounded-full text-lg md:text-2xl font-black text-white 
+                    ${SCREEN_CHOICE_COLORS[index].badgeBg}
+                  `}>
+                    {index + 1}
+                  </span>
+                  <span className="flex-1 font-mono tracking-tight">{choice}</span>
+                  
+                  {/* 人数表示も控えめな計器風に */}
+                  <div className="ml-3 font-mono text-xs md:text-sm text-slate-400">
+                    {answerDistribution[index]}P
                   </div>
-                </div>
+                </motion.div>
               );
             })}
           </div>

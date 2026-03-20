@@ -1,14 +1,14 @@
 // app/how-to-play/page.tsx
 'use client';
 
-import Link from 'next/link';
+import { SecondaryButton } from '../common/SecondaryButton';
 
 export default function HowToPlay() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8">
       <div className="max-w-md w-full space-y-6">
         {/* タイトル */}
-        <h1 className="text-2xl font-bold text-white mb-6 tracking-tight text-center">
+        <h1 className="text-3xl font-bold text-white mb-6 tracking-tight text-center italic">
           HOW TO PLAY
         </h1>
 
@@ -52,12 +52,9 @@ export default function HowToPlay() {
 
         {/* 戻るボタン */}
         <div className="text-center">
-          <Link
-            href="/"
-            className="bg-emerald-700 disabled:bg-slate-600 text-white font-bold italic px-4 rounded-xl shadow-lg underline-offset-2 transition-all"
-          >
+          <SecondaryButton href="/">
             HOME
-          </Link>
+          </SecondaryButton>
         </div>
       </div>
     </main>

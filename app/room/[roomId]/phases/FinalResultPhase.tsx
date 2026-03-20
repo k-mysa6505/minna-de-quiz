@@ -12,6 +12,8 @@ import { ReactionOverlay } from '../components/ReactionOverlay';
 import { ReactionTrigger } from '../components/ReactionTrigger';
 import { useReactions } from '../hooks/useReactions';
 import { PhaseHeader } from '../components/PhaseHeader';
+import { SecondaryButton } from '../../../common/SecondaryButton';
+import { PrimaryButton } from '../../../common/PrimaryButton';
 
 interface FinalResultPhaseProps {
   roomId: string;
@@ -128,10 +130,21 @@ export function FinalResultPhase({ roomId, players, currentPlayerId, useScreenMo
         )}
         {!useScreenMode && (
           <div className="flex gap-4 justify-center">
-            <button onClick={handlePlayAgain} disabled={isResetting || hasLeft || hasRequestedReplay} className="bg-emerald-700 disabled:bg-slate-600 text-white font-bold italic px-4 rounded-xl shadow-lg transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed">
-              {isResetting ? <div className="flex items-center justify-center gap-2"><div className="animate-spin h-5 w-5 border-b-2 border-white rounded-full"></div><span>RESETTING...</span></div> : (hasRequestedReplay ? 'REQUESTED' : 'REPLAY')}
-            </button>
-            <button onClick={handleLeaveRoom} disabled={isResetting} className="bg-slate-700/50 disabled:bg-slate-600 text-slate-200 font-bold italic px-4 rounded-xl border border-slate-600 transition-all duration-300 disabled:cursor-not-allowed">HOME</button>
+            <PrimaryButton
+              onClick={handlePlayAgain}
+              disabled={isResetting || hasLeft || hasRequestedReplay}
+              color="emerald"
+            >
+              {isResetting ? (
+                <div className="flex items-center justify-center gap-2">
+                  <div className="animate-spin h-5 w-5 border-b-2 border-white rounded-full"></div>
+                  <span>RESETTING...</span>
+                </div>
+              ) : (
+                hasRequestedReplay ? 'REQUESTED' : 'REPLAY'
+              )}
+            </PrimaryButton>
+            <SecondaryButton onClick={handleLeaveRoom} disabled={isResetting}>HOME</SecondaryButton>
           </div>
         )}
         {currentPlayer && (

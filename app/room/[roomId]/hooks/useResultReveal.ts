@@ -4,57 +4,64 @@
 import { useState, useEffect } from 'react';
 import { type Answer } from '@/types';
 
+export type RevealStage = 'choice' | 'scoreboard' | 'prediction';
+
 export function useResultReveal(correctAnswers: Answer[], showAnswerReveal: boolean) {
+  const [stage, setStage] = useState<RevealStage>('choice');
   const [revealedPlayers, setRevealedPlayers] = useState<string[]>([]);
-  const [showPredictionResult, setShowPredictionResult] = useState(false);
   const [showNextButton, setShowNextButton] = useState(false);
 
   useEffect(() => {
     if (!showAnswerReveal) {
+      setStage('choice');
       setRevealedPlayers([]);
-      setShowPredictionResult(false);
       setShowNextButton(false);
       return;
     }
 
-    if (correctAnswers.length === 0) {
-      const timer = setTimeout(() => setShowPredictionResult(true), 2000);
-      return () => clearTimeout(timer);
-    }
+    // 1. 答え合わせの確認時間 (3秒) -> 'scoreboard'へ
+    const toScoreboardTimer = setTimeout(() => {
+      setStage('scoreboard');
 
-    let index = 0;
-    let predictionTimer: ReturnType<typeof setTimeout> | null = null;
-    const interval = setInterval(() => {
-      if (index < correctAnswers.length) {
-        const currentAnswer = correctAnswers[index];
-        if (currentAnswer && currentAnswer.playerId) {
-          setRevealedPlayers(prev => [...prev, currentAnswer.playerId]);
+      if (correctAnswers.length === 0) {
+        // 正解者なしなら3秒待ってから次へ
+        setTimeout(() => setStage('prediction'), 3000);
+        return;
+      }
+
+      // 2. 正解者を一人ずつゆっくり表示 (1秒間隔)
+      let index = 0;
+      const interval = setInterval(() => {
+        if (index < correctAnswers.length) {
+          const currentAnswer = correctAnswers[index];
+          if (currentAnswer?.playerId) {
+            setRevealedPlayers(prev => [...prev, currentAnswer.playerId]);
+          }
+          index++;
+        } else {
+          clearInterval(interval);
+          // 3. 全員表示後、一呼吸置いてから 'prediction' へ
+          setTimeout(() => setStage('prediction'), 2000);
         }
-        index++;
-      } else {
-        clearInterval(interval);
-        predictionTimer = setTimeout(() => setShowPredictionResult(true), 1000);
-      }
-    }, 500);
+      }, 1000);
 
-    return () => {
-      clearInterval(interval);
-      if (predictionTimer) {
-        clearTimeout(predictionTimer);
-      }
-    };
+      return () => clearInterval(interval);
+    }, 3000);
+
+    return () => clearTimeout(toScoreboardTimer);
   }, [showAnswerReveal, correctAnswers]);
 
   useEffect(() => {
-    if (showPredictionResult) {
-      const timer = setTimeout(() => setShowNextButton(true), 3000);
+    if (stage === 'prediction') {
+      // 予想チャレンジの演出（内部で約4.5秒）が終わる頃にボタンを出す
+      const timer = setTimeout(() => setShowNextButton(true), 5000);
       return () => clearTimeout(timer);
     }
-  }, [showPredictionResult]);
+  }, [stage]);
 
   return {
+    stage,
     revealedPlayers,
-    showPredictionResult,
     showNextButton,
   };
 }

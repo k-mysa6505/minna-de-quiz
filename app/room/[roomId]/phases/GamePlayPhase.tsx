@@ -90,21 +90,6 @@ export function GamePlayPhase({
   const isAuthor = currentQuestion.authorId === currentPlayerId;
   const otherPlayersCount = players.length - 1;
 
-  // 待機画面（シンプル版）
-  if (waitingForPlayers) {
-    const playersReady = gameState.playersReady || [];
-
-    return (
-      <div className="flex items-center justify-center min-h-[90vh]">
-        <div className="text-center">
-          <p className="text-slate-300 text-sm">
-            プレイヤーを待機しています... {playersReady.length}/{players.length}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   // 結果表示フェーズ
   if (showResults) {
     return (
@@ -130,6 +115,18 @@ export function GamePlayPhase({
 
   return (
     <>
+      {/* 1px Minimal Timer Line */}
+      {timeLimit > 0 && gameState.phase === 'answering' && (
+        <div className="fixed top-0 left-0 w-full h-[4px] z-[100] bg-white/5">
+          <div 
+            className={`h-full transition-all duration-300 ease-linear shadow-[0_0_12px_rgba(255,255,255,0.3)] ${
+              remainingSeconds <= 5 ? 'bg-rose-500' : 'bg-emerald-500'
+            }`}
+            style={{ width: `${(remainingSeconds / timeLimit) * 100}%` }}
+          />
+        </div>
+      )}
+
       <div className="space-y-6">
         <GameProgressHeader
           currentQuestionIndex={gameState.currentQuestionIndex}
@@ -146,7 +143,7 @@ export function GamePlayPhase({
           useScreenMode={useScreenMode}
         />
 
-        {/* 回答フォーム（出題者以外） */}
+        {/* 回答エリア（出題者以外） */}
         {!isAuthor && (
           <div className="space-y-6">
             <ChoiceGrid
@@ -154,49 +151,68 @@ export function GamePlayPhase({
               selectedAnswer={selectedAnswer}
               onSelect={setSelectedAnswer}
               useScreenMode={useScreenMode}
+              disabled={hasSubmittedAnswer}
+              showResults={false}
             />
+
             <button
               onClick={handleAnswerSubmit}
               disabled={selectedAnswer === null || hasSubmittedAnswer}
-              className="
-                w-full
-                bg-gradient-to-r from-blue-600 to-blue-700 disabled:from-slate-600 disabled:to-slate-700
-                text-white font-semibold py-4 sm:py-5 px-6 rounded-md shadow-lg
-                transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed text-base sm:text-lg
-              "
+              className={`
+                w-full font-bold py-4 sm:py-5 px-6 rounded-md shadow-lg transition-all duration-300 text-base sm:text-lg
+                ${hasSubmittedAnswer 
+                  ? 'bg-slate-800 text-slate-500 cursor-default border border-white/5' 
+                  : selectedAnswer === null 
+                    ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white active:scale-95'
+                }
+              `}
             >
-              {hasSubmittedAnswer ? '回答済み' : '回答を送信'}
+              {hasSubmittedAnswer ? '回答を送信しました' : '回答を送信'}
             </button>
+
+            {hasSubmittedAnswer && (
+              <div className="text-center pt-2">
+                <p className="text-[10px] text-slate-500 font-mono uppercase tracking-widest animate-pulse">
+                  Waiting for others... {currentAnswerCount} / {players.length}
+                </p>
+              </div>
+            )}
           </div>
         )}
 
         {/* 予想フォーム（出題者のみ） */}
         {isAuthor && (
           <div className="space-y-6">
-            <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50">
-              <label className="block text-sm text-slate-300 mb-4 font-medium text-center">
-                正解者数を予想してください（0〜{otherPlayersCount}人）
+            <div className="bg-white/5 rounded-xl p-8 border border-white/10">
+              <label className="block text-xs font-bold text-slate-500 mb-6 uppercase tracking-[0.2em] text-center">
+                正解者数を予想
               </label>
-              <input
-                type="number"
-                min="0"
-                max={otherPlayersCount}
-                value={predictedCorrectCount}
-                onChange={(e) => setPredictedCorrectCount(parseInt(e.target.value) || 0)}
-                className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-md text-white text-center text-2xl font-bold focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-              />
-              {useScreenMode && (
-                <p className="text-xs text-slate-400 text-center mt-3">
-                  問題文はスクリーンに表示されています
-                </p>
-              )}
+              <div className="flex items-center justify-center gap-4">
+                <input
+                  type="number"
+                  min="0"
+                  max={otherPlayersCount}
+                  value={predictedCorrectCount}
+                  onChange={(e) => setPredictedCorrectCount(parseInt(e.target.value) || 0)}
+                  disabled={hasSubmittedPrediction}
+                  className="w-24 px-4 py-3 bg-white/5 border border-white/10 rounded-md text-white text-center text-4xl font-black font-mono focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all disabled:opacity-50"
+                />
+                <span className="text-xl font-bold text-slate-400">人</span>
+              </div>
             </div>
             <button
               onClick={handlePredictionSubmit}
-              disabled={isAuthor && hasSubmittedPrediction}
-              className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 disabled:from-slate-600 disabled:to-slate-700 text-white font-semibold py-4 px-6 rounded-md shadow-lg disabled:cursor-not-allowed"
+              disabled={hasSubmittedPrediction}
+              className={`
+                w-full font-bold py-4 px-6 rounded-md shadow-lg transition-all duration-300
+                ${hasSubmittedPrediction
+                  ? 'bg-slate-800 text-slate-500 cursor-default border border-white/5'
+                  : 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white active:scale-95'
+                }
+              `}
             >
-              {isAuthor && hasSubmittedPrediction ? '予想済み' : '予想を送信'}
+              {hasSubmittedPrediction ? '予想を送信しました' : '予想を送信'}
             </button>
           </div>
         )}

@@ -4,6 +4,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
+import { SecondaryButton } from './common/SecondaryButton';
 
 export default function Home() {
   const [started, setStarted] = useState(false);
@@ -47,32 +49,34 @@ export default function Home() {
         {/* アクションボタン */}
         <div className="space-y-5">
           {/* ルーム作成ボタン */}
-          <Link
-            href="/create-room"
-            className="block bg-emerald-900 hover:bg-emerald-800 text-white py-3 px-4 rounded-lg border border-emerald-700/30 text-center"
-          >
-            <div className="font-semibold">CREATE ROOM</div>
-            <div className="text-sm text-slate-400 mt-1 italic">ルームを作成</div>
-          </Link>
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <Link
+              href="/create-room"
+              className="block bg-emerald-800 hover:bg-emerald-700 text-white py-3 px-4 rounded-lg border border-emerald-700/30 text-center"
+            >
+              <div className="text-xl font-bold italic">CREATE ROOM</div>
+              <div className="text-sm text-slate-300 mt-1">ルームを作成</div>
+            </Link>
+          </motion.div>
 
           {/* ルーム参加ボタン */}
-          <Link
-            href="/join-room"
-            className="block bg-blue-900 hover:bg-blue-800 text-white py-3 px-4 rounded-lg border border-blue-700/30 text-center"
-          >
-            <div className="font-semibold">JOIN ROOM</div>
-            <div className="text-sm text-slate-400 mt-1 italic">ルームに参加</div>
-          </Link>
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <Link
+              href="/join-room"
+              className="block bg-blue-900 hover:bg-blue-800 text-white py-3 px-4 rounded-lg border border-blue-700/30 text-center"
+            >
+              <div className="text-xl font-bold italic">JOIN ROOM</div>
+              <div className="text-sm text-slate-300 mt-1">ルームに参加</div>
+            </Link>
+          </motion.div>
         </div>
+
 
         {/* 遊び方ボタン */}
         <div className="text-center mt-6">
-          <Link
-            href="/how-to-play"
-            className="bg-slate-700/50 text-slate-200 font-bold italic px-4 rounded-xl border border-slate-600"
-          >
+          <SecondaryButton href="/how-to-play">
             HOW TO PLAY
-          </Link>
+          </SecondaryButton>
         </div>
       </div>
     </main>

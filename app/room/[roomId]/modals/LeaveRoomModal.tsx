@@ -1,5 +1,6 @@
 'use client';
 
+import { motion } from 'framer-motion';
 import { Modal } from "@/app/common/Modal";
 
 interface LeaveRoomModalProps {
@@ -31,7 +32,9 @@ export function LeaveRoomModal({
       </div>
 
       <div className="flex gap-2">
-        <button
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
           type="button"
           disabled={isLeaving}
           onClick={onCancel}
@@ -40,8 +43,10 @@ export function LeaveRoomModal({
                     transition-all disabled:cursor-not-allowed"
         >
           キャンセル
-        </button>
-        <button
+        </motion.button>
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
           type="button"
           disabled={isLeaving}
           onClick={onConfirm}
@@ -51,7 +56,7 @@ export function LeaveRoomModal({
                     transition-all disabled:cursor-not-allowed"
         >
           {isLeaving ? '処理中...' : confirmLabel}
-        </button>
+        </motion.button>
       </div>
     </Modal>
   );

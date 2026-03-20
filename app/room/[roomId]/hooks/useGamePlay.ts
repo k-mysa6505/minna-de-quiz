@@ -42,6 +42,33 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
     if (gameState?.phase === 'answering') { setShowResults(false); hasCalculatedScoreRef.current = false; setSelectedAnswer(null); setPredictedCorrectCount(0); }
   }, [gameState?.phase, currentQuestion, prediction]);
 
+  // 制限時間ありの場合、時間切れで未提出プレイヤーの送信を自動実行
+  useEffect(() => {
+    if (timeLimit <= 0 || !currentQuestion || gameState?.phase !== 'answering') return;
+
+    const startedAtMs = toMillis(gameState.questionStartedAt);
+    if (startedAtMs <= 0) return;
+
+    const deadlineMs = startedAtMs + timeLimit * 1000;
+    
+    const checkTimeout = async () => {
+      const remaining = deadlineMs - Date.now();
+      if (remaining <= 0) {
+        if (currentQuestion.authorId === currentPlayerId) {
+          if (!hasSubmittedPrediction) handlePredictionSubmit();
+        } else if (!hasSubmittedAnswer) {
+          // タイムアウト時は強制的に「不正解」を送信（選択肢の範囲外または逆を狙う）
+          const isCorrect = false;
+          const fallbackIdx = (currentQuestion.correctAnswer + 1) % 4;
+          await submitAnswer(roomId, currentQuestion.questionId, currentPlayerId, fallbackIdx, isCorrect).catch(console.error);
+        }
+      }
+    };
+
+    const timer = setInterval(checkTimeout, 500);
+    return () => clearInterval(timer);
+  }, [roomId, currentQuestion, gameState?.phase, hasSubmittedAnswer, hasSubmittedPrediction, timeLimit]);
+
   const handleAnswerSubmit = async () => {
     if (selectedAnswer === null || !currentQuestion) return;
     await submitAnswer(roomId, currentQuestion.questionId, currentPlayerId, selectedAnswer, selectedAnswer === currentQuestion.correctAnswer).catch(console.error);

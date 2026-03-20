@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
+import { motion } from 'framer-motion';
 import { Modal } from "@/app/common/Modal";
 
 interface InviteModalProps {
@@ -58,14 +59,16 @@ export function InviteModal({ roomId, onClose }: InviteModalProps) {
           <code className="flex-1 bg-slate-900/50 text-white px-3 py-2 rounded font-mono text-sm">
             {roomId}
           </code>
-          <button
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => handleCopy('roomId')}
             className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400
                       text-xs px-3 py-2 rounded border border-blue-400/30
                       transition-all"
           >
             {copiedTarget === 'roomId' ? 'コピー済み' : 'コピー'}
-          </button>
+          </motion.button>
         </div>
       </div>
 
@@ -78,25 +81,29 @@ export function InviteModal({ roomId, onClose }: InviteModalProps) {
             className="flex-1 bg-slate-900/50 text-white px-3 py-2 rounded text-xs border border-slate-600 resize-none"
             rows={3}
           />
-          <button
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => handleCopy('link')}
             className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400
                        text-xs px-3 py-2 rounded border border-blue-400/30
                        transition-all"
           >
             {copiedTarget === 'link' ? 'コピー済み' : 'コピー'}
-          </button>
+          </motion.button>
         </div>
       </div>
 
-      <button
+      <motion.button
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
         onClick={onClose}
         className="w-full bg-slate-700/60 hover:bg-slate-600/60
                   text-slate-300 font-medium py-2 px-4 rounded-lg
                   transition-all"
       >
         閉じる
-      </button>
+      </motion.button>
     </Modal>
   );
 }

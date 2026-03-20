@@ -1,4 +1,6 @@
 import type { Room } from '@/types';
+import { SecondaryButton } from '../../common/SecondaryButton';
+import { PrimaryButton } from '../../common/PrimaryButton';
 
 interface RoomJoinConfirmCardProps {
   roomInfo: Room;
@@ -57,19 +59,16 @@ export function RoomJoinConfirmCard({
         )}
 
         <div className="flex gap-3 justify-center">
-          <button
+          <PrimaryButton
             onClick={onConfirm}
             disabled={isLoading}
-            className="bg-gradient-to-b from-emerald-700 to-emerald-800 px-4 disabled:from-slate-600 disabled:to-slate-700 text-white font-bold italic rounded-xl shadow-lg transition-all duration-300 disabled:cursor-not-allowed"
+            color="emerald"
           >
             {isLoading ? 'JOINING...' : 'JOIN'}
-          </button>
-          <button
-            onClick={onBack}
-            className="bg-slate-700/50 px-4 text-slate-200 font-bold italic rounded-xl transition-all duration-300"
-          >
+          </PrimaryButton>
+          <SecondaryButton onClick={onBack}>
             BACK
-          </button>
+          </SecondaryButton>
         </div>
       </div>
     </main>

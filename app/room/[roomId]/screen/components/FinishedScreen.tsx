@@ -2,6 +2,8 @@
 
 import { PhaseHeader } from '../../components/PhaseHeader';
 import { formatOrdinalRank } from '../utils/screenUtils';
+import { SecondaryButton } from '../../../../common/SecondaryButton';
+import { PrimaryButton } from '../../../../common/PrimaryButton';
 import type { Player } from '@/types';
 
 interface FinishedScreenProps {
@@ -34,12 +36,16 @@ export function FinishedScreen({
       </div>
       {hiddenFinishedPlayersCount > 0 && <p className="mt-3 text-sm text-slate-300">他 {hiddenFinishedPlayersCount} 人</p>}
       <div className="mt-6 flex gap-4 justify-center">
-        <button onClick={onReplay} disabled={isReplaying || isDisbanding} className="bg-emerald-700 disabled:bg-slate-600 text-white font-bold italic px-4 rounded-xl shadow-lg transition-all">
+        <PrimaryButton
+          onClick={onReplay}
+          disabled={isReplaying || isDisbanding}
+          color="emerald"
+        >
           {isReplaying ? 'RESETTING...' : 'REPLAY'}
-        </button>
-        <button onClick={onDisband} disabled={isReplaying || isDisbanding} className="bg-slate-700/50 disabled:bg-slate-600 text-slate-200 font-bold italic px-4 rounded-xl border border-slate-600">
+        </PrimaryButton>
+        <SecondaryButton onClick={onDisband} disabled={isReplaying || isDisbanding}>
           {isDisbanding ? 'DISBANDING...' : 'DISBAND'}
-        </button>
+        </SecondaryButton>
       </div>
     </section>
   );

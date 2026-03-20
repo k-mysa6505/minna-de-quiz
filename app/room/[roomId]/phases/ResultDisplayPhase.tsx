@@ -26,6 +26,8 @@ const CHOICE_COLORS = [
   { bg: 'bg-green-600/70', border: 'border-green-500/70' }, { bg: 'bg-yellow-600/70', border: 'border-yellow-500/70' },
 ];
 
+import { ChoiceGrid } from '../components/ChoiceGrid';
+
 export function ResultDisplayPhase({
   roomId, gameState, currentQuestion, players, answers, prediction,
   currentPlayerId, isReady, waitingForPlayers, handleNextQuestion,
@@ -33,8 +35,9 @@ export function ResultDisplayPhase({
   wrongAnswerPenalty, predictionHitBonusPoints,
 }: ResultDisplayPhaseProps) {
   const correctAnswers = useMemo(() => answers.filter(a => a.isCorrect).sort((a,b) => toMillis(a.answeredAt) - toMillis(b.answeredAt)), [answers]);
-  const { revealedPlayers, showPredictionResult, showNextButton } = useResultReveal(correctAnswers, true);
+  const { stage, revealedPlayers, showNextButton } = useResultReveal(correctAnswers, true);
   const currentPlayer = players.find(p => p.playerId === currentPlayerId);
+  const myAnswer = answers.find(a => a.playerId === currentPlayerId);
   const { reactionEffects, isReactionPanelOpen, setIsReactionPanelOpen, reactionPanelRef, reactionToggleButtonRef, handleSendReaction } = useReactions(roomId, currentPlayerId, currentPlayer?.nickname, currentQuestion.questionId);
 
   const nextControl = showNextButton && (
@@ -42,16 +45,15 @@ export function ResultDisplayPhase({
   );
 
   if (useScreenMode) {
-    const myAnswer = answers.find(a => a.playerId === currentPlayerId);
     const isAuthor = currentQuestion.authorId === currentPlayerId;
     return (
       <div className="space-y-6">
-        <div className="p-6 text-center"><h4 className="font-bold text-white text-2xl">結果はスクリーンで発表中！</h4></div>
-        <div className="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 text-center">
-          <p className="text-sm text-slate-300 mb-2">あなたの結果</p>
-          {!isAuthor && myAnswer?.isCorrect && <p className="text-2xl font-black text-emerald-300">正解</p>}
-          {!isAuthor && myAnswer && !myAnswer.isCorrect && <p className="text-2xl font-black text-rose-300">不正解</p>}
-          {isAuthor && <p className="text-xl font-bold text-violet-300">予想結果を確認中</p>}
+        <div className="p-6 text-center"><h4 className="font-bold text-white text-2xl tracking-tight">結果はスクリーンで発表中！</h4></div>
+        <div className="bg-white/5 border border-white/10 rounded-xl p-8 text-center space-y-4">
+          <p className="text-xs font-mono uppercase tracking-[0.2em] text-slate-500">Your Status</p>
+          {!isAuthor && myAnswer?.isCorrect && <p className="text-3xl font-black text-emerald-400 font-mono">CORRECT</p>}
+          {!isAuthor && myAnswer && !myAnswer.isCorrect && <p className="text-3xl font-black text-rose-400 font-mono">WRONG</p>}
+          {isAuthor && <p className="text-xl font-bold text-blue-400">CHECKING PREDICTION...</p>}
         </div>
         {nextControl}
         <ReactionTrigger isReactionPanelOpen={isReactionPanelOpen} setIsReactionPanelOpen={setIsReactionPanelOpen} reactionPanelRef={reactionPanelRef} reactionToggleButtonRef={reactionToggleButtonRef} handleSendReaction={handleSendReaction} />
@@ -61,32 +63,58 @@ export function ResultDisplayPhase({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 pb-20 min-h-[80vh] flex flex-col">
       <GameProgressHeader currentQuestionIndex={gameState.currentQuestionIndex} totalQuestions={gameState.totalQuestions} authorNickname={players.find(p => p.playerId === currentQuestion.authorId)?.nickname} timeLimit={0} remainingSeconds={0} phase={gameState.phase ?? ''} />
-      {!showPredictionResult && revealedPlayers.length === 0 ? (
-        <div className="space-y-6">
+      
+      {/* 1. 答え合わせフェーズ：アニメーションを削除してシームレスに表示 */}
+      {stage === 'choice' && (
+        <div className="space-y-6 flex-1">
           <QuestionCard text={currentQuestion.text} imageUrl={currentQuestion.imageUrl} useScreenMode={useScreenMode} />
-          <div className="space-y-6">
-            <div className="grid gap-3 grid-cols-2 sm:gap-4">
-              {currentQuestion.choices.map((c, i) => (
-                <div key={i} className={`relative p-6 rounded-xl border-4 font-bold text-lg min-h-[120px] flex flex-col items-center justify-center ${i === currentQuestion.correctAnswer ? `${CHOICE_COLORS[i].bg} ${CHOICE_COLORS[i].border} shadow-2xl scale-105` : 'bg-slate-800/30 border-slate-700/50 opacity-40'} text-white`}>
-                  <div className="text-sm opacity-80 mb-2">{i+1}</div><div className="text-center">{c}</div>
-                  {i === currentQuestion.correctAnswer && <div className="absolute top-2 right-2 text-3xl">✓</div>}
-                </div>
-              ))}
-            </div>
+          <ChoiceGrid 
+            choices={currentQuestion.choices}
+            selectedAnswer={myAnswer?.answer ?? null}
+            onSelect={() => {}}
+            useScreenMode={useScreenMode}
+            disabled={true}
+            correctAnswer={currentQuestion.correctAnswer}
+            showResults={true} 
+          />
+        </div>
+      )}
+
+      {/* 2. 正解者一覧フェーズ：上詰めに配置 */}
+      {stage === 'scoreboard' && (
+        <div className="space-y-6 animate-fade-in flex-1">
+          <div className="text-center space-y-2 mb-4">
+            <p className="text-xs font-bold uppercase tracking-[0.4em] text-blue-500/80">Result</p>
+            <h3 className="text-3xl font-black text-white italic">正解者一覧</h3>
+          </div>
+          <div className="bg-white/5 rounded-2xl border border-white/10 p-8 w-full">
+            <ScoreBoard 
+              correctAnswers={correctAnswers} 
+              players={players} 
+              revealedPlayers={revealedPlayers} 
+              questionStartTime={toMillis(gameState.questionStartedAt)} 
+              correctAnswerPoints={correctAnswerPoints} 
+              fastestAnswerBonusPoints={fastestAnswerBonusPoints} 
+            />
           </div>
         </div>
-      ) : (
-        <div className="space-y-6">
-          <div className="bg-gradient-to-br from-slate-800/70 to-slate-900/70 rounded-xl border border-slate-700/50 p-6">
-            <p className="text-sm text-slate-300 mb-3 text-center">正解者一覧</p>
-            <ScoreBoard correctAnswers={correctAnswers} players={players} revealedPlayers={revealedPlayers} questionStartTime={toMillis(gameState.questionStartedAt)} correctAnswerPoints={correctAnswerPoints} fastestAnswerBonusPoints={fastestAnswerBonusPoints} />
-          </div>
-          {showPredictionResult && <PredictionResult prediction={prediction} correctAnswerCount={correctAnswers.length} predictionPoints={calculatePredictionPoints(prediction?.predictedCount ?? 0, correctAnswers.length, predictionHitBonusPoints)} authorNickname={players.find(p => p.playerId === currentQuestion.authorId)?.nickname || ''} />}
+      )}
+
+      {/* 3. 予想チャレンジフェーズ：上詰めに配置 */}
+      {stage === 'prediction' && (
+        <div className="space-y-10 animate-fade-in flex-1">
+          <PredictionResult 
+            prediction={prediction} 
+            correctAnswerCount={correctAnswers.length} 
+            predictionPoints={calculatePredictionPoints(prediction?.predictedCount ?? 0, correctAnswers.length, predictionHitBonusPoints)} 
+            authorNickname={players.find(p => p.playerId === currentQuestion.authorId)?.nickname || ''} 
+          />
           {nextControl}
         </div>
       )}
+
       <ReactionTrigger isReactionPanelOpen={isReactionPanelOpen} setIsReactionPanelOpen={setIsReactionPanelOpen} reactionPanelRef={reactionPanelRef} reactionToggleButtonRef={reactionToggleButtonRef} handleSendReaction={handleSendReaction} />
       <ReactionOverlay effects={reactionEffects} />
     </div>

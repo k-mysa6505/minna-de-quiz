@@ -20,6 +20,7 @@ export function useReactions(roomId: string, currentPlayerId: string, playerNick
 
   const showReactionEffect = useCallback((reaction: Pick<RoomReaction, 'content' | 'userName' | 'type'>, eventTimestamp = Date.now()) => {
     const effectId = eventTimestamp + Math.random();
+    const xOffset = (Math.random() - 0.5) * 240; // -120 to 120px offset
     setReactionEffects((prev) => [
       ...prev,
       {
@@ -27,6 +28,7 @@ export function useReactions(roomId: string, currentPlayerId: string, playerNick
         content: reaction.content,
         senderName: reaction.userName,
         type: reaction.type,
+        xOffset,
       },
     ]);
     setTimeout(() => {

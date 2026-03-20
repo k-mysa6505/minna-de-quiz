@@ -3,6 +3,8 @@
 import { QRCodeSVG } from 'qrcode.react';
 import { PhaseHeader } from '../../components/PhaseHeader';
 import { PlayerListCard } from '../../components/PlayerListCard';
+import { SecondaryButton } from '../../../../common/SecondaryButton';
+import { PrimaryButton } from '../../../../common/PrimaryButton';
 import type { Player, Room } from '@/types';
 
 interface WaitingScreenProps {
@@ -30,10 +32,14 @@ export function WaitingScreen({ room, players, joinUrl, isStarting, onStart, onD
         </div>
         <div className="mt-5 flex flex-col items-center flex-1">
           <div className="flex gap-4 justify-center">
-            <button type="button" disabled={isStarting || players.length < (room.minPlayers ?? 2)} onClick={onStart} className="bg-emerald-700 disabled:bg-slate-600 text-white font-bold italic px-4 rounded-xl shadow-lg transition-all">
+            <PrimaryButton
+              onClick={onStart}
+              disabled={isStarting || players.length < (room.minPlayers ?? 2)}
+              color="emerald"
+            >
               {isStarting ? 'STARTING...' : 'START'}
-            </button>
-            <button type="button" onClick={onDisband} className="bg-slate-700/50 text-slate-200 font-bold italic px-4 rounded-xl border border-slate-600">CLOSE</button>
+            </PrimaryButton>
+            <SecondaryButton onClick={onDisband}>CLOSE</SecondaryButton>
           </div>
         </div>
       </div>

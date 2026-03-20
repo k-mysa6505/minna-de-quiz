@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { updateRoomStatus } from '@/lib/services/room/roomService';
 import { leaveRoomFlow, disbandRoomFlow } from '@/lib/services/room/roomFlowService';
@@ -15,6 +16,8 @@ import { ReactionTrigger } from '../components/ReactionTrigger';
 import { useReactions } from '../hooks/useReactions';
 import { useRoomOptions } from '../hooks/useRoomOptions';
 import { PhaseHeader } from '../components/PhaseHeader';
+import { PrimaryButton } from '../../../common/PrimaryButton';
+import { SecondaryButton } from '../../../common/SecondaryButton';
 
 interface WaitingPhaseProps {
   roomId: string; room: Room; players: Player[];
@@ -27,6 +30,7 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
   const router = useRouter();
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [modalMode, setModalMode] = useState<'leave' | 'disband'>('leave');
   const [showOptionsModal, setShowOptionsModal] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const [isCopyingScreenUrl, setIsCopyingScreenUrl] = useState(false);
@@ -46,8 +50,9 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
 
   const handleLeaveOrDisband = async () => {
     setIsLeaving(true);
-    const success = await runServiceAction(isMaster ? 'waiting.disbandRoom' : 'waiting.leaveRoom', async () => {
-      if (isMaster) await disbandRoomFlow(roomId, currentPlayerId);
+    const isDisband = modalMode === 'disband';
+    const success = await runServiceAction(isDisband ? 'waiting.disbandRoom' : 'waiting.leaveRoom', async () => {
+      if (isDisband) await disbandRoomFlow(roomId, currentPlayerId);
       else await leaveRoomFlow(roomId, currentPlayerId);
       return true;
     }, { fallback: false, onError: (msg) => alert(msg || '処理に失敗しました。') });
@@ -70,10 +75,47 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
           <PhaseHeader title="プレイヤー待機中" />
           <div className="flex gap-2">
             {isMaster && (
-              <button onClick={() => setShowOptionsModal(true)} className="px-3 py-1.5 text-sm italic font-medium tracking-widest text-slate-400 hover:text-slate-200 underline decoration-1 underline-offset-4 hover:decoration-2 transition-all duration-150">OPTIONS</button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowOptionsModal(true)}
+                className="px-3 py-1.5 text-sm italic font-medium tracking-widest text-slate-400 hover:text-slate-200 underline decoration-1 underline-offset-4 hover:decoration-2 transition-all duration-150"
+              >
+                OPTIONS
+              </motion.button>
             )}
-            <button onClick={() => setShowInviteModal(true)} className="px-3 py-1.5 text-sm italic font-semibold tracking-widest text-blue-400 hover:text-blue-300 underline decoration-1 underline-offset-4 hover:decoration-2 transition-all duration-150">INVITE</button>
-            <button onClick={() => setShowLeaveModal(true)} className="px-3 py-1.5 text-sm italic font-semibold tracking-widest text-red-400 hover:text-red-300 underline decoration-1 underline-offset-4 hover:decoration-2 transition-all duration-150">{room.useScreenMode ? 'CLOSE' : 'LEAVE'}</button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowInviteModal(true)}
+              className="px-3 py-1.5 text-sm italic font-semibold tracking-widest text-blue-400 hover:text-blue-300 underline decoration-1 underline-offset-4 hover:decoration-2 transition-all duration-150"
+            >
+              INVITE
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                setModalMode('leave');
+                setShowLeaveModal(true);
+              }}
+              className="px-3 py-1.5 text-sm italic font-semibold tracking-widest text-red-400 hover:text-red-300 underline decoration-1 underline-offset-4 hover:decoration-2 transition-all duration-150"
+            >
+              LEAVE
+            </motion.button>
+            {isMaster && room.useScreenMode && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  setModalMode('disband');
+                  setShowLeaveModal(true);
+                }}
+                className="px-3 py-1.5 text-sm italic font-semibold tracking-widest text-red-600 hover:text-red-500 underline decoration-1 underline-offset-4 hover:decoration-2 transition-all duration-150"
+              >
+                DISBAND
+              </motion.button>
+            )}
           </div>
         </div>
 
@@ -110,9 +152,13 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
           <>
             <PlayerListCard players={players} currentPlayerId={currentPlayerId} sortMode="joinedAt" showMasterBadge />
             {isMaster && (
-              <button disabled={players.length < 2} onClick={handleStartGame} className="block mx-auto bg-gradient-to-b from-emerald-700 to-emerald-800 disabled:from-slate-600 disabled:to-slate-700 text-white font-bold italic px-4 rounded-2xl shadow-2xl transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed disabled:text-slate-400">START</button>
+              <div className="flex justify-center mt-6">
+                <PrimaryButton disabled={players.length < 2} onClick={handleStartGame}>
+                  START
+                </PrimaryButton>
+              </div>
             )}
-            {!isMaster && <p className="text-center text-slate-400 italic">ホストがゲームを開始するのをお待ちください...</p>}
+            {!isMaster && <p className="text-center text-slate-400 italic mt-6">ホストがゲームを開始するのをお待ちください...</p>}
           </>
         )}
 
@@ -123,9 +169,14 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
         {showInviteModal && <InviteModal roomId={roomId} onClose={() => setShowInviteModal(false)} />}
         {showLeaveModal && (
           <LeaveRoomModal 
-            isLeaving={isLeaving} onCancel={() => setShowLeaveModal(false)} onConfirmc={handleLeaveOrDisband} 
-            title={room.useScreenMode ? "ルームを解体" : "ルームを退室"} confirmLabel={room.useScreenMode ? "解体する" : "退室する"}
-            description={room.useScreenMode ? "本当にルームを解体しますか？\n全てのプレイヤーが退室させられます。" : "本当にこのルームを退室しますか？\n進行中のデータには戻れません。"}
+            isLeaving={isLeaving} 
+            onCancel={() => setShowLeaveModal(false)} 
+            onConfirm={handleLeaveOrDisband} 
+            title={modalMode === 'disband' ? "ルームを解体" : "ルームを退室"} 
+            confirmLabel={modalMode === 'disband' ? "解体する" : "退室する"}
+            description={modalMode === 'disband' 
+              ? "本当にルームを解体しますか？\n全てのプレイヤーが退室させられます。" 
+              : "本当にこのルームを退室しますか？\n進行中のデータには戻れません。"}
           />
         )}
         {showOptionsModal && isMaster && (
@@ -148,8 +199,24 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
               ))}
             </div>
             <div className="flex gap-3 mt-6">
-              <button onClick={() => setShowOptionsModal(false)} disabled={isSavingOptions} className="flex-1 bg-slate-700/60 hover:bg-slate-600/60 disabled:opacity-40 text-slate-300 font-medium py-2 px-4 rounded-lg transition-all disabled:cursor-not-allowed">キャンセル</button>
-              <button onClick={() => handleSaveOptions(() => setShowOptionsModal(false))} disabled={isSavingOptions} className="flex-1 bg-blue-500/20 hover:bg-blue-500/30 disabled:opacity-40 text-blue-400 font-semibold py-2 px-4 rounded-lg border border-blue-400/30 transition-all disabled:cursor-not-allowed">{isSavingOptions ? '保存中...' : '保存'}</button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowOptionsModal(false)}
+                disabled={isSavingOptions}
+                className="flex-1 bg-slate-700/60 hover:bg-slate-600/60 disabled:opacity-40 text-slate-300 font-medium py-2 px-4 rounded-lg transition-all disabled:cursor-not-allowed"
+              >
+                キャンセル
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => handleSaveOptions(() => setShowOptionsModal(false))}
+                disabled={isSavingOptions}
+                className="flex-1 bg-blue-500/20 hover:bg-blue-500/30 disabled:opacity-40 text-blue-400 font-semibold py-2 px-4 rounded-lg border border-blue-400/30 transition-all disabled:cursor-not-allowed"
+              >
+                {isSavingOptions ? '保存中...' : '保存'}
+              </motion.button>
             </div>
           </Modal>
         )}
