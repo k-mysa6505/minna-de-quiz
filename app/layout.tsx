@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Noto_Sans_JP, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import AuthProvider from "./AuthProvider";

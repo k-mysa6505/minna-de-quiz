@@ -2,6 +2,23 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname } from 'next/navigation';
+import { useContext, useRef } from 'react';
+import { LayoutRouterContext } from 'next/dist/shared/lib/app-router-context.shared-runtime';
+
+function FrozenRoute({ children }: { children: React.ReactNode }) {
+  const context = useContext(LayoutRouterContext ?? {});
+  const frozen = useRef(context).current;
+
+  if (!frozen) {
+    return <>{children}</>;
+  }
+
+  return (
+    <LayoutRouterContext.Provider value={frozen}>
+      {children}
+    </LayoutRouterContext.Provider>
+  );
+}
 
 export function MotionProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -19,7 +36,9 @@ export function MotionProvider({ children }: { children: React.ReactNode }) {
         }}
         className="w-full"
       >
-        {children}
+        <FrozenRoute>
+          {children}
+        </FrozenRoute>
       </motion.div>
     </AnimatePresence>
   );
