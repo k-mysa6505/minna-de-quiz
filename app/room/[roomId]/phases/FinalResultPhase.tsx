@@ -58,11 +58,15 @@ export function FinalResultPhase({ roomId, players, currentPlayerId, useScreenMo
   }, [players]);
 
   const sortedPlayers = useMemo(() => {
-    return [...stablePlayers].sort((a, b) => b.score - a.score);
+    return [...stablePlayers].sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return a.playerId.localeCompare(b.playerId); // Stable tie-breaker
+    });
   }, [stablePlayers]);
 
   const revealOrder = useMemo(() => {
-    return [...sortedPlayers].reverse();
+    // 降順（1stから順に表示）にするため、reverseを削除
+    return [...sortedPlayers];
   }, [sortedPlayers]);
 
   useEffect(() => {
@@ -74,7 +78,8 @@ export function FinalResultPhase({ roomId, players, currentPlayerId, useScreenMo
     if (!isStarted || useScreenMode) return;
     if (revealedCount < revealOrder.length) {
       const isLastOne = revealedCount === revealOrder.length - 1;
-      const delay = isLastOne ? 2800 : 700;
+      // 1位（最後ではなく最初になりましたが）の演出時間を調整
+      const delay = revealedCount === 0 ? 1500 : 700;
       const timer = setTimeout(() => { setRevealedCount(prev => prev + 1); }, delay);
       return () => clearTimeout(timer);
     }
@@ -82,7 +87,11 @@ export function FinalResultPhase({ roomId, players, currentPlayerId, useScreenMo
 
   const visiblePlayers = useMemo(() => {
     const currentRevealed = revealOrder.slice(0, revealedCount);
-    return currentRevealed.sort((a, b) => b.score - a.score);
+    // 常に同じタイブレークルールでソート
+    return currentRevealed.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return a.playerId.localeCompare(b.playerId);
+    });
   }, [revealOrder, revealedCount]);
 
   const isRevealingLastOne = revealedCount === revealOrder.length - 1;
