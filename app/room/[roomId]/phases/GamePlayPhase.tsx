@@ -173,7 +173,7 @@ export function GamePlayPhase({
             {hasSubmittedAnswer && (
               <div className="text-center pt-2">
                 <p className="text-[10px] text-slate-500 font-mono uppercase tracking-widest animate-pulse">
-                  Waiting for others... {currentAnswerCount} / {players.length}
+                  プレイヤーを待っています... {currentAnswerCount} / {players.length}
                 </p>
               </div>
             )}

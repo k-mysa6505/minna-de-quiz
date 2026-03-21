@@ -46,7 +46,7 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
         }
       })();
     }
-    if (gameState?.phase === 'answering') { setShowResults(false); hasCalculatedScoreRef.current = false; setSelectedAnswer(null); setPredictedCorrectCount(0); }
+    if (gameState?.phase === 'answering') { setShowResults(false); hasCalculatedScoreRef.current = false; setSelectedAnswer(null); }
   }, [gameState?.phase, currentQuestion, prediction]);
 
   // 制限時間ありの場合、時間切れで未提出プレイヤーの送信を自動実行
