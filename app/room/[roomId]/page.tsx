@@ -2,20 +2,44 @@
 // ゲームルームページ - メイン画面（リファクタリング版）
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useRoomData } from './hooks/useRoomData';
 import { usePlayerStatus } from './hooks/usePlayerStatus';
-import { WaitingPhase } from './components/WaitingPhase';
-import { QuestionCreationPhase } from './components/QuestionCreationPhase';
-import { GamePlayPhase } from './components/GamePlayPhase';
-import { FinalResultPhase } from './components/FinalResultPhase';
+import { setupPresence } from '@/lib/services/auth/presenceService';
+import { WaitingPhase } from './phases/WaitingPhase';
+import { QuestionCreationPhase } from './phases/QuestionCreationPhase';
+import { GamePlayPhase } from './phases/GamePlayPhase';
+import { FinalResultPhase } from './phases/FinalResultPhase';
+import LoadingSpinner from '@/app/common/LoadingSpinner';
 
 // 初期状態を取得するヘルパー関数
 function getInitialPlayerState(roomId: string) {
   if (typeof window !== 'undefined') {
+    const sessionPlayerId = sessionStorage.getItem('currentPlayerId');
+    const sessionRoomId = sessionStorage.getItem('currentRoomId');
+
+    if (sessionPlayerId && sessionRoomId === roomId) {
+      return {
+        playerId: sessionPlayerId,
+        error: '',
+        loading: true
+      };
+    }
+
+    // Backward compatibility: migrate legacy localStorage identity into this tab.
     const storedPlayerId = localStorage.getItem('currentPlayerId');
     const storedRoomId = localStorage.getItem('currentRoomId');
+
+    if (storedPlayerId && storedRoomId === roomId) {
+      sessionStorage.setItem('currentPlayerId', storedPlayerId);
+      sessionStorage.setItem('currentRoomId', storedRoomId);
+      return {
+        playerId: storedPlayerId,
+        error: '',
+        loading: true
+      };
+    }
 
     if (!storedPlayerId || storedRoomId !== roomId) {
       return {
@@ -53,16 +77,44 @@ export default function RoomPage() {
   // プレイヤーのオンライン状態を管理
   usePlayerStatus(roomId, currentPlayerId);
 
+  // プレゼンス管理のクリーンアップ関数
+  const presenceCleanupRef = useRef<(() => void) | null>(null);
+
+  // プレゼンス設定とクリーンアップ
+  useEffect(() => {
+    if (currentPlayerId && roomId) {
+      console.log('Setting up presence for player:', currentPlayerId);
+      presenceCleanupRef.current = setupPresence(roomId, currentPlayerId);
+    }
+
+    // クリーンアップ関数
+    return () => {
+      if (presenceCleanupRef.current) {
+        console.log('Cleaning up presence on unmount');
+        presenceCleanupRef.current();
+        presenceCleanupRef.current = null;
+      }
+    };
+  }, [currentPlayerId, roomId]);
+
+  // ルーム解体時の自動遷移
+  useEffect(() => {
+    if (roomError === 'ルームが終了したか、存在しません') {
+      const timer = setTimeout(() => {
+        sessionStorage.removeItem('currentPlayerId');
+        sessionStorage.removeItem('currentRoomId');
+        router.push('/');
+      }, 3000); // 3秒後に遷移（メッセージを読ませるため）
+      return () => clearTimeout(timer);
+    }
+  }, [roomError, router]);
+
   const error = initialState.error || roomError;
   const loading = !room && !error;
 
   // ローディング中
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-2xl font-bold text-gray-600">読み込み中...</div>
-      </div>
-    );
+    return <LoadingSpinner message="読み込み中..." />;
   }
 
   // エラー表示
@@ -89,8 +141,8 @@ export default function RoomPage() {
   return (
     <main className="min-h-screen p-4">
       <div className="max-w-6xl mx-auto">
-        {/* メインコンテンツ: ゲーム状態に応じて切り替え */}
-        <div className="shadow py-6">
+        {/* メインコンテンツ: ルーム状態に応じて切り替え */}
+        <div className="py-6">
           {room.status === 'waiting' && (
             <WaitingPhase
               roomId={roomId}
@@ -114,6 +166,12 @@ export default function RoomPage() {
               roomId={roomId}
               players={players}
               currentPlayerId={currentPlayerId}
+              useScreenMode={room.useScreenMode ?? false}
+              timeLimit={room.timeLimit ?? 30}
+              correctAnswerPoints={room.correctAnswerPoints ?? 10}
+              fastestAnswerBonusPoints={room.fastestAnswerBonusPoints ?? 10}
+              wrongAnswerPenalty={room.wrongAnswerPenalty ?? 0}
+              predictionHitBonusPoints={room.predictionHitBonusPoints ?? 50}
             />
           )}
 
@@ -122,6 +180,7 @@ export default function RoomPage() {
               roomId={roomId}
               players={players}
               currentPlayerId={currentPlayerId}
+              useScreenMode={room.useScreenMode ?? false}
             />
           )}
         </div>

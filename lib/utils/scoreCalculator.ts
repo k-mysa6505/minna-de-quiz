@@ -16,13 +16,15 @@ export function calculatePlayerScore(
   answers: Answer[],
   predictions: Prediction[]
 ): number {
-  let score = 0;
+  const correctAnswerCount = answers.filter(
+    (answer) => answer.playerId === playerId && answer.isCorrect
+  ).length;
 
-  // TODO: 回答の正解数をカウント
+  const correctPredictionCount = predictions.filter(
+    (prediction) => prediction.playerId === playerId && prediction.isCorrect
+  ).length;
 
-  // TODO: 予想の的中数をカウント
-
-  return score;
+  return correctAnswerCount + correctPredictionCount;
 }
 
 /**
@@ -36,7 +38,12 @@ export function calculateAllScores(
 ): Map<string, number> {
   const scores = new Map<string, number>();
 
-  // TODO: 各プレイヤーのスコアを計算
+  for (const player of players) {
+    scores.set(
+      player.playerId,
+      calculatePlayerScore(player.playerId, answers, predictions)
+    );
+  }
 
   return scores;
 }
@@ -54,6 +61,28 @@ export function rankPlayers(scores: Map<string, number>): Array<{
   score: number;
   rank: number;
 }> {
-  // TODO: 実装
-  return [];
+  const sortedScores = Array.from(scores.entries())
+    .map(([playerId, score]) => ({ playerId, score }))
+    .sort((left, right) => {
+      if (right.score !== left.score) {
+        return right.score - left.score;
+      }
+
+      return left.playerId.localeCompare(right.playerId);
+    });
+
+  let previousScore: number | null = null;
+  let previousRank = 0;
+
+  return sortedScores.map((entry, index) => {
+    const rank = entry.score === previousScore ? previousRank : index + 1;
+
+    previousScore = entry.score;
+    previousRank = rank;
+
+    return {
+      ...entry,
+      rank,
+    };
+  });
 }

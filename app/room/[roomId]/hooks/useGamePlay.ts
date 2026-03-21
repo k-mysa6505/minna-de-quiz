@@ -1,254 +1,94 @@
-// app/room/[roomId]/hooks/useGamePlay.ts
-// ゲームプレイのロジックを管理するカスタムフック
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { getGameState, getAnswers, getPrediction, submitAnswer, submitPrediction, markPlayerReady, nextQuestion, updatePredictionResult } from '@/lib/services/gameService';
-import { getQuestions } from '@/lib/services/questionService';
-import { updatePlayerScore } from '@/lib/services/playerService';
-import { updateRoomStatus } from '@/lib/services/roomService';
-import type { GameState, Question, Answer, Prediction, Player } from '@/types';
+import { getAnswers, getPrediction, submitAnswer, submitPrediction, markPlayerReady, updatePredictionResult } from '@/lib/services/game/gameService';
+import { getQuestions } from '@/lib/services/game/questionService';
+import { updatePlayerScore } from '@/lib/services/auth/playerService';
+import { calculateAnswerScoreDelta, calculatePredictionPoints, dedupeAnswersByPlayer, toMillis } from '@/lib/utils/roundScoring';
+import { preloadImages } from '@/lib/utils/imagePreloader';
+import { useGameStateSubscription } from './useGameStateSubscription';
+import { useAnswerSubscription } from './useAnswerSubscription';
+import type { Question, Player, Answer, Prediction } from '@/types';
 
-export function useGamePlay(roomId: string, currentPlayerId: string, players: Player[]) {
-  const [gameState, setGameState] = useState<GameState | null>(null);
-  const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
+export function useGamePlay(roomId: string, currentPlayerId: string, players: Player[], timeLimit: number, correctAnswerPoints: number, fastestAnswerBonusPoints: number, wrongAnswerPenalty: number, predictionHitBonusPoints: number) {
+  const [allQuestions, setAllQuestions] = useState<Question[]>([]);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
-  const [predictedCorrectCount, setPredictedCorrectCount] = useState<number>(0);
-  const [hasSubmittedAnswer, setHasSubmittedAnswer] = useState(false);
-  const [hasSubmittedPrediction, setHasSubmittedPrediction] = useState(false);
+  const [predictedCorrectCount, setPredictedCorrectCount] = useState(0);
   const [showResults, setShowResults] = useState(false);
-  const [answers, setAnswers] = useState<Answer[]>([]);
-  const [currentAnswerCount, setCurrentAnswerCount] = useState(0);
-  const [prediction, setPrediction] = useState<Prediction | null>(null);
-  const [isReady, setIsReady] = useState(false);
-  const [waitingForPlayers, setWaitingForPlayers] = useState(false);
+  const hasCalculatedScoreRef = useRef(false);
 
-  const prevQuestionIdRef = useRef<string | null>(null);
-  const hasCalculatedScoreRef = useRef<boolean>(false);
-  const hasTriggeredNextQuestionRef = useRef<boolean>(false);
+  useEffect(() => { 
+    getQuestions(roomId).then((qs) => {
+      setAllQuestions(qs);
+      const urls = qs.map(q => q.imageUrl).filter((url): url is string => !!url);
+      preloadImages(urls);
+    }).catch(console.error); 
+  }, [roomId]);
 
-  // スコア計算関数（useCallbackで安定化）
-  const calculateScores = useCallback(async (allAnswers: Answer[], pred: Prediction) => {
-    if (!currentQuestion) return;
+  const { gameState, currentQuestion, isReady, setIsReady } = useGameStateSubscription(roomId, allQuestions, currentPlayerId);
+  const { answers, prediction, hasSubmittedAnswer, hasSubmittedPrediction, currentAnswerCount } = useAnswerSubscription(roomId, currentQuestion, currentPlayerId);
 
-    const correctAnswersCount = allAnswers.filter(a => a.isCorrect).length;
-    const isCorrect = pred.predictedCount === correctAnswersCount;
-
-    // 予想結果をデータベースに更新
-    await updatePredictionResult(
-      roomId,
-      currentQuestion.questionId,
-      correctAnswersCount,
-      isCorrect
-    ).catch(console.error);
-
-    // 正解者にポイント付与（10点）
-    for (const answer of allAnswers) {
-      if (answer.isCorrect) {
-        const player = players.find(p => p.playerId === answer.playerId);
-        if (player) {
-          await updatePlayerScore(roomId, answer.playerId, player.score + 10).catch(console.error);
-        }
-      }
-    }
-
-    // 出題者の予想が的中した場合にポイント付与（20点）
-    if (isCorrect) {
-      const author = players.find(p => p.playerId === currentQuestion.authorId);
-      if (author) {
-        await updatePlayerScore(roomId, currentQuestion.authorId, author.score + 20).catch(console.error);
-      }
-    }
-  }, [currentQuestion, players, roomId]);
-
-  // ゲーム状態と問題を取得
   useEffect(() => {
-    const loadGameData = async () => {
-      try {
-        const state = await getGameState(roomId);
-        const allQuestions = await getQuestions(roomId);
-
-        if (state && allQuestions.length > 0) {
-          setGameState(state);
-
-          const currentQuestionId = state.questionOrder[state.currentQuestionIndex];
-          const question = allQuestions.find(q => q.questionId === currentQuestionId);
-
-          // 問題が変わった時に状態をリセット
-          if (question && prevQuestionIdRef.current !== question.questionId) {
-            prevQuestionIdRef.current = question.questionId;
-            setSelectedAnswer(null);
-            setPredictedCorrectCount(0);
-            setHasSubmittedAnswer(false);
-            setHasSubmittedPrediction(false);
-            setShowResults(false);
-            setAnswers([]);
-            setCurrentAnswerCount(0);
-            setPrediction(null);
-            setIsReady(false);
-            setWaitingForPlayers(false);
-            hasCalculatedScoreRef.current = false;
-            hasTriggeredNextQuestionRef.current = false;
-          }
-
-          setCurrentQuestion(question || null);
-
-          // 準備完了状態をチェック
-          const playersReady = state.playersReady || [];
-          const amIReady = playersReady.includes(currentPlayerId);
-          setIsReady(amIReady);
-
-          if (playersReady.length >= players.length && playersReady.length > 0) {
-            // 全員準備完了したら次の問題へ進む（最初のプレイヤーのみ実行、最後の問題でない場合のみ）
-            const isLastQuestion = state.currentQuestionIndex >= state.totalQuestions - 1;
-            const shouldProceed = playersReady.length === players.length && 
-                                  playersReady[0] === currentPlayerId &&
-                                  !isLastQuestion &&
-                                  !hasTriggeredNextQuestionRef.current;
-            if (shouldProceed && amIReady) {
-              hasTriggeredNextQuestionRef.current = true;
-              setTimeout(async () => {
-                try {
-                  await nextQuestion(roomId);
-                } catch (err) {
-                  console.error('Failed to proceed to next question:', err);
-                }
-              }, 500);
-            }
-            setWaitingForPlayers(false);
-          } else if (amIReady) {
-            setWaitingForPlayers(true);
-          }
+    if (gameState?.phase === 'revealing' && currentQuestion && !hasCalculatedScoreRef.current && prediction) {
+      hasCalculatedScoreRef.current = true;
+      setShowResults(true);
+      (async () => {
+        const unique = dedupeAnswersByPlayer(answers);
+        const sorted = unique.filter(a => a.isCorrect).sort((l, r) => toMillis(l.answeredAt) - toMillis(r.answeredAt));
+        const fastestId = sorted[0]?.playerId;
+        await updatePredictionResult(roomId, currentQuestion.questionId, sorted.length, prediction.predictedCount === sorted.length).catch(console.error);
+        for (const p of players) {
+          let gained = 0;
+          const a = unique.find(it => it.playerId === p.playerId);
+          if (a) gained += calculateAnswerScoreDelta({ isCorrect: a.isCorrect, correctAnswerPoints, fastestAnswerBonusPoints, wrongAnswerPenalty, isFastestCorrect: a.playerId === fastestId });
+          if (p.playerId === currentQuestion.authorId) gained += calculatePredictionPoints(prediction.predictedCount, sorted.length, predictionHitBonusPoints);
+          if (gained !== 0) await updatePlayerScore(roomId, p.playerId, p.score + gained).catch(console.error);
         }
-      } catch (error) {
-        console.error('Failed to load game data:', error);
+      })();
+    }
+    if (gameState?.phase === 'answering') { setShowResults(false); hasCalculatedScoreRef.current = false; setSelectedAnswer(null); }
+  }, [gameState?.phase, currentQuestion, prediction]);
+
+  // 制限時間ありの場合、時間切れで未提出プレイヤーの送信を自動実行
+  useEffect(() => {
+    if (timeLimit < 0 || !currentQuestion || gameState?.phase !== 'answering') return;
+
+    const startedAtMs = toMillis(gameState.questionStartedAt);
+    if (startedAtMs <= 0) return;
+
+    const deadlineMs = startedAtMs + timeLimit * 1000;
+    
+    const checkTimeout = async () => {
+      const remaining = deadlineMs - Date.now();
+      if (remaining <= 0) {
+        if (currentQuestion.authorId === currentPlayerId) {
+          if (!hasSubmittedPrediction) handlePredictionSubmit();
+        } else if (!hasSubmittedAnswer) {
+          // タイムアウト時は強制的に「不正解」を送信（選択肢の範囲外または逆を狙う）
+          const isCorrect = false;
+          const fallbackIdx = (currentQuestion.correctAnswer + 1) % 4;
+          await submitAnswer(roomId, currentQuestion.questionId, currentPlayerId, fallbackIdx, isCorrect).catch(console.error);
+        }
       }
     };
 
-    loadGameData();
-    const interval = setInterval(loadGameData, 1000);
-    return () => clearInterval(interval);
-  }, [roomId, currentPlayerId, players.length]);
-
-  // 回答と予想の送信状態をチェック
-  useEffect(() => {
-    const checkSubmissions = async () => {
-      if (!currentQuestion) return;
-
-      try {
-        const isAuthor = currentQuestion.authorId === currentPlayerId;
-
-        const allAnswers = await getAnswers(roomId, currentQuestion.questionId);
-
-        const pred = await getPrediction(roomId, currentQuestion.questionId);
-        setHasSubmittedPrediction(!!pred);
-        setPrediction(pred);
-
-        // 現在の回答数を更新（出題者の予想も含める）
-        const totalSubmissions = allAnswers.length + (pred ? 1 : 0);
-        setCurrentAnswerCount(totalSubmissions);
-
-        // 出題者は回答を送信しないので、回答者の場合のみチェック
-        if (!isAuthor) {
-          const myAnswer = allAnswers.find(a => a.playerId === currentPlayerId);
-          setHasSubmittedAnswer(!!myAnswer);
-        } else {
-          // 出題者の場合は常にfalse
-          setHasSubmittedAnswer(false);
-        }
-
-        const otherPlayersCount = players.length - 1;
-
-        if (allAnswers.length === otherPlayersCount && pred && !showResults) {
-          setShowResults(true);
-          setAnswers(allAnswers);
-
-          // スコア計算（一度だけ）
-          if (!hasCalculatedScoreRef.current) {
-            hasCalculatedScoreRef.current = true;
-            await calculateScores(allAnswers, pred);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to check submissions:', error);
-      }
-    };
-
-    const interval = setInterval(checkSubmissions, 2000);
-    checkSubmissions();
-    return () => clearInterval(interval);
-  }, [roomId, currentQuestion, currentPlayerId, players, showResults, calculateScores]);
+    const timer = setInterval(checkTimeout, 500);
+    return () => clearInterval(timer);
+  }, [roomId, currentQuestion, gameState?.phase, hasSubmittedAnswer, hasSubmittedPrediction, timeLimit]);
 
   const handleAnswerSubmit = async () => {
     if (selectedAnswer === null || !currentQuestion) return;
-
-    try {
-      const isCorrect = selectedAnswer === currentQuestion.correctAnswer;
-      await submitAnswer(roomId, currentQuestion.questionId, currentPlayerId, selectedAnswer, isCorrect);
-      setHasSubmittedAnswer(true);
-    } catch (error) {
-      console.error('Failed to submit answer:', error);
-    }
+    await submitAnswer(roomId, currentQuestion.questionId, currentPlayerId, selectedAnswer, selectedAnswer === currentQuestion.correctAnswer).catch(console.error);
   };
 
   const handlePredictionSubmit = async () => {
     if (!currentQuestion) return;
-
-    try {
-      await submitPrediction(roomId, currentQuestion.questionId, currentPlayerId, predictedCorrectCount);
-      setHasSubmittedPrediction(true);
-    } catch (error) {
-      console.error('Failed to submit prediction:', error);
-    }
+    await submitPrediction(roomId, currentQuestion.questionId, currentPlayerId, predictedCorrectCount).catch(console.error);
   };
 
   const handleNextQuestion = async () => {
-    if (!gameState) return;
-
-    try {
-      if (gameState.currentQuestionIndex >= gameState.totalQuestions - 1) {
-        // 最後の問題：スコア計算完了を待つ
-        console.log('Last question. Waiting for score calculation...');
-
-        let waitTime = 0;
-        const maxWait = 5000;
-        const checkInterval = 500;
-
-        while (waitTime < maxWait && !hasCalculatedScoreRef.current) {
-          await new Promise(resolve => setTimeout(resolve, checkInterval));
-          waitTime += checkInterval;
-        }
-
-        console.log('Moving to finished state...');
-        await updateRoomStatus(roomId, 'finished');
-      } else {
-        // 次の問題へ
-        await markPlayerReady(roomId, currentPlayerId);
-        setIsReady(true);
-        setWaitingForPlayers(true);
-      }
-    } catch (error) {
-      console.error('Failed to go to next question:', error);
-    }
+    await markPlayerReady(roomId, currentPlayerId).then(() => setIsReady(true)).catch(console.error);
   };
 
-  return {
-    gameState,
-    currentQuestion,
-    selectedAnswer,
-    setSelectedAnswer,
-    predictedCorrectCount,
-    setPredictedCorrectCount,
-    hasSubmittedAnswer,
-    hasSubmittedPrediction,
-    showResults,
-    answers,
-    currentAnswerCount,
-    prediction,
-    isReady,
-    waitingForPlayers,
-    handleAnswerSubmit,
-    handlePredictionSubmit,
-    handleNextQuestion,
-  };
+  return { gameState, currentQuestion, selectedAnswer, setSelectedAnswer, predictedCorrectCount, setPredictedCorrectCount, hasSubmittedAnswer, hasSubmittedPrediction, showResults, answers, currentAnswerCount, prediction, isReady, waitingForPlayers: isReady, handleAnswerSubmit, handlePredictionSubmit, handleNextQuestion };
 }

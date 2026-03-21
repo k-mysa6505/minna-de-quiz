@@ -19,4 +19,8 @@ export interface Player extends PlayerInfo {
   isMaster: boolean;
   score: number;
   joinedAt: Timestamp;
+  presenceUpdatedAt?: Timestamp;
+  offlineSince?: Timestamp;
+  wantsReplay?: boolean;
+  replayRequestedAt?: Timestamp | null;
 }
