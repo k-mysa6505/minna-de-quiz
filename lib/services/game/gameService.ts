@@ -1,0 +1,354 @@
+// lib/services/gameService.ts
+// ゲーム進行管理サービス
+
+import {
+  collection, doc, setDoc, addDoc, getDoc,
+  getDocs, updateDoc, deleteDoc, query, where, Timestamp, serverTimestamp
+} from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import type { GameState, Answer, Prediction } from '@/types';
+import { serviceLogger } from '../core/serviceLogger';
+
+/**
+ * ゲーム状態を初期化
+ */
+export async function initializeGame(
+  roomId: string,
+  questionIds: string[]
+): Promise<void> {
+  console.log(`Initializing game for room ${roomId} with ${questionIds.length} questions`);
+  try {
+    // 問題の出題順序をシャッフル
+    const shuffledOrder = shuffleArray(questionIds);
+    const gameStateRef = doc(db, 'rooms', roomId, 'gameState', 'state');
+
+    // Firestoreにゲーム状態を設定
+    const initialState = {
+      currentQuestionIndex: 0,
+      questionOrder: shuffledOrder,
+      totalQuestions: questionIds.length,
+      playersReady: [], // 初期化時は誰も準備完了していない
+      questionStartedAt: serverTimestamp(), // 最初の問題の開始時刻
+      phase: 'answering' as const, // 初期フェーズを明示設定（Functionsの遷移検知に必要）
+    };
+
+    console.log('Setting initial game state:', initialState);
+    await setDoc(gameStateRef, initialState);
+    console.log('Game initialized successfully');
+  } catch (error) {
+    serviceLogger.error('game.initialize', `failed: ${roomId}`, error);
+    throw error;
+  }
+}
+
+/**
+ * 現在のゲーム状態を取得
+ */
+export async function getGameState(roomId: string): Promise<GameState | null> {
+  console.log(`Getting game state for room ${roomId}`);
+  try {
+    const gameStateRef = doc(db, 'rooms', roomId, 'gameState', 'state');
+    const gameStateDoc = await getDoc(gameStateRef);
+    if (gameStateDoc.exists()) {
+      const state = gameStateDoc.data() as GameState;
+      // console.log(`Game state retrieved:`, state); // Potentially noisy if polled
+      return state;
+    } else {
+      serviceLogger.warn('game.getState', `not found: ${roomId}`);
+      return null;
+    }
+  } catch (error) {
+    serviceLogger.error('game.getState', `failed: ${roomId}`, error);
+    return null;
+  }
+}
+
+/**
+ * 次の問題へ進む（全員の準備が整った場合のみ）
+ */
+export async function nextQuestion(roomId: string): Promise<void> {
+  console.log(`Moving to next question in room ${roomId}`);
+  try {
+    const gameStateRef = doc(db, 'rooms', roomId, 'gameState', 'state');
+    const gameStateDoc = await getDoc(gameStateRef);
+
+    if (!gameStateDoc.exists()) {
+      throw new Error('Game state not found');
+    }
+
+    const gameState = gameStateDoc.data() as GameState;
+    console.log(`Current question index: ${gameState.currentQuestionIndex}, Total: ${gameState.totalQuestions}`);
+
+    // 最後の問題かチェック
+    if (gameState.currentQuestionIndex >= gameState.totalQuestions - 1) {
+      serviceLogger.warn('game.nextQuestion', `already at last question: ${roomId}`);
+      throw new Error('Already at the last question');
+    }
+
+    // インデックスを進めて、準備完了状態をリセット
+    await updateDoc(gameStateRef, {
+      currentQuestionIndex: gameState.currentQuestionIndex + 1,
+      playersReady: [], // 準備完了プレイヤーをリセット
+      questionStartedAt: serverTimestamp() // 新しい問題の開始時刻を記録
+    });
+    console.log(`Moved to question index ${gameState.currentQuestionIndex + 1}`);
+  } catch (error) {
+    serviceLogger.error('game.nextQuestion', `failed: ${roomId}`, error);
+    throw error;
+  }
+}
+
+/**
+ * プレイヤーを準備完了にする
+ */
+export async function markPlayerReady(
+  roomId: string,
+  playerId: string
+): Promise<void> {
+  console.log(`Marking player ${playerId} ready in room ${roomId}`);
+  try {
+    const gameStateRef = doc(db, 'rooms', roomId, 'gameState', 'state');
+    const gameStateDoc = await getDoc(gameStateRef);
+
+    if (!gameStateDoc.exists()) {
+      throw new Error('Game state not found');
+    }
+
+    const gameState = gameStateDoc.data() as GameState;
+    const playersReady = gameState.playersReady || [];
+
+    // 既に準備完了の場合は何もしない
+    if (playersReady.includes(playerId)) {
+      console.log(`Player ${playerId} is already ready.`);
+      return;
+    }
+
+    // プレイヤーを準備完了リストに追加
+    await updateDoc(gameStateRef, {
+      playersReady: [...playersReady, playerId]
+    });
+    console.log(`Player ${playerId} marked as ready.`);
+  } catch (error) {
+    serviceLogger.error('game.markReady', `failed: room=${roomId}, player=${playerId}`, error);
+    throw error;
+  }
+}
+
+/**
+ * 全員が準備完了かチェック
+ */
+export async function areAllPlayersReady(
+  roomId: string
+): Promise<boolean> {
+  const gameStateRef = doc(db, 'rooms', roomId, 'gameState', 'state');
+  const gameStateDoc = await getDoc(gameStateRef);
+
+  if (!gameStateDoc.exists()) {
+    return false;
+  }
+
+  const gameState = gameStateDoc.data() as GameState;
+  const playersReady = gameState.playersReady || [];
+
+  // プレイヤー数を取得
+  const playersRef = collection(db, 'rooms', roomId, 'players');
+  const playersSnapshot = await getDocs(playersRef);
+  const totalPlayers = playersSnapshot.size;
+
+  return playersReady.length >= totalPlayers;
+}
+
+/**
+ * 回答を送信
+ */
+export async function submitAnswer(
+  roomId: string,
+  questionId: string,
+  playerId: string,
+  answer: number,
+  isCorrect: boolean
+): Promise<void> {
+  const answersRef = collection(db, 'rooms', roomId, 'answers');
+  await addDoc(answersRef, {
+    questionId,
+    playerId,
+    answer,
+    isCorrect,
+    answeredAt: Timestamp.now()
+  });
+}
+
+/**
+ * 正解者数の予想を送信
+ */
+export async function submitPrediction(
+  roomId: string,
+  questionId: string,
+  playerId: string,
+  predictedCount: number
+): Promise<void> {
+  const predictionsRef = collection(db, 'rooms', roomId, 'predictions');
+  await addDoc(predictionsRef, {
+    questionId,
+    playerId,
+    predictedCount,
+    actualCount: 0, // 初期値
+    isCorrect: false, // 初期値
+    submittedAt: Timestamp.now()
+  });
+}
+
+/**
+ * 問題の回答を全て取得
+ */
+export async function getAnswers(
+  roomId: string,
+  questionId: string
+): Promise<Answer[]> {
+  const answersRef = collection(db, 'rooms', roomId, 'answers');
+  const answersQuery = query(answersRef, where('questionId', '==', questionId));
+  const answersSnapshot = await getDocs(answersQuery);
+  return answersSnapshot.docs.map(doc => doc.data() as Answer);
+}
+
+/**
+ * 作問者の予想を取得
+ */
+export async function getPrediction(
+  roomId: string,
+  questionId: string
+): Promise<Prediction | null> {
+  const predictionsRef = collection(db, 'rooms', roomId, 'predictions');
+  const predictionsQuery = query(
+    predictionsRef,
+    where('questionId', '==', questionId)
+  );
+  const predictionsSnapshot = await getDocs(predictionsQuery);
+
+  if (predictionsSnapshot.empty) {
+    return null;
+  }
+
+  return predictionsSnapshot.docs[0].data() as Prediction;
+}
+
+/**
+ * 作問者の予想結果を更新
+ */
+export async function updatePredictionResult(
+  roomId: string,
+  questionId: string,
+  actualCount: number,
+  isCorrect: boolean
+): Promise<void> {
+  const predictionsRef = collection(db, 'rooms', roomId, 'predictions');
+  const predictionsQuery = query(
+    predictionsRef,
+    where('questionId', '==', questionId)
+  );
+  const predictionsSnapshot = await getDocs(predictionsQuery);
+
+  if (!predictionsSnapshot.empty) {
+    const predictionDoc = predictionsSnapshot.docs[0];
+    await updateDoc(predictionDoc.ref, {
+      actualCount,
+      isCorrect
+    });
+  }
+}
+
+/**
+ * 全員が回答/予想を送信したかチェック
+ */
+export async function areAllResponsesSubmitted(
+  roomId: string,
+  questionId: string
+): Promise<boolean> {
+  // 参加プレイヤー数を取得
+  const playersRef = collection(db, 'rooms', roomId, 'players');
+  const playersSnapshot = await getDocs(playersRef);
+  const playerCount = playersSnapshot.size;
+
+  // 回答数を取得（作問者以外）
+  const answersRef = collection(db, 'rooms', roomId, 'answers');
+  const answersQuery = query(answersRef, where('questionId', '==', questionId));
+  const answersSnapshot = await getDocs(answersQuery);
+  const answerCount = answersSnapshot.size;
+
+  // 予想数を取得（作問者）
+  const predictionsRef = collection(db, 'rooms', roomId, 'predictions');
+  const predictionsQuery = query(predictionsRef, where('questionId', '==', questionId));
+  const predictionsSnapshot = await getDocs(predictionsQuery);
+  const predictionCount = predictionsSnapshot.size;
+
+  // 回答 + 予想 = 全プレイヤー
+  return (answerCount + predictionCount) >= playerCount;
+}
+
+/**
+ * 配列をシャッフル（Fisher-Yates）
+ * ユーティリティ関数
+ */
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+/**
+ * Reset game state for replay
+ */
+export async function resetGameState(roomId: string): Promise<void> {
+  console.log(`Resetting game state for room ${roomId}`);
+  try {
+    const gameStateRef = doc(db, 'rooms', roomId, 'gameState', 'state');
+
+    // Delete the game state document to completely reset
+    await deleteDoc(gameStateRef);
+
+    console.log('Game state reset successfully');
+  } catch (error) {
+    serviceLogger.error('game.resetState', `failed: ${roomId}`, error);
+    throw error;
+  }
+}
+
+/**
+ * Clear all questions and related data for replay
+ */
+export async function clearQuestionsAndAnswers(roomId: string): Promise<void> {
+  console.log(`Clearing questions and answers for room ${roomId}`);
+  try {
+    const deletePromises = [];
+
+    // Clear all questions
+    const questionsRef = collection(db, 'rooms', roomId, 'questions');
+    const questionDocs = await getDocs(questionsRef);
+    for (const questionDoc of questionDocs.docs) {
+      deletePromises.push(deleteDoc(questionDoc.ref));
+    }
+
+    // Clear all answers (room level)
+    const answersRef = collection(db, 'rooms', roomId, 'answers');
+    const answerDocs = await getDocs(answersRef);
+    for (const answerDoc of answerDocs.docs) {
+      deletePromises.push(deleteDoc(answerDoc.ref));
+    }
+
+    // Clear all predictions (room level)
+    const predictionsRef = collection(db, 'rooms', roomId, 'predictions');
+    const predictionDocs = await getDocs(predictionsRef);
+    for (const predictionDoc of predictionDocs.docs) {
+      deletePromises.push(deleteDoc(predictionDoc.ref));
+    }
+
+    await Promise.all(deletePromises);
+    console.log('Questions and answers cleared successfully');
+  } catch (error) {
+    serviceLogger.error('game.clearData', `failed: ${roomId}`, error);
+    throw error;
+  }
+}

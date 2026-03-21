@@ -1,27 +1,65 @@
 // app/create-room/page.tsx
-// ルーム作成ページ
 'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createRoom } from '@/lib/services/roomService';
-import { runServiceAction } from '@/lib/services/serviceAction';
-import { Modal } from '@/app/room/[roomId]/components/Modal';
-import type { ScoringMode } from '@/types';
+import { motion } from 'framer-motion';
+import { createRoom } from '@/lib/services/room/roomService';
+import { runServiceAction } from '@/lib/services/core/serviceAction';
+import { RoomOptionsForm } from './RoomOptionsForm';
+import { SecondaryButton } from '../common/SecondaryButton';
+import { PrimaryButton } from '../common/PrimaryButton';
 
 type ParticipationStyle = 'player' | 'screen';
 
-function HelpIconButton({ onClick }: { onClick: () => void }) {
+// ---- SVG イラスト ----
+
+function PlayerModeIllustration() {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="w-5 h-5 rounded-full border border-slate-500 text-slate-400 text-xs flex items-center justify-center"
-    >
-      ?
-    </button>
+    <svg viewBox="0 0 120 72" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+      {/* 左のプレイヤー */}
+      <circle cx="24" cy="28" r="9" fill="currentColor" opacity="0.7" />
+      <path d="M10 60 Q10 44 24 44 Q38 44 38 60" fill="currentColor" opacity="0.7" />
+      {/* 中央のプレイヤー（少し大きく前面） */}
+      <circle cx="60" cy="24" r="11" fill="currentColor" opacity="0.95" />
+      <path d="M44 62 Q44 44 60 44 Q76 44 76 62" fill="currentColor" opacity="0.95" />
+      {/* 右のプレイヤー */}
+      <circle cx="96" cy="28" r="9" fill="currentColor" opacity="0.7" />
+      <path d="M82 60 Q82 44 96 44 Q110 44 110 60" fill="currentColor" opacity="0.7" />
+      {/* 吹き出し（中央） */}
+      <rect x="48" y="4" width="24" height="12" rx="4" fill="currentColor" opacity="0.4" />
+      <polygon points="58,16 62,16 60,20" fill="currentColor" opacity="0.4" />
+      {/* ??? テキスト */}
+      <text x="60" y="13" textAnchor="middle" fontSize="7" fill="white" fontWeight="bold" opacity="0.9">?!</text>
+    </svg>
   );
 }
+
+function ScreenModeIllustration() {
+  return (
+    <svg viewBox="0 0 120 72" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+      {/* ディスプレイ本体 */}
+      <rect x="30" y="14" width="60" height="38" rx="4" fill="currentColor" opacity="0.5" />
+      <rect x="33" y="17" width="54" height="30" rx="2" fill="currentColor" opacity="0.2" />
+      {/* 画面内容 */}
+      <text x="60" y="36" textAnchor="middle" fontSize="10" fill="white" fontWeight="bold" opacity="0.9">QUIZ</text>
+      {/* スタンド */}
+      <rect x="54" y="52" width="12" height="5" rx="1" fill="currentColor" opacity="0.5" />
+      <rect x="48" y="57" width="24" height="3" rx="2" fill="currentColor" opacity="0.5" />
+      {/* 左のプレイヤー */}
+      <circle cx="14" cy="38" r="7" fill="currentColor" opacity="0.75" />
+      <path d="M4 66 Q4 52 14 52 Q24 52 24 66" fill="currentColor" opacity="0.75" />
+      {/* 右のプレイヤー */}
+      <circle cx="106" cy="38" r="7" fill="currentColor" opacity="0.75" />
+      <path d="M96 66 Q96 52 106 52 Q116 52 116 66" fill="currentColor" opacity="0.75" />
+      {/* 矢印（見ている方向） */}
+      <line x1="24" y1="40" x2="30" y2="35" stroke="white" strokeWidth="1.5" opacity="0.4" strokeLinecap="round" />
+      <line x1="96" y1="40" x2="90" y2="35" stroke="white" strokeWidth="1.5" opacity="0.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// ---- ページ本体 ----
 
 export default function CreateRoomPage() {
   const router = useRouter();
@@ -29,22 +67,14 @@ export default function CreateRoomPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState('');
 
-  // オプション設定
   const [showOptions, setShowOptions] = useState(false);
   const [description, setDescription] = useState('');
   const [timeLimit, setTimeLimit] = useState<number>(30);
-  const [scoringMode, setScoringMode] = useState<ScoringMode>('standard');
+  const [correctAnswerPoints, setCorrectAnswerPoints] = useState<number>(10);
+  const [fastestAnswerBonusPoints, setFastestAnswerBonusPoints] = useState<number>(10);
   const [wrongAnswerPenalty, setWrongAnswerPenalty] = useState<number>(0);
+  const [predictionHitBonusPoints, setPredictionHitBonusPoints] = useState<number>(50);
   const [maxPlayers, setMaxPlayers] = useState<number>(8);
-
-  // 説明モーダル
-  const [showHelpModal, setShowHelpModal] = useState(false);
-  const [helpContent, setHelpContent] = useState({ title: '', content: '' });
-
-  const showHelp = (title: string, content: string) => {
-    setHelpContent({ title, content });
-    setShowHelpModal(true);
-  };
 
   const useScreenMode = participationStyle === 'screen';
 
@@ -62,8 +92,10 @@ export default function CreateRoomPage() {
           createHostPlayer: useScreenMode,
           description: description.trim() || undefined,
           timeLimit,
-          scoringMode,
+          correctAnswerPoints,
+          fastestAnswerBonusPoints,
           wrongAnswerPenalty,
+          predictionHitBonusPoints,
           maxPlayers,
           useScreenMode,
         }),
@@ -82,6 +114,8 @@ export default function CreateRoomPage() {
     if (useScreenMode && displayDeviceId) {
       localStorage.removeItem('currentPlayerId');
       localStorage.setItem('currentRoomId', roomId);
+      sessionStorage.removeItem('currentPlayerId');
+      sessionStorage.setItem('currentRoomId', roomId);
       router.push(`/room/${roomId}/screen?deviceId=${displayDeviceId}`);
       return;
     }
@@ -89,207 +123,138 @@ export default function CreateRoomPage() {
     if (playerId) {
       localStorage.setItem('currentPlayerId', playerId);
       localStorage.setItem('currentRoomId', roomId);
+      sessionStorage.setItem('currentPlayerId', playerId);
+      sessionStorage.setItem('currentRoomId', roomId);
       router.push(`/room/${roomId}`);
       return;
     }
 
-    // プレイヤーモードでは次画面でニックネーム入力して参加する
     localStorage.removeItem('currentPlayerId');
     localStorage.setItem('currentRoomId', roomId);
+    sessionStorage.removeItem('currentPlayerId');
+    sessionStorage.setItem('currentRoomId', roomId);
     router.push(`/join-room?roomId=${roomId}&mode=host-setup`);
   };
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8">
-      <div className="max-w-md w-full backdrop-blur-sm space-y-6">
+      <div className="max-w-md w-full space-y-6">
+
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-3 tracking-tight">
-            ルームを作成
-          </h1>
+          <h1 className="text-3xl font-bold text-white mb-3 tracking-tight italic">ルームを作成</h1>
         </div>
 
-        {/* 参加スタイル */}
-        <div className="space-y-2">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => setParticipationStyle('player')}
-              className={`rounded-lg border px-4 py-3 text-center transition-all ${participationStyle === 'player' ? 'border-yellow-400 bg-yellow-500/20' : 'border-slate-600 bg-slate-700/40 hover:bg-slate-700/60'}`}
-            >
-              <p className="font-semibold text-white">プレイヤーモード</p>
-              <p className="text-xs text-slate-300 mt-1">お使いの端末で<br />プレイできます</p>
-            </button>
-            <button
-              type="button"
-              onClick={() => setParticipationStyle('screen')}
-              className={`rounded-lg border px-4 py-3 text-center transition-all ${participationStyle === 'screen' ? 'border-red-400 bg-red-500/20' : 'border-slate-600 bg-slate-700/40 hover:bg-slate-700/60'}`}
-            >
-              <p className="font-semibold text-white">スクリーンモード</p>
-              <p className="text-xs text-slate-300 mt-1">お使いの端末は<br />表示専用になります</p>
-            </button>
-          </div>
-        </div>
-
-        {/* オプションボタン */}
-        <div className="flex justify-end">
-          <button
+        {/* モード選択 */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* プレイヤーモード */}
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             type="button"
-            onClick={() => setShowOptions(!showOptions)}
-            className={`text-slate-200 text-sm underline underline-offset-2 px-2 py-1 transition-all duration-300 ${showOptions ? '' : 'italic'}`}
+            onClick={() => setParticipationStyle('player')}
+            className={`
+              relative rounded-xl border-2 px-4 pt-4 pb-3 text-center transition-all duration-200
+              ${participationStyle === 'player'
+                ? 'border-yellow-400 bg-yellow-500/20 shadow-lg shadow-yellow-500/10'
+                : 'border-slate-600 bg-slate-700/40 hover:bg-slate-700/60 hover:border-slate-500'}
+            `}
           >
-            {showOptions ? '閉じる' : 'ルームのオプション'}
-          </button>
+            {/* 選択インジケーター */}
+            {participationStyle === 'player' && (
+              <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-yellow-400" />
+            )}
+            {/* イラスト */}
+            <div
+              className={`mx-auto mb-3 h-16 transition-colors duration-200 ${
+                participationStyle === 'player' ? 'text-yellow-300' : 'text-slate-400'
+              }`}
+            >
+              <PlayerModeIllustration />
+            </div>
+            <p className="text-xl font-bold text-white italic">プレイヤーモード</p>
+            <p className="text-sm text-slate-300 mt-1">この端末でプレイ</p>
+          </motion.button>
+
+          {/* スクリーンモード */}
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            type="button"
+            onClick={() => setParticipationStyle('screen')}
+            className={`
+              relative rounded-xl border-2 px-4 pt-4 pb-3 text-center transition-all duration-200
+              ${participationStyle === 'screen'
+                ? 'border-red-400 bg-red-500/20 shadow-lg shadow-red-500/10'
+                : 'border-slate-600 bg-slate-700/40 hover:bg-slate-700/60 hover:border-slate-500'}
+            `}
+          >
+            {participationStyle === 'screen' && (
+              <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-400" />
+            )}
+            <div
+              className={`mx-auto mb-3 h-16 transition-colors duration-200 ${
+                participationStyle === 'screen' ? 'text-red-300' : 'text-slate-400'
+              }`}
+            >
+              <ScreenModeIllustration />
+            </div>
+            <p className="text-xl font-bold text-white text-sm italic">スクリーンモード</p>
+            <p className="text-sm text-slate-300 mt-1">表示専用にする</p>
+          </motion.button>
         </div>
 
-        {/* エラーメッセージ */}
+        {/* オプション設定ボタン */}
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          type="button"
+          onClick={() => setShowOptions(true)}
+          className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-slate-600 bg-slate-700/40 hover:bg-slate-700/60 hover:border-slate-500 transition-all duration-150 group"
+        >
+          <div className="flex items-center gap-2 text-slate-200 text-sm">
+            {/* 歯車アイコン */}
+            <svg className="w-4 h-4 text-slate-400 group-hover:text-slate-300 transition-colors" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+            </svg>
+            <span className="italic">ルームのオプション</span>
+          </div>
+          {/* 右矢印 */}
+          <svg className="w-4 h-4 text-slate-500 group-hover:text-slate-400 transition-colors" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+          </svg>
+        </motion.button>
+
+        {/* エラー */}
         {error && (
-          <div className="bg-red-500/20 border border-red-500/50 text-red-200 px-4 py-3 rounded">
+          <div className="bg-red-500/20 border border-red-500/50 text-red-200 px-4 py-3 rounded-lg text-sm">
             {error}
           </div>
         )}
 
-        {/* 作成ボタン */}
         <div className="flex gap-4 justify-center">
-          <button
+          <PrimaryButton
             onClick={handleCreateRoom}
             disabled={isCreating}
-            className="bg-gradient-to-b from-green-700 to-green-800 disabled:bg-slate-600 text-white font-bold italic px-3 rounded-xl shadow-lg transition-all duration-300 transform disabled:transform-none disabled:cursor-not-allowed"
           >
-            {isCreating ? 'CREATING...' : 'CREATE ROOM'}
-          </button>
-
-          <button
-            onClick={() => router.push('/')}
-            className="bg-slate-700/50 text-slate-200 font-medium italic px-4 rounded-xl border border-slate-600 transition-all duration-300"
-          >
-            BACK
-          </button>
+            {isCreating ? 'CREATING...' : 'CREATE'}
+          </PrimaryButton>
+          <SecondaryButton onClick={() => router.push('/')}>BACK</SecondaryButton>
         </div>
+
       </div>
 
       {/* オプションモーダル */}
       {showOptions && (
-        <Modal
+        <RoomOptionsForm
+          description={description} setDescription={setDescription}
+          timeLimit={timeLimit} setTimeLimit={setTimeLimit}
+          correctAnswerPoints={correctAnswerPoints} setCorrectAnswerPoints={setCorrectAnswerPoints}
+          fastestAnswerBonusPoints={fastestAnswerBonusPoints} setFastestAnswerBonusPoints={setFastestAnswerBonusPoints}
+          wrongAnswerPenalty={wrongAnswerPenalty} setWrongAnswerPenalty={setWrongAnswerPenalty}
+          predictionHitBonusPoints={predictionHitBonusPoints} setPredictionHitBonusPoints={setPredictionHitBonusPoints}
+          maxPlayers={maxPlayers} setMaxPlayers={setMaxPlayers}
           onClose={() => setShowOptions(false)}
-          panelClassName="max-w-md w-full max-h-[80vh] overflow-y-auto"
-        >
-          <h2 className="text-2xl font-bold text-white mb-6 text-center">オプション</h2>
-
-          <div className="space-y-5">
-            {/* ルームの説明 */}
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
-                ルームの説明
-                <HelpIconButton onClick={() => showHelp('ルームの説明', 'このルームの目的やテーマを説明します。参加者が参加前に確認できます。')} />
-              </label>
-              <input
-                type="text"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="例：アニメクイズ大会"
-                maxLength={50}
-                className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* 制限時間 */}
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
-                制限時間（秒）
-                <HelpIconButton onClick={() => showHelp('制限時間', '各問題の回答制限時間を設定します。0に設定すると制限時間なしになります。')} />
-              </label>
-              <input
-                type="number"
-                value={timeLimit}
-                onChange={(e) => setTimeLimit(Math.max(0, parseInt(e.target.value) || 0))}
-                min="0"
-                max="300"
-                className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* 点数加算方式 */}
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
-                点数加算方式
-                <HelpIconButton onClick={() => showHelp('点数加算方式', '標準：正解で10pt / 1位ボーナス：1位は20pt、他は10pt / 正解率ボーナス：正解率が低いほど高得点')} />
-              </label>
-              <select
-                value={scoringMode}
-                onChange={(e) => setScoringMode(e.target.value as ScoringMode)}
-                className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="standard">標準</option>
-                <option value="firstBonus">1位ボーナス</option>
-                <option value="rateBonus">正解率ボーナス</option>
-              </select>
-            </div>
-
-            {/* 誤答ペナルティ */}
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
-                誤答ペナルティ（pt）
-                <HelpIconButton onClick={() => showHelp('誤答ペナルティ', '不正解の場合に減点されるポイントです。0でペナルティなし。')} />
-              </label>
-              <input
-                type="number"
-                value={wrongAnswerPenalty}
-                onChange={(e) => setWrongAnswerPenalty(Math.max(0, parseInt(e.target.value) || 0))}
-                min="0"
-                max="50"
-                className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* 最大参加人数 */}
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
-                最大参加人数
-                <HelpIconButton onClick={() => showHelp('最大参加人数', 'このルームに参加できる最大人数を設定します。')} />
-              </label>
-              <input
-                type="number"
-                value={maxPlayers}
-                onChange={(e) => setMaxPlayers(Math.max(2, Math.min(20, parseInt(e.target.value) || 8)))}
-                min="2"
-                max="20"
-                className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-3 mt-6">
-            <button
-              onClick={() => setShowOptions(false)}
-              className="flex-1 bg-slate-700 text-white font-medium py-2 px-4 rounded-lg transition-all"
-            >
-              閉じる
-            </button>
-            <button
-              onClick={() => setShowOptions(false)}
-              className="flex-1 bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-all"
-            >
-              変更する
-            </button>
-          </div>
-        </Modal>
-      )}
-
-      {/* ヘルプモーダル */}
-      {showHelpModal && (
-        <Modal
-          onClose={() => setShowHelpModal(false)}
-          panelClassName="max-w-sm w-full"
-        >
-          <h3 className="text-xl font-bold text-white mb-3">{helpContent.title}</h3>
-          <p className="text-slate-300 text-sm mb-4">{helpContent.content}</p>
-          <button
-            onClick={() => setShowHelpModal(false)}
-            className="w-full bg-slate-700 text-white font-medium py-2 px-4 rounded-lg transition-all"
-          >
-            閉じる
-          </button>
-        </Modal>
+        />
       )}
     </main>
   );

@@ -4,8 +4,8 @@
 
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { joinRoom, getRoom } from '@/lib/services/roomService';
-import { runServiceAction } from '@/lib/services/serviceAction';
+import { joinRoom, getRoom } from '@/lib/services/room/roomService';
+import { runServiceAction } from '@/lib/services/core/serviceAction';
 import { RoomEntryFormCard } from './components/RoomEntryFormCard';
 import { RoomJoinConfirmCard } from './components/RoomJoinConfirmCard';
 import type { Room } from '@/types';
@@ -22,18 +22,28 @@ export default function JoinRoomPage() {
   const [nickname, setNickname] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isError, setIsError] = useState(false);
 
   // 確認画面用
   const [roomInfo, setRoomInfo] = useState<Room | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
 
+  const [isShaking, setIsShaking] = useState(false);
+
+  const triggerShake = () => {
+    setIsShaking(true);
+    setTimeout(() => setIsShaking(false), 300);
+  };
+
   const validateNickname = () => {
     if (!nickname.trim()) {
       setError('ニックネームを入力してください');
+      triggerShake();
       return false;
     }
     if (nickname.length > 20) {
       setError('ニックネームは20文字以内で入力してください');
+      triggerShake();
       return false;
     }
     return true;
@@ -42,6 +52,7 @@ export default function JoinRoomPage() {
   const handleCheckRoom = async () => {
     if (!roomId.trim()) {
       setError('ルームIDを入力してください');
+      triggerShake();
       return;
     }
     if (!validateNickname()) {
@@ -91,6 +102,8 @@ export default function JoinRoomPage() {
 
     localStorage.setItem('currentPlayerId', playerId);
     localStorage.setItem('currentRoomId', targetRoomId);
+    sessionStorage.setItem('currentPlayerId', playerId);
+    sessionStorage.setItem('currentRoomId', targetRoomId);
     router.push(`/room/${targetRoomId}`);
   };
 
@@ -110,6 +123,7 @@ export default function JoinRoomPage() {
     return (
       <RoomJoinConfirmCard
         roomInfo={roomInfo}
+        nickname={nickname}
         isLoading={isLoading}
         error={error}
         onConfirm={() => handleJoinRoom(roomId.trim())}
@@ -133,6 +147,7 @@ export default function JoinRoomPage() {
         loadingLabel="JOINING..."
         showRoomIdInput={false}
         disableSubmit={isLoading || !nickname.trim()}
+        isShaking={isShaking}
       />
     );
   }
@@ -152,6 +167,7 @@ export default function JoinRoomPage() {
       loadingLabel="WAIT..."
       showRoomIdInput
       disableSubmit={isLoading || !roomId.trim() || !nickname.trim()}
+      isShaking={isShaking}
     />
   );
 }

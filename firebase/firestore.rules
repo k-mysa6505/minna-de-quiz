@@ -43,13 +43,23 @@ service cloud.firestore {
       }
 
       match /reactions/{reactionId} {
-        allow read: if request.auth != null;
+        // スクリーン表示端末（非プレイヤー）でも購読できるよう read は公開
+        allow read: if true;
         allow create: if request.auth != null
           && request.resource.data.roomId == roomId
           && request.resource.data.userId is string
           && request.resource.data.userName is string
           && request.resource.data.type in ['reaction', 'message']
           && request.resource.data.content is string;
+        allow update, delete: if false;
+      }
+
+      match /commands/{commandId} {
+        allow read: if true;
+        allow create: if request.auth != null
+          && request.resource.data.type in ['DISBAND_ROOM']
+          && request.resource.data.actorId is string
+          && request.resource.data.state == 'queued';
         allow update, delete: if false;
       }
     }
