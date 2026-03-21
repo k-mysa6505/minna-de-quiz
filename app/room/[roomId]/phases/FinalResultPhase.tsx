@@ -42,13 +42,25 @@ export function FinalResultPhase({ roomId, players, currentPlayerId, useScreenMo
   const [hasRequestedReplay, setHasRequestedReplay] = useState(false);
   const [revealedCount, setRevealedCount] = useState(0);
   const [isStarted, setIsStarted] = useState(false);
+  
+  // ランキングを安定させるため、一度読み込んだプレイヤーをメモリに保持
+  const [stablePlayers, setStablePlayers] = useState<Player[]>(players);
 
-  // 全プレイヤーをスコア順（上位から）に並べ、順位を確定させる
-  const sortedPlayers = useMemo(() => {
-    return [...players].sort((a, b) => b.score - a.score);
+  useEffect(() => {
+    if (players.length === 0) return;
+    setStablePlayers(prev => {
+      const merged = new Map(prev.map(p => [p.playerId, p]));
+      players.forEach(p => {
+        merged.set(p.playerId, { ...merged.get(p.playerId), ...p });
+      });
+      return Array.from(merged.values());
+    });
   }, [players]);
 
-  // 下位から順に発表するための逆順リスト
+  const sortedPlayers = useMemo(() => {
+    return [...stablePlayers].sort((a, b) => b.score - a.score);
+  }, [stablePlayers]);
+
   const revealOrder = useMemo(() => {
     return [...sortedPlayers].reverse();
   }, [sortedPlayers]);
@@ -60,14 +72,10 @@ export function FinalResultPhase({ roomId, players, currentPlayerId, useScreenMo
 
   useEffect(() => {
     if (!isStarted || useScreenMode) return;
-
     if (revealedCount < revealOrder.length) {
       const isLastOne = revealedCount === revealOrder.length - 1;
       const delay = isLastOne ? 2800 : 700;
-
-      const timer = setTimeout(() => {
-        setRevealedCount(prev => prev + 1);
-      }, delay);
+      const timer = setTimeout(() => { setRevealedCount(prev => prev + 1); }, delay);
       return () => clearTimeout(timer);
     }
   }, [revealedCount, revealOrder.length, isStarted, useScreenMode]);
@@ -88,7 +96,6 @@ export function FinalResultPhase({ roomId, players, currentPlayerId, useScreenMo
     handleSendReaction,
   } = useReactions(roomId, currentPlayerId, currentPlayer?.nickname);
 
-  const presenceCleanupRef = useRef<(() => void) | null>(null);
   const resolveCurrentPlayerId = () => sessionStorage.getItem('currentPlayerId') || localStorage.getItem('currentPlayerId');
 
   useEffect(() => {
@@ -117,11 +124,15 @@ export function FinalResultPhase({ roomId, players, currentPlayerId, useScreenMo
     const pid = resolveCurrentPlayerId();
     if (!pid) return;
     setIsResetting(true);
-    await runServiceAction('final.playAgain', () => setPlayerReplayRequested(roomId, pid), {
-      onError: () => alert('リプレイ申請に失敗しました。ページをリロードしてください。'),
-    });
-    setIsResetting(false);
-    setHasRequestedReplay(true);
+    try {
+      await runServiceAction('final.playAgain', () => setPlayerReplayRequested(roomId, pid));
+      setHasRequestedReplay(true);
+    } catch (error) {
+      console.error(`[Replay] Failed:`, error);
+      alert('リプレイ申請に失敗しました。');
+    } finally {
+      setIsResetting(false);
+    }
   };
 
   const myIndex = sortedPlayers.findIndex((p) => p.playerId === currentPlayerId);
@@ -130,19 +141,19 @@ export function FinalResultPhase({ roomId, players, currentPlayerId, useScreenMo
   return (
     <>
       <div className="space-y-6 animate-fade-in flex-1">
-        <div className="text-center space-y-2 mb-8">
-          <p className="text-xs font-bold uppercase tracking-[0.4em] text-blue-500/80">Final Result</p>
+        <div className="text-center space-y-2 mb-4">
+          <p className="text-xs font-bold uppercase tracking-[0.4em] text-blue-500/80">Result</p>
           <h3 className="text-3xl font-black text-white italic">総合ランキング</h3>
         </div>
         
         {!useScreenMode && (
-          <div className="relative min-h-[100px]">
+          <div className="bg-white/5 rounded-2xl border border-white/10 p-6 sm:p-8 w-full relative min-h-[200px]">
             <div className="space-y-3">
               <AnimatePresence mode="popLayout">
                 {visiblePlayers.map((player) => {
                   const rank = sortedPlayers.findIndex(p => p.playerId === player.playerId) + 1;
                   const isFirst = rank === 1;
-                  const isCurrentPlayer = player.playerId === currentPlayerId;
+                  const isMe = player.playerId === currentPlayerId;
                   
                   return (
                     <motion.div 
@@ -151,15 +162,17 @@ export function FinalResultPhase({ roomId, players, currentPlayerId, useScreenMo
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.4 }}
                       layout
-                      className={`flex justify-between items-center px-4 border-b border-white/5 last:border-0 ${isCurrentPlayer ? 'bg-gradient-to-b from-blue-800/90 to-blue-500/10' : ''}`}
+                      className={`flex justify-between items-center px-4 py-2 border-b border-white/5 last:border-0 ${
+                        isMe ? 'bg-emerald-500/5 rounded-md ring-1 ring-emerald-500/20' : ''
+                      }`}
                     >
                       <div className="flex items-center gap-4 text-lg">
-                        <span className={`font-bold tabular-nums text-xl ${isFirst ? 'text-yellow-400' : 'text-white'}`}>
-                          {rank}．
-                          <span className="italic">{player.nickname}</span>
+                        <span className={`font-bold tabular-nums ${isFirst ? 'text-yellow-400' : 'text-white'}`}>
+                          {rank}．{player.nickname}
                         </span>
+                        {isMe && <span className="text-[10px] bg-emerald-500 text-white px-1.5 rounded uppercase font-black">You</span>}
                       </div>
-                      <div className={`text-emerald-400 font-bold font-mono text-xl`}>
+                      <div className="text-emerald-400 font-bold font-mono text-xl">
                         {player.score}<span className="text-[10px] ml-0.5 opacity-70">pt</span>
                       </div>
                     </motion.div>
@@ -167,6 +180,16 @@ export function FinalResultPhase({ roomId, players, currentPlayerId, useScreenMo
                 })}
               </AnimatePresence>
             </div>
+
+            {isRevealingLastOne && (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="absolute -top-6 left-1/2 -translate-x-1/2 text-yellow-400 font-bold italic tracking-widest text-[10px] uppercase"
+              >
+                👑 THE WINNER IS...
+              </motion.div>
+            )}
           </div>
         )}
 

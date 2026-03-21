@@ -1,4 +1,4 @@
-import { onDocumentUpdated } from 'firebase-functions/v2/firestore';
+import { onDocumentUpdated, onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
 
 if (admin.apps.length === 0) {
@@ -7,10 +7,6 @@ if (admin.apps.length === 0) {
 
 const db = admin.firestore();
 const REGION = 'asia-northeast1';
-
-async function getPlayersSnapshot(roomId: string) {
-  return db.collection('rooms').doc(roomId).collection('players').get();
-}
 
 async function deleteCollectionDocs(roomId: string, collectionName: string): Promise<void> {
   const snap = await db.collection('rooms').doc(roomId).collection(collectionName).get();
@@ -22,122 +18,84 @@ async function deleteCollectionDocs(roomId: string, collectionName: string): Pro
   for (const docSnap of snap.docs) {
     batch.delete(docSnap.ref);
     opCount += 1;
-
     if (opCount >= 400) {
       await batch.commit();
       batch = db.batch();
       opCount = 0;
     }
   }
-
-  if (opCount > 0) {
-    await batch.commit();
-  }
+  if (opCount > 0) await batch.commit();
 }
 
-export const onReplayRequestChanged = onDocumentUpdated(
-  {
-    document: 'rooms/{roomId}/players/{playerId}',
-    region: REGION,
-  },
-  async (event) => {
-    const roomId = event.params.roomId;
-    const before = event.data?.before.data() as { wantsReplay?: boolean } | undefined;
-    const after = event.data?.after.data() as { wantsReplay?: boolean } | undefined;
+/**
+ * リプレイ判定：残っている全員が REPLAY を押し終えたか確認
+ */
+async function checkAndTriggerReplay(roomId: string) {
+  const roomRef = db.collection('rooms').doc(roomId);
 
-    if (!after) {
-      return;
-    }
+  try {
+    const roomSnap = await roomRef.get();
+    if (!roomSnap.exists) return;
+    const room = roomSnap.data() as { status?: string };
 
-    const beforeReplay = Boolean(before?.wantsReplay);
-    const afterReplay = Boolean(after.wantsReplay);
-    if (beforeReplay === afterReplay) {
-      return;
-    }
+    if (room.status !== 'finished') return;
 
-    const roomRef = db.collection('rooms').doc(roomId);
+    const playersSnap = await db.collection('rooms').doc(roomId).collection('players').get();
+    if (playersSnap.empty) return;
 
-    const lockAcquired = await db.runTransaction(async (tx) => {
-      const roomSnap = await tx.get(roomRef);
-      if (!roomSnap.exists) {
-        return false;
-      }
+    const playerDocs = playersSnap.docs;
+    
+    // 退室していないプレイヤーを特定
+    const stayingPlayers = playerDocs.filter((docSnap) => !(docSnap.data() as { hasLeft?: boolean }).hasLeft);
 
-      const room = roomSnap.data() as {
-        status?: string;
-        useScreenMode?: boolean;
-        replayResetInProgress?: boolean;
-      };
+    // リプレイ希望者
+    const wantingReplayPlayers = stayingPlayers.filter((docSnap) => Boolean((docSnap.data() as { wantsReplay?: boolean }).wantsReplay));
 
-      if (room.useScreenMode) {
-        return false;
-      }
+    // 全員の意思が確定（全員がREPLAYを押し終えた、または退室した）
+    const shouldReset = stayingPlayers.length > 0 && wantingReplayPlayers.length === stayingPlayers.length;
 
-      if (room.status !== 'finished') {
-        return false;
-      }
+    if (!shouldReset) return;
 
-      if (room.replayResetInProgress) {
-        return false;
-      }
-
-      tx.update(roomRef, {
-        replayResetInProgress: true,
-      });
-
-      return true;
+    // --- リセット実行 ---
+    // 1. ステータス変更
+    await roomRef.update({
+      status: 'waiting',
+      replayResetAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    if (!lockAcquired) {
-      return;
-    }
-
-    try {
-      const playersSnap = await getPlayersSnapshot(roomId);
-      if (playersSnap.empty) {
-        await roomRef.set({ replayResetInProgress: false }, { merge: true });
-        return;
-      }
-
-      const allRequested = playersSnap.docs.every((docSnap) => {
-        const player = docSnap.data() as { wantsReplay?: boolean };
-        return Boolean(player.wantsReplay);
-      });
-
-      if (!allRequested) {
-        await roomRef.set({ replayResetInProgress: false }, { merge: true });
-        return;
-      }
-
-      await deleteCollectionDocs(roomId, 'gameState');
-      await deleteCollectionDocs(roomId, 'questions');
-      await deleteCollectionDocs(roomId, 'answers');
-      await deleteCollectionDocs(roomId, 'predictions');
-
-      const resetPlayersBatch = db.batch();
-      for (const playerDoc of playersSnap.docs) {
-        resetPlayersBatch.update(playerDoc.ref, {
+    // 2. プレイヤー初期化 & 退室者の完全削除
+    const resetBatch = db.batch();
+    for (const playerDoc of playerDocs) {
+      const p = playerDoc.data() as { hasLeft?: boolean };
+      if (p.hasLeft) {
+        resetBatch.delete(playerDoc.ref);
+      } else {
+        resetBatch.update(playerDoc.ref, {
           score: 0,
           wantsReplay: false,
           replayRequestedAt: admin.firestore.FieldValue.delete(),
           lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
         });
       }
-      await resetPlayersBatch.commit();
-
-      await roomRef.set(
-        {
-          status: 'waiting',
-          replayResetInProgress: false,
-          replayResetAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
-
-      console.log(`[replayFlow] Room ${roomId} reset for replay by unanimous requests`);
-    } catch (error) {
-      await roomRef.set({ replayResetInProgress: false }, { merge: true });
-      throw error;
     }
+    await resetBatch.commit();
+
+    // 3. データのクリーンアップ
+    const collections = ['gameState', 'questions', 'answers', 'predictions', 'reactions'];
+    await Promise.all(collections.map(c => deleteCollectionDocs(roomId, c)));
+
+    console.log(`[replayFlow] Room ${roomId} reset success.`);
+  } catch (error) {
+    console.error(`[replayFlow] Error in room ${roomId}:`, error);
   }
+}
+
+export const onReplayRequestChanged = onDocumentUpdated(
+  { document: 'rooms/{roomId}/players/{playerId}', region: REGION },
+  async (event) => { await checkAndTriggerReplay(event.params.roomId); }
+);
+
+export const onPlayerDeleted = onDocumentDeleted(
+  { document: 'rooms/{roomId}/players/{playerId}', region: REGION },
+  async (event) => { await checkAndTriggerReplay(event.params.roomId); }
 );

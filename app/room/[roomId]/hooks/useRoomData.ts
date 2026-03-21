@@ -34,17 +34,19 @@ export function useRoomData(roomId: string, currentPlayerId: string) {
     const unsubscribePlayers = subscribeToPlayers(roomId, (playerList) => {
       setPlayers(playerList);
 
-      // プレイヤー存在チェック（finished状態を除く）
+      // プレイヤー存在チェック（finished および waiting 状態を除く）
+      // リプレイ遷移時は一時的にリストが空になったりIDが不一致になる可能性があるため、より寛容にする
       const playerExists = playerList.some(p => p.playerId === currentPlayerId);
       if (!playerExists && playerList.length > 0) {
         setRoom(currentRoom => {
-          if (currentRoom && currentRoom.status !== 'finished') {
+          // finished または waiting への遷移中はエラーを出さない
+          const isTransitioning = currentRoom?.status === 'finished' || currentRoom?.status === 'waiting';
+          if (currentRoom && !isTransitioning) {
             setError('このプレイヤーはルームに参加していません。再度参加してください。');
           }
           return currentRoom;
         });
       }
-
     });
 
     return () => {

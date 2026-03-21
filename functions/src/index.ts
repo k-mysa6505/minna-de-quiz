@@ -8,5 +8,5 @@ export { syncPresenceToFirestore } from './presence/presence';
 export { onAnswerWritten, onPredictionWritten, onGameStateChanged, onGameStateCreated, onPlayerReadyChanged } from './game/gameFlow';
 export { onRoomCleanupRequested, runScheduledRoomCleanup } from './room/roomCleanup';
 export { onRoomCommandCreated } from './room/roomCommands';
-export { onReplayRequestChanged } from './game/replayFlow';
+export { onReplayRequestChanged, onPlayerDeleted } from './game/replayFlow';
 export { runForcedOfflineLeave } from './room/forceLeave';
