@@ -184,28 +184,53 @@ export function GamePlayPhase({
         {/* 予想フォーム（出題者のみ） */}
         {isAuthor && (
           <div className="space-y-6">
-            <div className="bg-white/5 rounded-xl p-8 border border-white/10">
+            <div className="bg-white/5 rounded-xl p-6 sm:p-8 border border-white/10">
               <label className="block text-xs font-bold text-slate-500 mb-6 uppercase tracking-[0.2em] text-center">
                 正解者数を予想
               </label>
-              <div className="flex items-center justify-center gap-4">
-                <input
-                  type="number"
-                  min="0"
-                  max={otherPlayersCount}
-                  value={predictedCorrectCount}
-                  onChange={(e) => setPredictedCorrectCount(parseInt(e.target.value) || 0)}
-                  disabled={hasSubmittedPrediction}
-                  className="w-24 px-4 py-3 bg-white/5 border border-white/10 rounded-md text-white text-center text-4xl font-black font-mono focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all disabled:opacity-50"
-                />
-                <span className="text-xl font-bold text-slate-400">人</span>
+              
+              <div className="flex flex-col items-center gap-4">
+                <div className="flex items-center justify-center gap-6 sm:gap-8">
+                  {/* マイナスボタン */}
+                  <button
+                    onClick={() => setPredictedCorrectCount(Math.max(0, predictedCorrectCount - 1))}
+                    disabled={hasSubmittedPrediction || predictedCorrectCount <= 0}
+                    className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center rounded-full bg-slate-800 border border-white/10 text-white text-2xl font-bold transition-all active:scale-90 disabled:opacity-20 disabled:scale-100"
+                    aria-label="減少"
+                  >
+                    －
+                  </button>
+
+                  {/* 数値表示 */}
+                  <div className="flex flex-col items-center">
+                    <span className="text-5xl sm:text-6xl font-black font-mono text-white tabular-nums">
+                      {predictedCorrectCount}
+                    </span>
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">人</span>
+                  </div>
+
+                  {/* プラスボタン */}
+                  <button
+                    onClick={() => setPredictedCorrectCount(Math.min(otherPlayersCount, predictedCorrectCount + 1))}
+                    disabled={hasSubmittedPrediction || predictedCorrectCount >= otherPlayersCount}
+                    className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center rounded-full bg-slate-800 border border-white/10 text-white text-2xl font-bold transition-all active:scale-90 disabled:opacity-20 disabled:scale-100"
+                    aria-label="増加"
+                  >
+                    ＋
+                  </button>
+                </div>
+
+                <p className="text-[10px] text-slate-500 font-medium tracking-tight">
+                  最大 {otherPlayersCount} 人まで選択可能
+                </p>
               </div>
             </div>
+            
             <button
               onClick={handlePredictionSubmit}
               disabled={hasSubmittedPrediction}
               className={`
-                w-full font-bold py-4 px-6 rounded-md shadow-lg transition-all duration-300
+                w-full font-bold py-4 sm:py-5 px-6 rounded-md shadow-lg transition-all duration-300 text-base sm:text-lg
                 ${hasSubmittedPrediction
                   ? 'bg-slate-800 text-slate-500 cursor-default border border-white/5'
                   : 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white active:scale-95'
