@@ -5,6 +5,7 @@ import { PhaseHeader } from '../../components/PhaseHeader';
 import { PlayerListCard } from '../../components/PlayerListCard';
 import { SecondaryButton } from '../../../../common/SecondaryButton';
 import { PrimaryButton } from '../../../../common/PrimaryButton';
+import { RoomID } from '../../../../common/RoomID';
 import type { Player, Room } from '@/types';
 
 interface WaitingScreenProps {
@@ -49,7 +50,7 @@ export function WaitingScreen({ room, players, joinUrl, isStarting, onStart, onD
         </div>
         <div className="px-4 py-2 w-full max-w-xl">
           <p className="text-slate-200 md:text-base mb-2">ROOM ID</p>
-          <p className="font-black tracking-[0.2em] text-3xl md:text-5xl text-white">{room.roomId}</p>
+          <RoomID id={room.roomId} className="text-3xl md:text-5xl" />
         </div>
       </div>
     </section>

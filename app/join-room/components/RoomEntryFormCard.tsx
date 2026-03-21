@@ -47,64 +47,64 @@ export function RoomEntryFormCard({
     <main className="flex min-h-screen flex-col items-center justify-center p-8">
       <div className={`space-y-6 w-full max-w-md ${isShaking ? 'animate-shake' : ''}`}>
 
-    <div className="text-center">
-     <h1 className="text-3xl font-bold text-white mb-3 tracking-tight italic">
-      {title}
-     </h1>
-    </div>
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-white mb-3 tracking-tight italic">
+            {title}
+          </h1>
+        </div>
 
-    {showRoomIdInput && (
-     <div>
-      <label htmlFor="roomId" className="block text-sm font-medium font-mono italic text-slate-300 mb-2">
-       ROOM ID
-      </label>
-      <input
-       id="roomId"
-       type="text"
-       value={roomId}
-       onChange={(e) => onRoomIdChange?.(e.target.value)}
-       readOnly={roomIdReadOnly}
-       placeholder={roomIdPlaceholder}
-       maxLength={6}
-       className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-center text-2xl font-mono tracking-widest transition-all read-only:opacity-80"
-      />
-     </div>
-    )}
+        {showRoomIdInput && (
+         <div>
+            <label htmlFor="roomId" className="block text-sm font-medium font-bold italic text-slate-300 mb-2">
+              ROOM ID
+            </label>
+            <input
+              id="roomId"
+              type="text"
+              value={roomId}
+              onChange={(e) => onRoomIdChange?.(e.target.value)}
+              readOnly={roomIdReadOnly}
+              placeholder={roomIdPlaceholder}
+              maxLength={6}
+              className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-center text-2xl font-mono tracking-widest transition-all read-only:opacity-80"
+            />
+          </div>
+        )}
 
-    <div>
-     <label htmlFor="nickname" className="block text-sm font-medium italic text-slate-300 mb-2">NICKNAME</label>
-     <input
-      id="nickname"
-      type="text"
-      value={nickname}
-      onChange={(e) => onNicknameChange(e.target.value)}
-      placeholder={nicknamePlaceholder}
-      maxLength={20}
-      className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
-     />
-    </div>
+        <div>
+          <label htmlFor="nickname" className="block text-sm font-medium font-bold italic text-slate-300 mb-2">NICKNAME</label>
+          <input
+            id="nickname"
+            type="text"
+            value={nickname}
+            onChange={(e) => onNicknameChange(e.target.value)}
+            placeholder={nicknamePlaceholder}
+            maxLength={20}
+            className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+          />
+        </div>
 
-    {error && (
-     <div className="text-red-400 italic">
-      {error}
-     </div>
-    )}
+        {error && (
+          <div className="text-red-400 italic">
+            {error}
+          </div>
+        )}
 
-    {footerNote}
+        {footerNote}
 
-    <div className="flex gap-4 justify-center">
-     <PrimaryButton
-      onClick={onSubmit}
-      disabled={disableSubmit}
-     >
-      {isLoading ? loadingLabel : submitLabel}
-     </PrimaryButton>
+        <div className="flex gap-4 justify-center">
+          <PrimaryButton
+            onClick={onSubmit}
+            disabled={disableSubmit}
+          >
+            {isLoading ? loadingLabel : submitLabel}
+          </PrimaryButton>
 
-     <SecondaryButton onClick={onBack}>
-      BACK
-     </SecondaryButton>
-    </div>
-   </div>
-  </main>
- );
+          <SecondaryButton onClick={onBack}>
+            BACK
+          </SecondaryButton>
+        </div>
+      </div>
+    </main>
+  );
 }

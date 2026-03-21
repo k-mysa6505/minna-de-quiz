@@ -1,6 +1,7 @@
 import type { Room } from '@/types';
 import { SecondaryButton } from '../../common/SecondaryButton';
 import { PrimaryButton } from '../../common/PrimaryButton';
+import { RoomID } from '../../common/RoomID';
 
 interface RoomJoinConfirmCardProps {
   roomInfo: Room;
@@ -31,7 +32,7 @@ export function RoomJoinConfirmCard({
         <div className="space-y-4 bg-slate-700/30 rounded-md p-6 border border-slate-600/50">
           <div>
             <p className="text-sm text-slate-300 mb-1">ルームID</p>
-            <p className="text-2xl font-mono font-bold text-white tracking-widest">{roomInfo.roomId}</p>
+            <RoomID id={roomInfo.roomId} />
           </div>
 
           {roomInfo.description && (

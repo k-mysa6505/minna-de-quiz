@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { motion } from 'framer-motion';
 import { Modal } from "@/app/common/Modal";
+import { RoomID } from '@/app/common/RoomID';
 
 interface InviteModalProps {
   roomId: string;
@@ -43,7 +44,7 @@ export function InviteModal({ roomId, onClose }: InviteModalProps) {
       </h3>
 
       <div className="bg-slate-700/30 rounded-lg p-4 mb-4 text-center">
-        <p className="text-xs text-slate-400 mb-2">QRコード</p>
+        <p className="text-xs text-slate-300 mb-2 italic">QRコード</p>
         <div className="bg-white p-4 rounded inline-block">
           <QRCodeSVG
             value={shareUrl}
@@ -54,11 +55,11 @@ export function InviteModal({ roomId, onClose }: InviteModalProps) {
       </div>
 
       <div className="bg-slate-700/30 rounded-lg p-4 mb-4">
-        <p className="text-xs text-slate-400 mb-2">ルームID</p>
+        <p className="text-xs text-slate-300 mb-2 italic">ルームID</p>
         <div className="flex items-center gap-2">
-          <code className="flex-1 bg-slate-900/50 text-white px-3 py-2 rounded font-mono text-sm">
-            {roomId}
-          </code>
+          <div className="flex-1 bg-slate-900/50 text-white px-3 py-2 rounded">
+  <RoomID id={roomId} className="text-sm" />
+</div>
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -73,7 +74,7 @@ export function InviteModal({ roomId, onClose }: InviteModalProps) {
       </div>
 
       <div className="bg-slate-700/30 rounded-lg p-4 mb-4">
-        <p className="text-xs text-slate-400 mb-2">共有リンク</p>
+        <p className="text-xs text-slate-300 mb-2 italic">共有リンク</p>
         <div className="flex items-start gap-2">
           <textarea
             value={shareMessage}
