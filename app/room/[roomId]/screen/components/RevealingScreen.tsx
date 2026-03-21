@@ -5,6 +5,7 @@ import type { Answer, Prediction, Question, Player, Room } from '@/types';
 import { calculateCorrectAnswerPoints } from '@/lib/utils/roundScoring';
 import { toTimestamp } from '../utils/screenUtils';
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 
 interface RevealingScreenProps {
   revealingPhase: 'answer' | 'ranking' | 'prediction';
@@ -26,6 +27,7 @@ interface RevealingScreenProps {
   revealReadyPercent: number;
   room: Room;
   questionStartTime: number;
+  nextQuestionImageUrl?: string;
 }
 
 const SCREEN_CHOICE_COLORS = [
@@ -38,10 +40,22 @@ export function RevealingScreen({
   revealedPlayers, currentPrediction, currentAuthorName, animatedPredictedCount,
   animatedActualCount, predictionPoints, showPredictedCount, showActualCount,
   showPredictionBonus, revealReadyCount, revealReadyTotal, revealReadyPercent,
-  room, questionStartTime
+  room, questionStartTime, nextQuestionImageUrl
 }: RevealingScreenProps) {
   return (
     <section className="h-full p-4 md:p-6 space-y-6 overflow-hidden">
+      {/* 次の問題の画像をプリロード */}
+      {nextQuestionImageUrl && (
+        <div className="hidden" aria-hidden="true">
+          <Image 
+            src={nextQuestionImageUrl} 
+            alt="preload" 
+            width={1400} 
+            height={900} 
+            priority={true}
+          />
+        </div>
+      )}
       {revealingPhase === 'answer' && (
         <>
           <h2 className="text-3xl md:text-5xl font-black text-center mb-8">答え合わせ</h2>

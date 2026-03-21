@@ -5,6 +5,7 @@ import { getAnswers, getPrediction, submitAnswer, submitPrediction, markPlayerRe
 import { getQuestions } from '@/lib/services/game/questionService';
 import { updatePlayerScore } from '@/lib/services/auth/playerService';
 import { calculateAnswerScoreDelta, calculatePredictionPoints, dedupeAnswersByPlayer, toMillis } from '@/lib/utils/roundScoring';
+import { preloadImages } from '@/lib/utils/imagePreloader';
 import { useGameStateSubscription } from './useGameStateSubscription';
 import { useAnswerSubscription } from './useAnswerSubscription';
 import type { Question, Player, Answer, Prediction } from '@/types';
@@ -16,7 +17,13 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
   const [showResults, setShowResults] = useState(false);
   const hasCalculatedScoreRef = useRef(false);
 
-  useEffect(() => { getQuestions(roomId).then(setAllQuestions).catch(console.error); }, [roomId]);
+  useEffect(() => { 
+    getQuestions(roomId).then((qs) => {
+      setAllQuestions(qs);
+      const urls = qs.map(q => q.imageUrl).filter((url): url is string => !!url);
+      preloadImages(urls);
+    }).catch(console.error); 
+  }, [roomId]);
 
   const { gameState, currentQuestion, isReady, setIsReady } = useGameStateSubscription(roomId, allQuestions, currentPlayerId);
   const { answers, prediction, hasSubmittedAnswer, hasSubmittedPrediction, currentAnswerCount } = useAnswerSubscription(roomId, currentQuestion, currentPlayerId);

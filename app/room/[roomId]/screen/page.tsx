@@ -107,6 +107,14 @@ export default function RoomScreenPage() {
     return acc; 
   }, [0,0,0,0]);
 
+  const nextQuestion = useMemo(() => {
+    if (!state.gameState || !state.allQuestions.length) return null;
+    const nextIndex = state.gameState.currentQuestionIndex + 1;
+    if (nextIndex >= state.allQuestions.length) return null;
+    const nextId = state.gameState.questionOrder[nextIndex];
+    return state.allQuestions.find(q => q.questionId === nextId) || null;
+  }, [state.gameState, state.allQuestions]);
+
   return (
     <main className="h-[100dvh] overflow-hidden text-white p-3 sm:p-4 lg:p-6 bg-slate-950">
       <div className="max-w-7xl mx-auto h-full">
@@ -123,7 +131,28 @@ export default function RoomScreenPage() {
         {state.room.status === 'creating' && <CreatingScreen players={state.players} questionProgress={state.questionProgress} creatingCompletedAuthorIds={state.creatingCompletedAuthorIds} />}
         {state.room.status === 'playing' && state.gameState?.phase !== 'revealing' && <AnsweringScreen gameState={state.gameState!} currentQuestion={state.currentQuestion} remainingSeconds={remainingSeconds} currentAuthorName={author?.nickname || ''} timeLimit={state.room.timeLimit ?? 30} />}
         {state.room.status === 'playing' && state.gameState?.phase === 'revealing' && state.currentQuestion && (
-          <RevealingScreen revealingPhase={revealingPhase} currentQuestion={state.currentQuestion} answerDistribution={dist} correctAnswers={correctAnswers} players={state.players} revealedPlayers={revealedPlayers} currentPrediction={state.currentPrediction} currentAuthorName={author?.nickname || ''} animatedPredictedCount={counts.pred} animatedActualCount={counts.actual} predictionPoints={calculatePredictionPoints(state.currentPrediction?.predictedCount ?? 0, correctAnswers.length, state.room.predictionHitBonusPoints ?? 50)} showPredictedCount={counts.showPred} showActualCount={counts.showActual} showPredictionBonus={counts.showBonus} revealReadyCount={revealReadyCount} revealReadyTotal={revealReadyTotal} revealReadyPercent={revealReadyTotal > 0 ? (revealReadyCount / revealReadyTotal) * 100 : 0} room={state.room} questionStartTime={toTimestamp(state.gameState.questionStartedAt)} />
+          <RevealingScreen 
+            revealingPhase={revealingPhase} 
+            currentQuestion={state.currentQuestion} 
+            answerDistribution={dist} 
+            correctAnswers={correctAnswers} 
+            players={state.players} 
+            revealedPlayers={revealedPlayers} 
+            currentPrediction={state.currentPrediction} 
+            currentAuthorName={author?.nickname || ''} 
+            animatedPredictedCount={counts.pred} 
+            animatedActualCount={counts.actual} 
+            predictionPoints={calculatePredictionPoints(state.currentPrediction?.predictedCount ?? 0, correctAnswers.length, state.room.predictionHitBonusPoints ?? 50)} 
+            showPredictedCount={counts.showPred} 
+            showActualCount={counts.showActual} 
+            showPredictionBonus={counts.showBonus} 
+            revealReadyCount={revealReadyCount} 
+            revealReadyTotal={revealReadyTotal} 
+            revealReadyPercent={revealReadyTotal > 0 ? (revealReadyCount / revealReadyTotal) * 100 : 0} 
+            room={state.room} 
+            questionStartTime={toTimestamp(state.gameState.questionStartedAt)} 
+            nextQuestionImageUrl={nextQuestion?.imageUrl}
+          />
         )}
         {state.room.status === 'finished' && (
           <FinishedScreen 

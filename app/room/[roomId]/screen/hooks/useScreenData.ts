@@ -6,6 +6,7 @@ import { subscribeToPlayers } from '@/lib/services/auth/playerService';
 import { getAnswers, getGameState, getPrediction } from '@/lib/services/game/gameService';
 import { getQuestion, getQuestionProgress, getQuestions } from '@/lib/services/game/questionService';
 import { subscribeToRoomReactions, type RoomReaction } from '@/lib/services/game/reactionService';
+import { preloadImages } from '@/lib/utils/imagePreloader';
 import type { Answer, GameState, Player, Prediction, Question, Room } from '@/types';
 
 export type ScreenState = {
@@ -13,6 +14,7 @@ export type ScreenState = {
   players: Player[];
   gameState: GameState | null;
   currentQuestion: Question | null;
+  allQuestions: Question[];
   questionProgress: { created: number; total: number };
   creatingCompletedAuthorIds: string[];
   currentAnswers: Answer[];
@@ -25,6 +27,7 @@ export type ScreenState = {
 export function useScreenData(roomId: string, requestedDeviceId: string) {
   const [state, setState] = useState<ScreenState>({
     room: null, players: [], gameState: null, currentQuestion: null,
+    allQuestions: [],
     questionProgress: { created: 0, total: 0 }, creatingCompletedAuthorIds: [],
     currentAnswers: [], currentPrediction: null, revealDataQuestionId: null,
     reactions: [], error: '',
@@ -51,9 +54,22 @@ export function useScreenData(roomId: string, requestedDeviceId: string) {
     let cancelled = false;
     const loadPhaseData = async () => {
       if (!state.room) return;
+
+      // プレイ中または作成中になったら全問題を一度だけ取得
+      let currentAllQuestions = state.allQuestions;
+      if ((state.room.status === 'playing' || state.room.status === 'creating') && currentAllQuestions.length === 0) {
+        currentAllQuestions = await getQuestions(roomId);
+        if (!cancelled) {
+          setState(prev => ({ ...prev, allQuestions: currentAllQuestions }));
+          // 画像をプリロード
+          const urls = currentAllQuestions.map(q => q.imageUrl).filter((url): url is string => !!url);
+          preloadImages(urls);
+        }
+      }
+
       if (state.room.status === 'creating') {
-        const [progress, questions] = await Promise.all([getQuestionProgress(roomId), getQuestions(roomId)]);
-        if (!cancelled) setState(prev => ({ ...prev, questionProgress: progress, creatingCompletedAuthorIds: questions.map(q => q.authorId) }));
+        const progress = await getQuestionProgress(roomId);
+        if (!cancelled) setState(prev => ({ ...prev, questionProgress: progress, creatingCompletedAuthorIds: currentAllQuestions.map(q => q.authorId) }));
       }
       if (state.room.status === 'playing') {
         const gameState = await getGameState(roomId);
@@ -62,7 +78,7 @@ export function useScreenData(roomId: string, requestedDeviceId: string) {
           return;
         }
         const qId = gameState.questionOrder?.[gameState.currentQuestionIndex];
-        const q = qId ? await getQuestion(roomId, qId) : null;
+        const q = qId ? currentAllQuestions.find(it => it.questionId === qId) ?? null : null;
         if (!cancelled) setState(prev => ({ ...prev, gameState, currentQuestion: q }));
         if (gameState.phase === 'revealing' && q) {
           const [answers, pred] = await Promise.all([getAnswers(roomId, q.questionId), getPrediction(roomId, q.questionId)]);
@@ -75,7 +91,7 @@ export function useScreenData(roomId: string, requestedDeviceId: string) {
     const interval = setInterval(loadPhaseData, 1500);
     loadPhaseData();
     return () => { cancelled = true; clearInterval(interval); };
-  }, [roomId, state.room]);
+  }, [roomId, state.room, state.allQuestions.length]);
 
   return state;
 }
