@@ -1,7 +1,9 @@
 'use client';
 
 import Image from 'next/image';
+import { useState } from 'react';
 import LoadingSpinner from '@/app/common/LoadingSpinner';
+import ImageModal from '@/app/common/ImageModal';
 import type { GameState, Question } from '@/types';
 
 interface AnsweringScreenProps {
@@ -18,6 +20,8 @@ const SCREEN_CHOICE_COLORS = [
 ];
 
 export function AnsweringScreen({ gameState, currentQuestion, remainingSeconds, currentAuthorName, timeLimit }: AnsweringScreenProps) {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
   if (!currentQuestion) return <LoadingSpinner message="問題を読み込み中..." />;
 
   return (
@@ -35,10 +39,20 @@ export function AnsweringScreen({ gameState, currentQuestion, remainingSeconds, 
       </div>
       <h2 className="text-2xl md:text-3xl font-bold leading-tight max-h-[5.2rem] overflow-hidden">{currentQuestion.text}</h2>
       {currentQuestion.imageUrl && (
-        <div className="rounded-xl bg-slate-800/70 p-2">
-          <Image src={currentQuestion.imageUrl} alt="Question" width={1400} height={900} className="w-full h-auto max-h-[32dvh] object-contain rounded-lg" priority />
+        <div className="rounded-xl bg-slate-800/70 p-2 cursor-zoom-in group transition-all duration-300 hover:bg-slate-700/80" onClick={() => setIsModalOpen(true)}>
+          <Image src={currentQuestion.imageUrl} alt="Question" width={1400} height={900} className="w-full h-auto max-h-[32dvh] object-contain rounded-lg transition-transform duration-500 group-hover:scale-[1.01]" priority />
         </div>
       )}
+      
+      {currentQuestion.imageUrl && (
+        <ImageModal 
+          isOpen={isModalOpen} 
+          onClose={() => setIsModalOpen(false)} 
+          imageUrl={currentQuestion.imageUrl} 
+          alt={currentQuestion.text} 
+        />
+      )}
+
       <div className="grid grid-cols-2 gap-3">
         {currentQuestion.choices.map((choice, index) => (
           <div key={index} className="rounded-xl border border-slate-600 bg-slate-800/70 p-3 md:p-4 min-h-24 text-base md:text-xl font-semibold flex items-center text-white">

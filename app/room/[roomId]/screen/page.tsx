@@ -156,9 +156,7 @@ export default function RoomScreenPage() {
         )}
         {state.room.status === 'finished' && (
           <FinishedScreen 
-            visibleFinishedPlayers={state.players.sort((a,b) => b.score - a.score).slice(0,10)} 
-            visibleFinishedRanks={state.players.map((_,i) => i+1)} 
-            hiddenFinishedPlayersCount={Math.max(0, state.players.length - 10)} 
+            players={state.players}
             isReplaying={isReplaying} 
             isDisbanding={isDisbanding} 
             onReplay={() => runServiceAction('r', () => resetRoomForReplayFlow(roomId, requestedDeviceId))} 

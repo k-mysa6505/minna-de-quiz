@@ -1,19 +1,19 @@
 // app/room/[roomId]/FinalResultPhase.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { leaveRoomFlow } from '@/lib/services/room/roomFlowService';
 import { runServiceAction } from '@/lib/services/core/serviceAction';
 import { setPlayerReplayRequested, updatePlayerOnlineStatus } from '@/lib/services/auth/playerService';
 import type { Player } from '@/types';
-import { PlayerListCard } from '../components/PlayerListCard';
 import { ReactionOverlay } from '../components/ReactionOverlay';
 import { ReactionTrigger } from '../components/ReactionTrigger';
 import { useReactions } from '../hooks/useReactions';
 import { PhaseHeader } from '../components/PhaseHeader';
 import { SecondaryButton } from '../../../common/SecondaryButton';
 import { PrimaryButton } from '../../../common/PrimaryButton';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface FinalResultPhaseProps {
   roomId: string;
@@ -23,16 +23,6 @@ interface FinalResultPhaseProps {
 }
 
 const FINAL_QUICK_MESSAGES = ['お疲れさま！', 'GG！', '最高！', 'またやろう'];
-
-function calculateCompetitionRanks(players: Player[]): number[] {
-  const ranks: number[] = [];
-  let currentRank = 1;
-  players.forEach((player, index) => {
-    if (index > 0 && player.score < players[index - 1].score) currentRank = index + 1;
-    ranks.push(currentRank);
-  });
-  return ranks;
-}
 
 function formatOrdinalRank(rank: number): string {
   const mod100 = rank % 100;
@@ -50,7 +40,45 @@ export function FinalResultPhase({ roomId, players, currentPlayerId, useScreenMo
   const [hasLeft, setHasLeft] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [hasRequestedReplay, setHasRequestedReplay] = useState(false);
-  const [finalRankingPlayers, setFinalRankingPlayers] = useState<Player[]>([]);
+  const [revealedCount, setRevealedCount] = useState(0);
+  const [isStarted, setIsStarted] = useState(false);
+
+  // 全プレイヤーをスコア順（上位から）に並べ、順位を確定させる
+  const sortedPlayers = useMemo(() => {
+    return [...players].sort((a, b) => b.score - a.score);
+  }, [players]);
+
+  // 下位から順に発表するための逆順リスト
+  const revealOrder = useMemo(() => {
+    return [...sortedPlayers].reverse();
+  }, [sortedPlayers]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsStarted(true), 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!isStarted || useScreenMode) return;
+
+    if (revealedCount < revealOrder.length) {
+      const isLastOne = revealedCount === revealOrder.length - 1;
+      const delay = isLastOne ? 2800 : 700;
+
+      const timer = setTimeout(() => {
+        setRevealedCount(prev => prev + 1);
+      }, delay);
+      return () => clearTimeout(timer);
+    }
+  }, [revealedCount, revealOrder.length, isStarted, useScreenMode]);
+
+  const visiblePlayers = useMemo(() => {
+    const currentRevealed = revealOrder.slice(0, revealedCount);
+    return currentRevealed.sort((a, b) => b.score - a.score);
+  }, [revealOrder, revealedCount]);
+
+  const isRevealingLastOne = revealedCount === revealOrder.length - 1;
+  const isAllRevealed = revealedCount === revealOrder.length;
 
   const currentPlayer = players.find((p) => p.playerId === currentPlayerId);
   const {
@@ -60,6 +88,7 @@ export function FinalResultPhase({ roomId, players, currentPlayerId, useScreenMo
     handleSendReaction,
   } = useReactions(roomId, currentPlayerId, currentPlayer?.nickname);
 
+  const presenceCleanupRef = useRef<(() => void) | null>(null);
   const resolveCurrentPlayerId = () => sessionStorage.getItem('currentPlayerId') || localStorage.getItem('currentPlayerId');
 
   useEffect(() => {
@@ -70,19 +99,6 @@ export function FinalResultPhase({ roomId, players, currentPlayerId, useScreenMo
       }
     };
   }, [roomId, hasLeft]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (players.length === 0) return;
-      setFinalRankingPlayers((prev) => {
-        if (prev.length === 0) return players;
-        const merged = new Map(prev.map((p) => [p.playerId, p]));
-        for (const p of players) merged.set(p.playerId, { ...merged.get(p.playerId), ...p });
-        return Array.from(merged.values());
-      });
-    }, 0);
-    return () => clearTimeout(timer);
-  }, [players]);
 
   const handleLeaveRoom = async () => {
     const pid = resolveCurrentPlayerId();
@@ -108,45 +124,73 @@ export function FinalResultPhase({ roomId, players, currentPlayerId, useScreenMo
     setHasRequestedReplay(true);
   };
 
-  const rankingSourcePlayers = finalRankingPlayers.length > 0 ? finalRankingPlayers : players;
-  const sortedByScore = [...rankingSourcePlayers].sort((a, b) => b.score - a.score);
-  const competitionRanks = calculateCompetitionRanks(sortedByScore);
-  const myIndex = sortedByScore.findIndex((p) => p.playerId === currentPlayerId);
-  const myRank = myIndex >= 0 ? competitionRanks[myIndex] : 1;
+  const myIndex = sortedPlayers.findIndex((p) => p.playerId === currentPlayerId);
+  const myRank = myIndex >= 0 ? myIndex + 1 : 1;
 
   return (
     <>
-      <div className="space-y-8">
-        <PhaseHeader title="総合ランキング" />
+      <div className="space-y-6 animate-fade-in flex-1">
+        <div className="text-center space-y-2 mb-8">
+          <p className="text-xs font-bold uppercase tracking-[0.4em] text-blue-500/80">Final Result</p>
+          <h3 className="text-3xl font-black text-white italic">総合ランキング</h3>
+        </div>
+        
         {!useScreenMode && (
-          <PlayerListCard players={rankingSourcePlayers} currentPlayerId={currentPlayerId} sortMode="scoreDesc" showScores highlightTopScore />
-        )}
-        {useScreenMode && (
-          <div className="rounded-xl border border-slate-700/60 bg-slate-900/55 p-6 text-center space-y-3">
-            <p className="text-slate-300">あなたの最終順位は</p>
-            <p className="text-4xl sm:text-5xl font-black text-emerald-300">{formatOrdinalRank(myRank)}</p>
-            <p className="text-slate-300">でした！ 総合結果はスクリーンをご覧ください。</p>
+          <div className="relative min-h-[100px]">
+            <div className="space-y-3">
+              <AnimatePresence mode="popLayout">
+                {visiblePlayers.map((player) => {
+                  const rank = sortedPlayers.findIndex(p => p.playerId === player.playerId) + 1;
+                  const isFirst = rank === 1;
+                  const isCurrentPlayer = player.playerId === currentPlayerId;
+                  
+                  return (
+                    <motion.div 
+                      key={player.playerId}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.4 }}
+                      layout
+                      className={`flex justify-between items-center px-4 border-b border-white/5 last:border-0 ${isCurrentPlayer ? 'bg-gradient-to-b from-blue-800/90 to-blue-500/10' : ''}`}
+                    >
+                      <div className="flex items-center gap-4 text-lg">
+                        <span className={`font-bold tabular-nums text-xl ${isFirst ? 'text-yellow-400' : 'text-white'}`}>
+                          {rank}．
+                          <span className="italic">{player.nickname}</span>
+                        </span>
+                      </div>
+                      <div className={`text-emerald-400 font-bold font-mono text-xl`}>
+                        {player.score}<span className="text-[10px] ml-0.5 opacity-70">pt</span>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            </div>
           </div>
         )}
-        {!useScreenMode && (
-          <div className="flex gap-4 justify-center">
+
+        {useScreenMode && (
+          <div className="bg-white/5 rounded-2xl border border-white/10 p-8 text-center space-y-4 animate-fade-in">
+            <p className="text-slate-400 text-sm uppercase tracking-widest font-bold">Your Rank</p>
+            <p className="text-5xl sm:text-6xl font-black text-emerald-300 drop-shadow-[0_0_15px_rgba(16,185,129,0.3)]">{formatOrdinalRank(myRank)}</p>
+            <p className="text-slate-300 text-sm">でした！ 総合結果はスクリーンをご覧ください。</p>
+          </div>
+        )}
+
+        {(!useScreenMode ? isAllRevealed : true) && (
+          <div className="flex gap-4 justify-center pt-4 animate-fade-in">
             <PrimaryButton
               onClick={handlePlayAgain}
               disabled={isResetting || hasLeft || hasRequestedReplay}
               color="emerald"
             >
-              {isResetting ? (
-                <div className="flex items-center justify-center gap-2">
-                  <div className="animate-spin h-5 w-5 border-b-2 border-white rounded-full"></div>
-                  <span>RESETTING...</span>
-                </div>
-              ) : (
-                hasRequestedReplay ? 'REQUESTED' : 'REPLAY'
-              )}
+              {isResetting ? 'RESETTING...' : (hasRequestedReplay ? 'REQUESTED' : 'REPLAY')}
             </PrimaryButton>
             <SecondaryButton onClick={handleLeaveRoom} disabled={isResetting}>HOME</SecondaryButton>
           </div>
         )}
+        
         {currentPlayer && (
           <ReactionTrigger
             isReactionPanelOpen={isReactionPanelOpen} setIsReactionPanelOpen={setIsReactionPanelOpen}
@@ -159,4 +203,3 @@ export function FinalResultPhase({ roomId, players, currentPlayerId, useScreenMo
     </>
   );
 }
-
