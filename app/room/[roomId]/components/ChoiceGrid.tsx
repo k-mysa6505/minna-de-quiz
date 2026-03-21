@@ -1,11 +1,12 @@
 // app/room/[roomId]/ChoiceGrid.tsx
 'use client';
 
+// bgを /20 に引き上げ、borderの色もより明るい番号（400）に変更して「発光感」を出しました
 const CHOICE_COLORS = [
-  { bg: 'bg-blue-500/10', border: 'border-blue-500/50', active: 'bg-blue-900/40 border-blue-400', text: 'text-blue-400' },
-  { bg: 'bg-red-500/10', border: 'border-red-500/50', active: 'bg-red-900/40 border-red-400', text: 'text-red-400' },
-  { bg: 'bg-green-500/10', border: 'border-green-500/50', active: 'bg-green-900/40 border-green-400', text: 'text-green-400' },
-  { bg: 'bg-yellow-500/10', border: 'border-yellow-500/50', active: 'bg-yellow-900/40 border-yellow-400', text: 'text-yellow-400' },
+  { bg: 'bg-blue-600/70', border: 'border-blue-400/60', active: 'from-blue-400 to-blue-700', ring: 'ring-blue-400/50', text: 'text-slate-100', icon: 'text-blue-600' },
+  { bg: 'bg-red-600/60', border: 'border-red-400/60', active: 'from-red-500 to-red-700', ring: 'ring-red-400/50', text: 'text-slate-100', icon: 'text-red-600' },
+  { bg: 'bg-green-600/60', border: 'border-green-400/60', active: 'from-emerald-500 to-emerald-700', ring: 'ring-emerald-400/50', text: 'text-slate-100', icon: 'text-emerald-600' },
+  { bg: 'bg-yellow-600/70', border: 'border-yellow-400/60', active: 'from-yellow-500 to-yellow-700', ring: 'ring-yellow-400/50', text: 'text-slate-100', icon: 'text-yellow-600' },
 ];
 
 interface ChoiceGridProps {
@@ -28,11 +29,12 @@ export function ChoiceGrid({
   showResults = false,
 }: ChoiceGridProps) {
   return (
-    <div className={`grid gap-3 sm:gap-4 grid-cols-2`}>
+    <div className="grid gap-4 grid-cols-2">
       {choices.map((choice, index) => {
         const isCorrect = correctAnswer === index;
         const color = CHOICE_COLORS[index] || CHOICE_COLORS[0];
         const isSelected = selectedAnswer === index;
+        const isActive = isSelected || (showResults && isCorrect);
         
         return (
           <button
@@ -40,27 +42,46 @@ export function ChoiceGrid({
             onClick={() => !disabled && onSelect(index)}
             disabled={disabled}
             className={`
-              relative rounded-xl border-2 transition-all duration-300 font-bold text-lg flex flex-col items-center justify-center
+              relative rounded-2xl border-2 transition-all duration-300 font-bold text-lg flex flex-col items-center justify-center overflow-hidden
               ${useScreenMode ? 'p-4 min-h-[32svh] sm:min-h-[220px]' : 'p-6 min-h-[120px]'}
-              ${isSelected
-                ? `${color.active} text-white shadow-[0_0_20px_rgba(255,255,255,0.1)] scale-[1.02] z-10`
-                : `${color.bg} ${color.border} ${color.text} hover:border-white/40`
+              
+              /* 状態に応じたスタイル切り替え */
+              ${isActive
+                ? `bg-gradient-to-br ${color.active} text-white z-10 scale-[1.02] border-white/20 shadow-2xl`
+                : `${color.bg} ${color.border} ${color.text}`
               }
-              ${showResults && !isCorrect ? 'opacity-30 scale-[0.98]' : 'opacity-100'}
-              ${showResults && isCorrect ? 'border-emerald-400 bg-emerald-500 !text-white !opacity-100 ring-4 ring-emerald-400/30' : ''}
-              ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}
+
+              /* 答え合わせ時の演出（不正解を暗くしすぎない） */
+              ${showResults 
+                ? isCorrect 
+                  ? `ring-2 ring-offset-2 ring-offset-slate-950 ${color.ring}` 
+                  : 'opacity-50 grayscale-[0.2]'
+                : ''
+              }
+              
+              ${disabled ? 'cursor-not-allowed' : 'cursor-pointer active:scale-95'}
             `}
           >
+            {/* 選択時のみ内側にわずかな光沢を追加 */}
+            {isActive && <div className="absolute inset-0 bg-white/5 pointer-events-none" />}
+
             {useScreenMode ? (
-              <div className="text-5xl sm:text-6xl font-black font-mono leading-none">{index + 1}</div>
+              <div className="text-6xl sm:text-7xl font-black font-mono leading-none">{index + 1}</div>
             ) : (
               <>
-                <div className={`text-xs font-mono mb-2 ${isSelected ? 'text-white/70' : 'opacity-50'}`}>{index + 1}</div>
-                <div className="break-words text-center">{choice}</div>
+                <div className={`text-xs font-mono mb-2 ${isActive ? 'text-white/60' : 'opacity-50'}`}>
+                  {index + 1}
+                </div>
+                <div className="break-words text-center px-2 relative z-10">
+                  {choice}
+                </div>
               </>
             )}
+
             {showResults && isCorrect && (
-              <div className="absolute top-2 right-2 text-2xl animate-fade-in text-white">✓</div>
+              <div className={`absolute top-3 right-3 bg-white ${color.icon} rounded-full w-7 h-7 flex items-center justify-center text-lg shadow-xl z-20 animate-in zoom-in duration-300`}>
+                ✓
+              </div>
             )}
           </button>
         );

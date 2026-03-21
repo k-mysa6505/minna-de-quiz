@@ -51,7 +51,7 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
 
   // 制限時間ありの場合、時間切れで未提出プレイヤーの送信を自動実行
   useEffect(() => {
-    if (timeLimit <= 0 || !currentQuestion || gameState?.phase !== 'answering') return;
+    if (timeLimit < 0 || !currentQuestion || gameState?.phase !== 'answering') return;
 
     const startedAtMs = toMillis(gameState.questionStartedAt);
     if (startedAtMs <= 0) return;

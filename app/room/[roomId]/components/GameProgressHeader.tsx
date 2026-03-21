@@ -16,21 +16,28 @@ export function GameProgressHeader({
   currentQuestionIndex,
   totalQuestions,
   authorNickname,
-  timeLimit,
   remainingSeconds,
+  timeLimit,
   phase,
 }: GameProgressHeaderProps) {
   return (
-    <div className="flex justify-between px-3 items-center text-slate-200">
-      <p>問題 {currentQuestionIndex + 1} / {totalQuestions}</p>
-      <div className="flex items-center gap-3">
-        {timeLimit > 0 && phase === 'answering' && (
-          <span className={`rounded-full px-3 py-1 text-sm font-bold tabular-nums ${remainingSeconds <= 5 ? 'bg-red-500/30 text-red-200 border border-red-400/50' : 'bg-slate-700/60 text-slate-100 border border-slate-500/50'}`}>
-            {remainingSeconds}s
+    <div className="relative flex justify-between px-3 items-center h-16 text-slate-200 font-bold">
+      <p className="z-10 text-slate-200">
+        問題 {currentQuestionIndex + 1} / {totalQuestions}
+      </p>
+      <div className="absolute inset-0 flex justify-center items-center pointer-events-none">
+        {phase === 'answering' && timeLimit >= 0 && (
+          <span className={`
+            text-5xl font-black italic tabular-nums transition-all duration-300
+            ${remainingSeconds <= 5 ? 'text-red-500 scale-110' : 'text-white'}
+          `}>
+            {remainingSeconds}
           </span>
         )}
-        <p className="italic">
-          作問者：{authorNickname || 'unknown'}
+      </div>
+      <div className="z-10 flex items-center gap-3">
+        <p className="italic text-slate-200">
+          作問者:  <span className="text-emerald-300">{authorNickname || 'unknown'}</span>
         </p>
       </div>
     </div>

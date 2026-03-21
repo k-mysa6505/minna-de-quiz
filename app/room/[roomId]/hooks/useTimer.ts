@@ -7,7 +7,7 @@ export function useTimer(startedAt: unknown, timeLimit: number, isActive: boolea
   const [remainingSeconds, setRemainingSeconds] = useState<number>(0);
 
   useEffect(() => {
-    if (timeLimit <= 0 || !isActive || !startedAt) {
+    if (timeLimit < 0 || !isActive || !startedAt) {
       setRemainingSeconds(0);
       return;
     }

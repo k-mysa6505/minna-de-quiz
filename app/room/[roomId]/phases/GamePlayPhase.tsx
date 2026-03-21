@@ -115,9 +115,8 @@ export function GamePlayPhase({
 
   return (
     <>
-      {/* 1px Minimal Timer Line */}
       {timeLimit > 0 && gameState.phase === 'answering' && (
-        <div className="fixed top-0 left-0 w-full h-[4px] z-[100] bg-white/5">
+        <div className="fixed top-0 left-0 w-full h-[8px] z-[100] bg-white/5">
           <div 
             className={`h-full transition-all duration-300 ease-linear shadow-[0_0_12px_rgba(255,255,255,0.3)] ${
               remainingSeconds <= 5 ? 'bg-rose-500' : 'bg-emerald-500'

@@ -82,6 +82,11 @@ export function subscribeToPlayers(
   roomId: string,
   callback: (players: Player[]) => void
 ): () => void {
+  if (!roomId) {
+    serviceLogger.error('player.subscribe', 'roomId is missing');
+    callback([]);
+    return () => {};
+  }
   const playersRef = collection(db, 'rooms', roomId, 'players');
   const unsubscribe = onSnapshot(playersRef, snapshot => {
     const players: Player[] = snapshot.docs.map(doc => ({

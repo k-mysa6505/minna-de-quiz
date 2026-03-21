@@ -13,7 +13,7 @@ export function useRoomData(roomId: string, currentPlayerId: string) {
   const [error, setError] = useState<string>('');
 
   useEffect(() => {
-    if (!currentPlayerId) return;
+    if (!roomId || !currentPlayerId) return;
 
     // プレイヤーをオンラインに設定
     const setOnlineTimeout = setTimeout(() => {

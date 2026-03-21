@@ -94,7 +94,7 @@ export function PlayerListCard({
             <li
               key={player.playerId}
               className={`flex items-center justify-between px-3 py-1 rounded transition-all ${isCurrentPlayer ? 'bg-gradient-to-b from-blue-800/90 to-blue-500/10' : ''
-                }`}
+              }`}
             >
               <div className="flex items-center gap-3">
                 <span className="font-semibold text-white">

@@ -132,7 +132,7 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
           <div className="pt-2 border-t border-slate-700/50"><p className="text-xs text-slate-400 mb-1 italic">DESCRIPTION</p><p className="text-sm text-slate-200">{room.description || 'なし'}</p></div>
           <div className="pt-2 border-t border-slate-700/50 flex flex-wrap gap-3">
             {[
-              { label: 'TIME LIMIT', value: (room.timeLimit ?? 30) === 0 ? 'なし' : `${room.timeLimit ?? 30}s` },
+              { label: 'TIME LIMIT', value: (room.timeLimit ?? 30) < 0 ? 'なし' : `${room.timeLimit ?? 30}s` },
               { label: 'CORRECT', value: `+${room.correctAnswerPoints ?? 10}pt` },
               { label: 'FASTEST', value: `+${room.fastestAnswerBonusPoints ?? 10}pt` },
               { label: 'PENALTY', value: `-${room.wrongAnswerPenalty ?? 0}pt`, color: room.wrongAnswerPenalty !== 0 ? 'text-red-400' : 'text-slate-400' },
@@ -189,7 +189,7 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
             <h3 className="text-2xl font-bold text-white mb-6 text-center italic">オプション設定</h3>
             <div className="space-y-5">
               {[
-                { label: '制限時間', value: timeLimit, setter: setTimeLimit, options: [10, 20, 30, 40, 50, 60, 90, 120, 0], suffix: 's', zeroLabel: 'なし' },
+                { label: '制限時間', value: timeLimit, setter: setTimeLimit, options: [10, 20, 30, 40, 50, 60, 90, 120, -1], suffix: 's', zeroLabel: 'なし' },
                 { label: '正解ポイント', value: correctAnswerPoints, setter: setCorrectAnswerPoints, options: [10, 20, 30, 40, 50], suffix: 'pt' },
                 { label: '早押し1位ボーナス', value: fastestAnswerBonusPoints, setter: setFastestAnswerBonusPoints, options: [10, 20, 30, 40, 50], suffix: 'pt' },
                 { label: '誤答ペナルティ', value: wrongAnswerPenalty, setter: setWrongAnswerPenalty, options: [0, 5, 10, 15, 20], suffix: 'pt', prefix: '-' },
@@ -198,7 +198,7 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
                 <div key={field.label}>
                   <label className="block text-sm font-medium text-slate-300 mb-2 italic">{field.label}</label>
                   <select value={field.value} onChange={(e) => field.setter(parseInt(e.target.value, 10))} className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm">
-                    {field.options.map(opt => <option key={opt} value={opt}>{opt === 0 && field.zeroLabel ? field.zeroLabel : `${field.prefix || ''}${opt}${field.suffix}`}</option>)}
+                    {field.options.map(opt => <option key={opt} value={opt}>{opt === -1 && field.zeroLabel ? field.zeroLabel : `${field.prefix || ''}${opt}${field.suffix}`}</option>)}
                   </select>
                 </div>
               ))}

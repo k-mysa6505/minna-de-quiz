@@ -110,6 +110,7 @@ export function ResultDisplayPhase({
             correctAnswerCount={correctAnswers.length} 
             predictionPoints={calculatePredictionPoints(prediction?.predictedCount ?? 0, correctAnswers.length, predictionHitBonusPoints)} 
             authorNickname={players.find(p => p.playerId === currentQuestion.authorId)?.nickname || ''} 
+            totalParticipants={players.length}
           />
           {nextControl}
         </div>

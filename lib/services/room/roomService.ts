@@ -189,6 +189,12 @@ export function subscribeToRoom(
 ): () => void {
   console.log(`Starting subscribe room info: ${roomId}`);
 
+  if (!roomId) {
+    serviceLogger.error('room.subscribe', 'roomId is missing');
+    callback(null);
+    return () => {};
+  }
+
   // Firestoreのリアルタイム監視
   const unsubscribe = onSnapshot(
     doc(db, 'rooms', roomId),

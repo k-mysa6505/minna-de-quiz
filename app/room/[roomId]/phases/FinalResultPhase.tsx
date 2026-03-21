@@ -147,14 +147,20 @@ export function FinalResultPhase({ roomId, players, currentPlayerId, useScreenMo
         </div>
         
         {!useScreenMode && (
-          <div className="bg-white/5 rounded-2xl border border-white/10 p-6 sm:p-8 w-full relative min-h-[200px]">
+          <div className="py-6 w-full relative min-h-[100px]">
             <div className="space-y-3">
               <AnimatePresence mode="popLayout">
                 {visiblePlayers.map((player) => {
                   const rank = sortedPlayers.findIndex(p => p.playerId === player.playerId) + 1;
-                  const isFirst = rank === 1;
                   const isMe = player.playerId === currentPlayerId;
                   
+                  const getRankStyle = (r: number) => {
+                    if (r === 1) return 'bg-gradient-to-b from-yellow-200 via-yellow-400 to-yellow-600 bg-clip-text text-transparent drop-shadow-[0_2px_2px_rgba(0,0,0,0.3)]'; // Gold
+                    if (r === 2) return 'bg-gradient-to-b from-slate-100 via-slate-300 to-slate-500 bg-clip-text text-transparent drop-shadow-[0_2px_2px_rgba(0,0,0,0.3)]';   // Silver
+                    if (r === 3) return 'bg-gradient-to-b from-orange-200 via-orange-500 to-orange-800 bg-clip-text text-transparent drop-shadow-[0_2px_2px_rgba(0,0,0,0.3)]'; // Bronze
+                    return 'text-white';
+                  };
+
                   return (
                     <motion.div 
                       key={player.playerId}
@@ -162,34 +168,26 @@ export function FinalResultPhase({ roomId, players, currentPlayerId, useScreenMo
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.4 }}
                       layout
-                      className={`flex justify-between items-center px-4 py-2 border-b border-white/5 last:border-0 ${
-                        isMe ? 'bg-emerald-500/5 rounded-md ring-1 ring-emerald-500/20' : ''
+                      className={`flex justify-between items-center px-4 py-1 border-b border-white/5 last:border-0 ${
+                        isMe ? 'bg-gradient-to-b from-blue-800/90 to-blue-500/10' : ''
                       }`}
                     >
-                      <div className="flex items-center gap-4 text-lg">
-                        <span className={`font-bold tabular-nums ${isFirst ? 'text-yellow-400' : 'text-white'}`}>
-                          {rank}．{player.nickname}
+                      <div className="flex items-center text-lg">
+                        <span className={`font-black tabular-nums min-w-[3.5rem] ${getRankStyle(rank)}`}>
+                          {formatOrdinalRank(rank)}
                         </span>
-                        {isMe && <span className="text-[10px] bg-emerald-500 text-white px-1.5 rounded uppercase font-black">You</span>}
+                        <span className="font-semibold italic text-white tracking-wide">
+                          {player.nickname}
+                        </span>
                       </div>
-                      <div className="text-emerald-400 font-bold font-mono text-xl">
-                        {player.score}<span className="text-[10px] ml-0.5 opacity-70">pt</span>
+                      <div className="text-emerald-400 font-bold text-xl">
+                        {player.score}<span className="text-lg ml-0.5">pt</span>
                       </div>
                     </motion.div>
                   );
                 })}
               </AnimatePresence>
             </div>
-
-            {isRevealingLastOne && (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="absolute -top-6 left-1/2 -translate-x-1/2 text-yellow-400 font-bold italic tracking-widest text-[10px] uppercase"
-              >
-                👑 THE WINNER IS...
-              </motion.div>
-            )}
           </div>
         )}
 
