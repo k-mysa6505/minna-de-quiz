@@ -7,7 +7,7 @@ import { updatePlayerOnlineStatus } from '@/lib/services/auth/playerService';
 
 export function usePlayerStatus(roomId: string, currentPlayerId: string) {
   useEffect(() => {
-    if (!currentPlayerId) return;
+    if (!roomId || !currentPlayerId) return;
 
     let isCleaningUp = false;
 

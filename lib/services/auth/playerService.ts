@@ -108,6 +108,10 @@ export async function updatePlayerOnlineStatus(
   playerId: string,
   isOnline: boolean
 ): Promise<void> {
+  if (!roomId || !playerId) {
+    serviceLogger.warn('player.online', 'roomId or playerId is missing');
+    return;
+  }
   try {
     const playerRef = doc(db, 'rooms', roomId, 'players', playerId);
 
