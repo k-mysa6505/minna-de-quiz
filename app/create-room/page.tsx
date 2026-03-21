@@ -235,7 +235,6 @@ export default function CreateRoomPage() {
           <PrimaryButton
             onClick={handleCreateRoom}
             disabled={isCreating}
-            color="green"
           >
             {isCreating ? 'CREATING...' : 'CREATE'}
           </PrimaryButton>

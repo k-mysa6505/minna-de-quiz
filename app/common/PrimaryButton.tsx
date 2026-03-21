@@ -13,11 +13,6 @@ interface Props {
   color?: 'emerald' | 'blue' | 'green';
 }
 
-/**
- * 主要なアクション（CREATE, START, JOIN, REPLAYなど）に使用するボタン
- * ホバー時に少し大きく、タップ時に押し込まれるアニメーションを持つ
- * 両端が半円のピル形状、目立つグラデーションまたは背景色
- */
 export function PrimaryButton({ 
   children, 
   onClick, 
@@ -25,26 +20,22 @@ export function PrimaryButton({
   disabled, 
   type = 'button', 
   href,
-  color = 'emerald'
 }: Props) {
-  const colorClasses = {
-    emerald: 'bg-gradient-to-b from-emerald-700 to-emerald-800 disabled:from-slate-600 disabled:to-slate-700',
-    blue: 'bg-gradient-to-b from-blue-700 to-blue-800 disabled:from-slate-600 disabled:to-slate-700',
-    green: 'bg-gradient-to-b from-green-700 to-green-800 disabled:from-slate-600 disabled:to-slate-700',
-  };
-
+  // geoguessr風
   const commonClasses = `
-    ${colorClasses[color]}
-    text-white font-bold italic px-6 py-2 rounded-full shadow-lg 
-    transition-all duration-300 transform 
-    disabled:transform-none disabled:cursor-not-allowed disabled:text-slate-400
+    bg-gradient-to-b from-[#8DE04B] to-[#4CAF28] disabled:from-slate-500 disabled:to-slate-600
+    text-white font-bold italic rounded-full
+    disabled:transform-none disabled:cursor-not-allowed disabled:text-slate-300
     inline-flex items-center justify-center
-    ${className}
+    px-6 pt-2 pb-[0.625rem]
+    shadow-[0_0.275rem_1.125rem_rgba(0,0,0,0.25),inset_0_0.0625rem_0_rgba(255,255,255,0.2),inset_0_-0.125rem_0_rgba(0,0,0,0.3)]
+    [text-shadow:0_0.0625rem_0.125rem_rgba(40,20,60,0.8)]
+    ${className || ''}
   `;
 
   const motionProps = {
-    whileHover: { scale: 1.05, transition: { duration: 0.2 } },
-    whileTap: { scale: 0.95 },
+    whileHover: { scale: 1.1, transition: { duration: 0.15 } },
+    whileTap: { scale: 0.9 },
   };
 
   if (href) {

@@ -62,7 +62,6 @@ export function RoomJoinConfirmCard({
           <PrimaryButton
             onClick={onConfirm}
             disabled={isLoading}
-            color="emerald"
           >
             {isLoading ? 'JOINING...' : 'JOIN'}
           </PrimaryButton>

@@ -12,7 +12,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans), var(--font-noto-sans-jp), sans-serif;
-  --font-mono: "Geist Mono", "Roboto Mono", monospace;
+  --font-mono: var(--font-geist-mono), var(--font-noto-sans-jp), sans-serif;
   --animate-float-up: float-up 3.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   --animate-shake: shake 0.2s ease-in-out 0s 2;
 }
@@ -27,12 +27,6 @@ body {
   line-height: 1.45;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
-}
-
-/* 数字や計器類には等幅フォントを適用 */
-.font-mono {
-  font-family: var(--font-mono) !important;
-  letter-spacing: -0.02em;
 }
 
 /* インタラクティブな手応え：物理的な押し込み感 */

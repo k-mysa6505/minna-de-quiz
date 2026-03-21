@@ -206,7 +206,6 @@ export function FinalResultPhase({ roomId, players, currentPlayerId, useScreenMo
             <PrimaryButton
               onClick={handlePlayAgain}
               disabled={isResetting || hasLeft || hasRequestedReplay}
-              color="emerald"
             >
               {isResetting ? 'RESETTING...' : (hasRequestedReplay ? 'REQUESTED' : 'REPLAY')}
             </PrimaryButton>

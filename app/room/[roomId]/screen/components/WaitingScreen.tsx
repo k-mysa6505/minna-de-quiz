@@ -35,7 +35,6 @@ export function WaitingScreen({ room, players, joinUrl, isStarting, onStart, onD
             <PrimaryButton
               onClick={onStart}
               disabled={isStarting || players.length < (room.minPlayers ?? 2)}
-              color="emerald"
             >
               {isStarting ? 'STARTING...' : 'START'}
             </PrimaryButton>

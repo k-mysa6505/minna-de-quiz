@@ -119,7 +119,6 @@ export function FinishedScreen({
             <PrimaryButton
               onClick={onReplay}
               disabled={isReplaying || isDisbanding}
-              color="emerald"
             >
               {isReplaying ? 'RESETTING...' : 'REPLAY'}
             </PrimaryButton>
