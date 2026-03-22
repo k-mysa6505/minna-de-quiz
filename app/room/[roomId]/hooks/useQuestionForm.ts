@@ -46,10 +46,15 @@ export function useQuestionForm(roomId: string, currentPlayerId: string) {
     }
   };
 
+  const CHOICE_TEXT_MAX = 50;
   const handleChoiceChange = (index: number, value: string) => {
-    const newChoices = [...choices];
-    newChoices[index] = value;
-    setChoices(newChoices);
+    // 文字数制限と空白トリム
+    let v = value.slice(0, CHOICE_TEXT_MAX);
+    setChoices(prev => {
+      const newChoices = [...prev];
+      newChoices[index] = v;
+      return newChoices;
+    });
   };
 
   const resetForm = () => {
@@ -60,6 +65,7 @@ export function useQuestionForm(roomId: string, currentPlayerId: string) {
     setImagePreview(null);
   };
 
+  const QUESTION_TEXT_MAX = 200;
   const submitQuestion = async () => {
     setIsSubmitting(true);
 
@@ -70,28 +76,35 @@ export function useQuestionForm(roomId: string, currentPlayerId: string) {
       );
     }
 
+    // 空白トリム・最大文字数制限
+    const trimmedText = questionText.trim().slice(0, QUESTION_TEXT_MAX);
+    const trimmedChoices = choices.map(c => c.trim().slice(0, CHOICE_TEXT_MAX)) as [string, string, string, string];
+
     const questionData: QuestionFormData = {
-      text: questionText,
+      text: trimmedText,
       imageUrl,
-      choices: choices as [string, string, string, string],
+      choices: trimmedChoices,
       correctAnswer: correctAnswer as 0 | 1 | 2 | 3,
     };
 
-    const created = await runServiceAction(
-      'questionCreation.createQuestion',
-      async () => {
-        await createQuestion(roomId, currentPlayerId, questionData);
-        return true;
-      },
-      { fallback: false }
-    );
-
-    if (created) {
-      setHasCreated(true);
+    try {
+      const created = await runServiceAction(
+        'questionCreation.createQuestion',
+        async () => {
+          await createQuestion(roomId, currentPlayerId, questionData);
+          return true;
+        },
+        { fallback: false }
+      );
+      if (created) {
+        setHasCreated(true);
+      }
+      setIsSubmitting(false);
+      return created;
+    } catch (e) {
+      setIsSubmitting(false);
+      throw e;
     }
-
-    setIsSubmitting(false);
-    return created;
   };
 
   return {

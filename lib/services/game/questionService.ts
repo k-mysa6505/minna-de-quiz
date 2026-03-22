@@ -28,6 +28,9 @@ export async function createQuestion(
     if (!data.text.trim()) {
       throw new Error('Question text is required');
     }
+    if (data.text.length > 200) {
+      throw new Error('Question text must be 200 characters or less');
+    }
 
     // 選択肢のバリデーション
     if (data.choices.length !== 4) {
@@ -35,6 +38,9 @@ export async function createQuestion(
     }
     if (data.choices.some(choice => !choice.trim())) {
       throw new Error('All choices must have text');
+    }
+    if (data.choices.some(choice => choice.length > 50)) {
+      throw new Error('Each choice must be 50 characters or less');
     }
 
     // 正解のインデックスバリデーション
