@@ -29,7 +29,7 @@ export function QuestionCard({ text, imageUrl, useScreenMode }: QuestionCardProp
       <h3 className="text-2xl font-bold text-white text-center">{text}</h3>
       {imageUrl && (
         <div className="w-full bg-slate-700/30 rounded p-4 relative group">
-          <div 
+          <div
             className="cursor-zoom-in relative overflow-hidden rounded transition-all duration-300 hover:ring-2 hover:ring-emerald-500/50"
             onClick={() => setIsModalOpen(true)}
           >
@@ -38,7 +38,7 @@ export function QuestionCard({ text, imageUrl, useScreenMode }: QuestionCardProp
               alt="Question"
               width={1200}
               height={800}
-              className="max-w-full rounded mx-auto transition-transform duration-500 group-hover:scale-[1.02]"
+              className="max-w-full max-h-[360px] sm:max-h-[480px] rounded mx-auto transition-transform duration-500 group-hover:scale-[1.02] object-contain"
               priority={true}
             />
             {/* タップを促すヒント（モバイル向け） */}
@@ -46,11 +46,11 @@ export function QuestionCard({ text, imageUrl, useScreenMode }: QuestionCardProp
               タップで拡大
             </div>
           </div>
-          
-          <ImageModal 
-            isOpen={isModalOpen} 
-            onClose={() => setIsModalOpen(false)} 
-            imageUrl={imageUrl} 
+
+          <ImageModal
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            imageUrl={imageUrl}
             alt={text}
           />
         </div>

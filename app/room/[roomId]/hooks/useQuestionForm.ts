@@ -13,16 +13,28 @@ export function useQuestionForm(roomId: string, currentPlayerId: string) {
   const [correctAnswer, setCorrectAnswer] = useState(0);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasCreated, setHasCreated] = useState(false);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 10 * 1024 * 1024) { // 10MB
+        setImageError('画像サイズが大きすぎます（最大10MBまで）');
+        setImageFile(null);
+        setImagePreview(null);
+        return;
+      }
+      setImageError(null);
       setImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => setImagePreview(reader.result as string);
       reader.readAsDataURL(file);
+    } else {
+      setImageError(null);
+      setImageFile(null);
+      setImagePreview(null);
     }
   };
 
@@ -65,7 +77,7 @@ export function useQuestionForm(roomId: string, currentPlayerId: string) {
       },
       { fallback: false }
     );
-    
+
     if (created) {
       setHasCreated(true);
     }
@@ -84,6 +96,8 @@ export function useQuestionForm(roomId: string, currentPlayerId: string) {
     imageFile,
     imagePreview,
     setImagePreview,
+    imageError,
+    setImageError,
     isSubmitting,
     hasCreated,
     handleImageChange,

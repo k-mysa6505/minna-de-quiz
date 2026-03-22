@@ -31,10 +31,15 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
     choices, setChoices,
     correctAnswer, setCorrectAnswer,
     imagePreview,
+    imageError,
+    setImageError,
     isSubmitting, hasCreated,
     handleImageChange, handleChoiceChange,
     submitQuestion
   } = useQuestionForm(roomId, currentPlayerId);
+
+  const [showImageErrorModal, setShowImageErrorModal] = useState(false);
+  const [fileInputKey, setFileInputKey] = useState(0);
 
   const progress = useQuestionProgress(roomId, players.length);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -75,9 +80,43 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
         </div>
         <div>
           <label className="block text-sm font-semibold text-slate-300 mb-3">画像（任意）</label>
-          <input type="file" accept="image/*" onChange={handleImageChange} className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-md text-slate-300 file:mr-4 file:py-1 file:px-2 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 file:cursor-pointer" />
+          <input
+            key={fileInputKey}
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              handleImageChange(e);
+              if (e.target.files?.[0] && e.target.files[0].size > 10 * 1024 * 1024) {
+                setShowImageErrorModal(true);
+              }
+            }}
+            className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-md text-slate-300 file:mr-4 file:py-1 file:px-2 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 file:cursor-pointer"
+          />
           {imagePreview && <div className="mt-4 p-4 bg-slate-800/50 rounded border border-slate-700/50"><Image src={imagePreview} alt="Preview" className="max-w-xs rounded-lg object-contain mx-auto" width={320} height={180} unoptimized /></div>}
         </div>
+        {showImageErrorModal && (
+          <Modal
+            onClose={() => {
+              setShowImageErrorModal(false);
+              setImageError(null);
+              setFileInputKey((k) => k + 1);
+            }}
+            panelClassName="max-w-xs w-full"
+          >
+            <h3 className="text-lg font-bold text-red-400 mb-4 text-center italic">サイズが大きすぎます！</h3>
+            <div className="text-sm text-center text-slate-300 mb-6">ファイルサイズ上限は10MBです</div>
+            <button
+              onClick={() => {
+                setShowImageErrorModal(false);
+                setImageError(null);
+                setFileInputKey((k) => k + 1);
+              }}
+              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 px-4 rounded-md transition-all"
+            >
+              閉じる
+            </button>
+          </Modal>
+        )}
         <div>
           <label className="block text-sm font-semibold text-slate-300 mb-3">選択肢 *</label>
           <div className="space-y-3">
