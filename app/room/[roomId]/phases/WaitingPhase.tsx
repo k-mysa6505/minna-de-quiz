@@ -79,7 +79,7 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setShowOptionsModal(true)}
-                className="px-3 py-1.5 text-sm italic font-medium tracking-widest text-slate-400 hover:text-slate-200 underline decoration-1 underline-offset-4 hover:decoration-2 transition-all duration-150"
+                className="py-1.5 text-sm italic font-medium tracking-widest text-slate-400 hover:text-slate-200 underline decoration-1 underline-offset-4 hover:decoration-2 transition-all duration-150"
               >
                 OPTIONS
               </motion.button>
@@ -88,7 +88,7 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setShowInviteModal(true)}
-              className="px-3 py-1.5 text-sm italic font-semibold tracking-widest text-blue-400 hover:text-blue-300 underline decoration-1 underline-offset-4 hover:decoration-2 transition-all duration-150"
+              className="py-1.5 text-sm italic font-semibold tracking-widest text-blue-400 hover:text-blue-300 underline decoration-1 underline-offset-4 hover:decoration-2 transition-all duration-150"
             >
               INVITE
             </motion.button>
@@ -99,7 +99,7 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
                 setModalMode('leave');
                 setShowLeaveModal(true);
               }}
-              className="px-3 py-1.5 text-sm italic font-semibold tracking-widest text-red-400 hover:text-red-300 underline decoration-1 underline-offset-4 hover:decoration-2 transition-all duration-150"
+              className="py-1.5 text-sm italic font-semibold tracking-widest text-red-400 hover:text-red-300 underline decoration-1 underline-offset-4 hover:decoration-2 transition-all duration-150"
             >
               LEAVE
             </motion.button>
@@ -111,7 +111,7 @@ export function WaitingPhase({ roomId, room, players, currentPlayerId, isMaster 
                   setModalMode('disband');
                   setShowLeaveModal(true);
                 }}
-                className="px-3 py-1.5 text-sm italic font-semibold tracking-widest text-red-600 hover:text-red-500 underline decoration-1 underline-offset-4 hover:decoration-2 transition-all duration-150"
+                className="py-1.5 text-sm italic font-semibold tracking-widest text-red-600 hover:text-red-500 underline decoration-1 underline-offset-4 hover:decoration-2 transition-all duration-150"
               >
                 DISBAND
               </motion.button>
