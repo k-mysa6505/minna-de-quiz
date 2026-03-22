@@ -2,13 +2,18 @@ rules_version = '2';
 // Firebase Storage Security Rules for Minna de Quiz
 service firebase.storage {
   match /b/{bucket}/o {
-    // 問題画像の読み取り・書き込み許可
-    // 認証済みユーザー（匿名ユーザー含む）のみアクセス可能
+    
     match /rooms/{roomId}/questions/{questionId}/{fileName} {
       // 認証済みユーザー（匿名含む）が読み取り可能
       allow read: if request.auth != null;
-      // 認証済みユーザーが書き込み可能
-      allow write: if request.auth != null;
+
+      // 新規作成（アップロード）時のルール：サイズと形式をチェック
+      allow create, update: if request.auth != null
+        && request.resource.size <= 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp|gif)');
+
+      // 削除時のルール：リソースのチェックは不要
+      allow delete: if request.auth != null;
     }
     
     // その他のファイルは全てブロック（セキュリティ強化）

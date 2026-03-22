@@ -26,6 +26,14 @@ export function useQuestionForm(roomId: string, currentPlayerId: string) {
         setImagePreview(null);
         return;
       }
+      // 許可するMIMEタイプを厳格に指定（SVG除外）
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+      if (!allowedTypes.includes(file.type)) {
+        setImageError('JPG, PNG, WebP, GIF形式の画像のみアップロードできます');
+        setImageFile(null);
+        setImagePreview(null);
+        return;
+      }
       setImageError(null);
       setImageFile(file);
       const reader = new FileReader();
