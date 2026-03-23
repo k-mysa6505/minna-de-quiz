@@ -130,8 +130,22 @@ export default function RoomScreenPage() {
             onDisband={() => setShowDisbandModal(true)}
           />
         )}
-        {state.room.status === 'creating' && <CreatingScreen players={state.players} questionProgress={state.questionProgress} creatingCompletedAuthorIds={state.creatingCompletedAuthorIds} />}
-        {state.room.status === 'playing' && state.gameState?.phase !== 'revealing' && <AnsweringScreen gameState={state.gameState!} currentQuestion={state.currentQuestion} remainingSeconds={remainingSeconds} currentAuthorName={author?.nickname || ''} timeLimit={state.room.timeLimit ?? 30} />}
+        {state.room.status === 'creating' &&
+          <CreatingScreen
+            players={state.players}
+            questionProgress={state.questionProgress}
+            creatingCompletedAuthorIds={state.creatingCompletedAuthorIds}
+          />
+        }
+        {state.room.status === 'playing' && state.gameState?.phase !== 'revealing' &&
+          <AnsweringScreen
+            gameState={state.gameState!}
+            currentQuestion={state.currentQuestion}
+            remainingSeconds={remainingSeconds}
+            currentAuthorName={author?.nickname || ''}
+            timeLimit={state.room.timeLimit ?? 30}
+          />
+        }
         {state.room.status === 'playing' && state.gameState?.phase === 'revealing' && state.currentQuestion && (
           <RevealingScreen
             revealingPhase={revealingPhase}
