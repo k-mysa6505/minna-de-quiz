@@ -67,22 +67,22 @@ export default function RoomScreenPage() {
 
   useEffect(() => {
     if (revealingPhase !== 'ranking' || state.gameState?.phase !== 'revealing') return;
-    if (correctAnswers.length === 0) { 
-      const timer = setTimeout(() => setRevealingPhase('prediction'), 2000); 
+    if (correctAnswers.length === 0) {
+      const timer = setTimeout(() => setRevealingPhase('prediction'), 2000);
       return () => clearTimeout(timer);
     }
     let index = 0;
     const interval = setInterval(() => {
-      if (index < correctAnswers.length) { 
+      if (index < correctAnswers.length) {
         const answer = correctAnswers[index];
         if (answer) {
           setRevealedPlayers(prev => prev.includes(answer.playerId) ? prev : [...prev, answer.playerId]);
         }
-        index++; 
+        index++;
       }
-      else { 
-        clearInterval(interval); 
-        setTimeout(() => setRevealingPhase('prediction'), 1000); 
+      else {
+        clearInterval(interval);
+        setTimeout(() => setRevealingPhase('prediction'), 1000);
       }
     }, 500);
     return () => clearInterval(interval);
@@ -96,16 +96,14 @@ export default function RoomScreenPage() {
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, [revealingPhase, state.currentPrediction?.predictedCount, correctAnswers.length]);
 
-  if (!state.room && !state.error) return <LoadingSpinner message="読み込み中..." />;
-  if (state.error || !state.room) return <div className="p-6 text-center text-white">エラー: {state.error}</div>;
-
+  // Hooksはreturnより前に必ず呼び出す（Reactのルール）
   const revealReadyCount = state.gameState?.playersReady?.length ?? 0;
   const revealReadyTotal = state.players.length;
-  const dist = state.currentAnswers.reduce((acc, a) => { 
+  const dist = state.currentAnswers.reduce((acc, a) => {
     const idx = typeof a.answer === 'number' ? a.answer : -1;
-    if (idx >= 0 && idx < 4) acc[idx]++; 
-    return acc; 
-  }, [0,0,0,0]);
+    if (idx >= 0 && idx < 4) acc[idx]++;
+    return acc;
+  }, [0, 0, 0, 0]);
 
   const nextQuestion = useMemo(() => {
     if (!state.gameState || !state.allQuestions.length) return null;
@@ -115,52 +113,56 @@ export default function RoomScreenPage() {
     return state.allQuestions.find(q => q.questionId === nextId) || null;
   }, [state.gameState, state.allQuestions]);
 
+  // 早期リターンはHooksの後に書く
+  if (!state.room && !state.error) return <LoadingSpinner message="読み込み中..." />;
+  if (state.error || !state.room) return <div className="p-6 text-center text-white">エラー: {state.error}</div>;
+
   return (
     <main className="h-[100dvh] overflow-hidden text-white p-3 sm:p-4 lg:p-6 bg-slate-950">
       <div className="max-w-7xl mx-auto h-full">
         {state.room.status === 'waiting' && (
-          <WaitingScreen 
-            room={state.room} 
-            players={state.players} 
-            joinUrl={joinUrl} 
-            isStarting={isStarting} 
-            onStart={() => runServiceAction('s', () => startGame(roomId))} 
-            onDisband={() => setShowDisbandModal(true)} 
+          <WaitingScreen
+            room={state.room}
+            players={state.players}
+            joinUrl={joinUrl}
+            isStarting={isStarting}
+            onStart={() => runServiceAction('s', () => startGame(roomId))}
+            onDisband={() => setShowDisbandModal(true)}
           />
         )}
         {state.room.status === 'creating' && <CreatingScreen players={state.players} questionProgress={state.questionProgress} creatingCompletedAuthorIds={state.creatingCompletedAuthorIds} />}
         {state.room.status === 'playing' && state.gameState?.phase !== 'revealing' && <AnsweringScreen gameState={state.gameState!} currentQuestion={state.currentQuestion} remainingSeconds={remainingSeconds} currentAuthorName={author?.nickname || ''} timeLimit={state.room.timeLimit ?? 30} />}
         {state.room.status === 'playing' && state.gameState?.phase === 'revealing' && state.currentQuestion && (
-          <RevealingScreen 
-            revealingPhase={revealingPhase} 
-            currentQuestion={state.currentQuestion} 
-            answerDistribution={dist} 
-            correctAnswers={correctAnswers} 
-            players={state.players} 
-            revealedPlayers={revealedPlayers} 
-            currentPrediction={state.currentPrediction} 
-            currentAuthorName={author?.nickname || ''} 
-            animatedPredictedCount={counts.pred} 
-            animatedActualCount={counts.actual} 
-            predictionPoints={calculatePredictionPoints(state.currentPrediction?.predictedCount ?? 0, correctAnswers.length, state.room.predictionHitBonusPoints ?? 50)} 
-            showPredictedCount={counts.showPred} 
-            showActualCount={counts.showActual} 
-            showPredictionBonus={counts.showBonus} 
-            revealReadyCount={revealReadyCount} 
-            revealReadyTotal={revealReadyTotal} 
-            revealReadyPercent={revealReadyTotal > 0 ? (revealReadyCount / revealReadyTotal) * 100 : 0} 
-            room={state.room} 
-            questionStartTime={toTimestamp(state.gameState.questionStartedAt)} 
+          <RevealingScreen
+            revealingPhase={revealingPhase}
+            currentQuestion={state.currentQuestion}
+            answerDistribution={dist}
+            correctAnswers={correctAnswers}
+            players={state.players}
+            revealedPlayers={revealedPlayers}
+            currentPrediction={state.currentPrediction}
+            currentAuthorName={author?.nickname || ''}
+            animatedPredictedCount={counts.pred}
+            animatedActualCount={counts.actual}
+            predictionPoints={calculatePredictionPoints(state.currentPrediction?.predictedCount ?? 0, correctAnswers.length, state.room.predictionHitBonusPoints ?? 50)}
+            showPredictedCount={counts.showPred}
+            showActualCount={counts.showActual}
+            showPredictionBonus={counts.showBonus}
+            revealReadyCount={revealReadyCount}
+            revealReadyTotal={revealReadyTotal}
+            revealReadyPercent={revealReadyTotal > 0 ? (revealReadyCount / revealReadyTotal) * 100 : 0}
+            room={state.room}
+            questionStartTime={toTimestamp(state.gameState.questionStartedAt)}
             nextQuestionImageUrl={nextQuestion?.imageUrl}
           />
         )}
         {state.room.status === 'finished' && (
-          <FinishedScreen 
+          <FinishedScreen
             players={state.players}
-            isReplaying={isReplaying} 
-            isDisbanding={isDisbanding} 
-            onReplay={() => runServiceAction('r', () => resetRoomForReplayFlow(roomId, requestedDeviceId))} 
-            onDisband={() => setShowDisbandModal(true)} 
+            isReplaying={isReplaying}
+            isDisbanding={isDisbanding}
+            onReplay={() => runServiceAction('r', () => resetRoomForReplayFlow(roomId, requestedDeviceId))}
+            onDisband={() => setShowDisbandModal(true)}
           />
         )}
       </div>
