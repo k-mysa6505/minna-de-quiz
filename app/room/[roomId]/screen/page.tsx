@@ -118,8 +118,8 @@ export default function RoomScreenPage() {
   if (state.error || !state.room) return <div className="p-6 text-center text-white">エラー: {state.error}</div>;
 
   return (
-    <main className="h-[100dvh] overflow-hidden text-white p-3 sm:p-4 lg:p-6 bg-slate-950">
-      <div className="max-w-7xl mx-auto h-full">
+    <main className="h-[100dvh] overflow-x-auto text-white p-6">
+      <div className="mx-auto h-full min-w-[640px]" style={{ minWidth: 640 }}>
         {state.room.status === 'waiting' && (
           <WaitingScreen
             room={state.room}

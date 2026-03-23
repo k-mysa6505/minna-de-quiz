@@ -12,6 +12,7 @@ interface PlayerListCardProps {
   showMasterBadge?: boolean;
   highlightTopScore?: boolean;
   maxVisiblePlayers?: number;
+  useScreenMode?: boolean;
 }
 
 function toTime(value: unknown): number {
@@ -66,6 +67,7 @@ export function PlayerListCard({
   showMasterBadge = false,
   highlightTopScore = false,
   maxVisiblePlayers,
+  useScreenMode = false,
 }: PlayerListCardProps) {
   const sortedPlayers = [...players].sort((a, b) => {
     if (sortMode === 'scoreDesc') {
@@ -82,7 +84,10 @@ export function PlayerListCard({
   const topScore = sortedPlayers.length > 0 ? sortedPlayers[0].score : 0;
 
   return (
-    <div className="bg-gradient-to-br from-slate-800/70 to-slate-900/70 pb-20 rounded border border-slate-700/50 overflow-visible">
+    <div
+      className="bg-gradient-to-br from-slate-800/70 to-slate-900/70 pb-20 rounded border border-slate-700/50 overflow-visible"
+      style={useScreenMode ? { fontSize: '1.5em' } : undefined}
+    >
       <div className="font-bold text-slate-400 pt-3 px-8 italic">PLAYER</div>
       <ul className="space-y-1">
         {visiblePlayers.map((player, idx) => {
@@ -92,18 +97,25 @@ export function PlayerListCard({
 
           return (
             <li
-              key={player.playerId}
-              className={`flex items-center justify-between px-3 py-1 rounded transition-all ${isCurrentPlayer ? 'bg-gradient-to-b from-blue-800/90 to-blue-500/10' : ''
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <span className="font-semibold text-white">
+                key={player.playerId}
+                className={`flex items-center justify-between px-3 py-1 rounded transition-all ${
+                  isCurrentPlayer ? 'bg-gradient-to-b from-blue-800/90 to-blue-500/10' : ''
+                }`}
+              >
+              <div className="grid grid-cols-[3rem_1fr] items-baseline gap-2">
+                <span className="font-semibold text-white text-right pr-2">
                   {prefix}
-                  <span className={`italic ${isWinner ? 'text-yellow-400' : ''}`}>{player.nickname}</span>
                 </span>
-                {showMasterBadge && player.isMaster && (
-                  <span className="text-xs text-slate-400 bg-slate-600 px-1 rounded">ホスト</span>
-                )}
+                <div className="flex items-center gap-2">
+                  <span className={`font-semibold text-white italic ${isWinner ? 'text-yellow-400' : ''}`}>
+                    {player.nickname}
+                  </span>
+                  {showMasterBadge && player.isMaster && (
+                    <span className="text-[10px] leading-none text-slate-400 bg-slate-700/50 border border-slate-600 px-1 py-0.5 rounded">
+                      ホスト
+                    </span>
+                  )}
+                </div>
               </div>
               {showScores && (
                 <div className="text-white font-semibold">
