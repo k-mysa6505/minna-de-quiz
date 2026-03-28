@@ -28,30 +28,45 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
   const { gameState, currentQuestion, isReady, setIsReady } = useGameStateSubscription(roomId, allQuestions, currentPlayerId);
   const { answers, prediction, hasSubmittedAnswer, hasSubmittedPrediction, currentAnswerCount } = useAnswerSubscription(roomId, currentQuestion, currentPlayerId);
 
+  // 提出処理をメモ化
+  const handleAnswerSubmit = useCallback(async (forcedAnswer?: number) => {
+    if (!currentQuestion || hasSubmittedAnswer) return;
+    
+    // 引数があればそれを使用、なければ現在の選択値、それもなければ不正解(Correct+1)を使用
+    const answerToSubmit = forcedAnswer !== undefined 
+      ? forcedAnswer 
+      : (selectedAnswer !== null ? selectedAnswer : (currentQuestion.correctAnswer + 1) % 4);
+    
+    const isCorrect = answerToSubmit === currentQuestion.correctAnswer;
+    
+    console.log(`[useGamePlay] Submitting answer: ${answerToSubmit} (isCorrect: ${isCorrect})`);
+    await submitAnswer(roomId, currentQuestion.questionId, currentPlayerId, answerToSubmit, isCorrect).catch(console.error);
+  }, [roomId, currentQuestion, currentPlayerId, selectedAnswer, hasSubmittedAnswer]);
+
+  const handlePredictionSubmit = useCallback(async (forcedCount?: number) => {
+    if (!currentQuestion || hasSubmittedPrediction) return;
+    
+    const countToSubmit = forcedCount !== undefined ? forcedCount : predictedCorrectCount;
+    
+    console.log(`[useGamePlay] Submitting prediction: ${countToSubmit}`);
+    await submitPrediction(roomId, currentQuestion.questionId, currentPlayerId, countToSubmit).catch(console.error);
+  }, [roomId, currentQuestion, currentPlayerId, predictedCorrectCount, hasSubmittedPrediction]);
+
+  // フェーズ移行時のリセットと表示制御のみを行う（スコア計算はサーバーへ移行）
   useEffect(() => {
-    if (gameState?.phase === 'revealing' && currentQuestion && !hasCalculatedScoreRef.current && prediction) {
-      hasCalculatedScoreRef.current = true;
+    if (gameState?.phase === 'revealing' && currentQuestion) {
       setShowResults(true);
-      (async () => {
-        const unique = dedupeAnswersByPlayer(answers);
-        const sorted = unique.filter(a => a.isCorrect).sort((l, r) => toMillis(l.answeredAt) - toMillis(r.answeredAt));
-        const fastestId = sorted[0]?.playerId;
-        await updatePredictionResult(roomId, currentQuestion.questionId, sorted.length, prediction.predictedCount === sorted.length).catch(console.error);
-        for (const p of players) {
-          let gained = 0;
-          const a = unique.find(it => it.playerId === p.playerId);
-          if (a) gained += calculateAnswerScoreDelta({ isCorrect: a.isCorrect, correctAnswerPoints, fastestAnswerBonusPoints, wrongAnswerPenalty, isFastestCorrect: a.playerId === fastestId });
-          if (p.playerId === currentQuestion.authorId) gained += calculatePredictionPoints(prediction.predictedCount, sorted.length, predictionHitBonusPoints);
-          if (gained !== 0) await updatePlayerScore(roomId, p.playerId, p.score + gained).catch(console.error);
-        }
-      })();
     }
-    if (gameState?.phase === 'answering') { setShowResults(false); hasCalculatedScoreRef.current = false; setSelectedAnswer(null); }
-  }, [gameState?.phase, currentQuestion, prediction]);
+    if (gameState?.phase === 'answering') { 
+      setShowResults(false); 
+      hasCalculatedScoreRef.current = false; 
+      setSelectedAnswer(null); 
+    }
+  }, [gameState?.phase, currentQuestion]);
 
   // 制限時間ありの場合、時間切れで未提出プレイヤーの送信を自動実行
   useEffect(() => {
-    if (timeLimit < 0 || !currentQuestion || gameState?.phase !== 'answering') return;
+    if (timeLimit <= 0 || !currentQuestion || gameState?.phase !== 'answering') return;
 
     const startedAtMs = toMillis(gameState.questionStartedAt);
     if (startedAtMs <= 0) return;
@@ -62,33 +77,57 @@ export function useGamePlay(roomId: string, currentPlayerId: string, players: Pl
       const remaining = deadlineMs - Date.now();
       if (remaining <= 0) {
         if (currentQuestion.authorId === currentPlayerId) {
-          if (!hasSubmittedPrediction) handlePredictionSubmit();
+          if (!hasSubmittedPrediction) {
+            console.log('[useGamePlay] Timeout: auto-submitting prediction');
+            await handlePredictionSubmit();
+          }
         } else if (!hasSubmittedAnswer) {
-          // タイムアウト時は強制的に「不正解」を送信（選択肢の範囲外または逆を狙う）
-          const isCorrect = false;
-          const fallbackIdx = (currentQuestion.correctAnswer + 1) % 4;
-          await submitAnswer(roomId, currentQuestion.questionId, currentPlayerId, fallbackIdx, isCorrect).catch(console.error);
+          console.log('[useGamePlay] Timeout: auto-submitting answer');
+          await handleAnswerSubmit();
         }
       }
     };
 
     const timer = setInterval(checkTimeout, 500);
     return () => clearInterval(timer);
-  }, [roomId, currentQuestion, gameState?.phase, hasSubmittedAnswer, hasSubmittedPrediction, timeLimit]);
+  }, [roomId, currentQuestion, gameState?.phase, hasSubmittedAnswer, hasSubmittedPrediction, timeLimit, handleAnswerSubmit, handlePredictionSubmit]);
 
-  const handleAnswerSubmit = async () => {
-    if (selectedAnswer === null || !currentQuestion) return;
-    await submitAnswer(roomId, currentQuestion.questionId, currentPlayerId, selectedAnswer, selectedAnswer === currentQuestion.correctAnswer).catch(console.error);
-  };
-
-  const handlePredictionSubmit = async () => {
-    if (!currentQuestion) return;
-    await submitPrediction(roomId, currentQuestion.questionId, currentPlayerId, predictedCorrectCount).catch(console.error);
-  };
+  // フェーズが強制的に revealing になった場合の最終バックアップ（サーバー側タイムアウトへの対応）
+  useEffect(() => {
+    if (gameState?.phase === 'revealing' && currentQuestion) {
+      if (currentQuestion.authorId === currentPlayerId) {
+        if (!hasSubmittedPrediction) {
+          console.log('[useGamePlay] Phase changed to revealing: force-submitting prediction');
+          handlePredictionSubmit();
+        }
+      } else if (!hasSubmittedAnswer) {
+        console.log('[useGamePlay] Phase changed to revealing: force-submitting answer');
+        handleAnswerSubmit();
+      }
+    }
+  }, [gameState?.phase, currentQuestion, currentPlayerId, hasSubmittedAnswer, hasSubmittedPrediction, handleAnswerSubmit, handlePredictionSubmit]);
 
   const handleNextQuestion = async () => {
     await markPlayerReady(roomId, currentPlayerId).then(() => setIsReady(true)).catch(console.error);
   };
 
-  return { gameState, currentQuestion, selectedAnswer, setSelectedAnswer, predictedCorrectCount, setPredictedCorrectCount, hasSubmittedAnswer, hasSubmittedPrediction, showResults, answers, currentAnswerCount, prediction, isReady, waitingForPlayers: isReady, handleAnswerSubmit, handlePredictionSubmit, handleNextQuestion };
+  return { 
+    gameState, 
+    currentQuestion, 
+    selectedAnswer, 
+    setSelectedAnswer, 
+    predictedCorrectCount, 
+    setPredictedCorrectCount, 
+    hasSubmittedAnswer, 
+    hasSubmittedPrediction, 
+    showResults, 
+    answers, 
+    currentAnswerCount, 
+    prediction, 
+    isReady, 
+    waitingForPlayers: isReady, 
+    handleAnswerSubmit, 
+    handlePredictionSubmit, 
+    handleNextQuestion 
+  };
 }

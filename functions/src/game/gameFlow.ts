@@ -148,7 +148,101 @@ async function transitionToRevealing(roomId: string, questionId: string, reason:
   });
 
   console.log(`[gameFlow] room=${roomId} question=${questionId} -> revealing (${reason})`);
+
+  // 1秒待機してから集計（遅延回答の書き込みを待つ）
+  await sleep(1000);
+  await calculateScores(roomId, questionId);
+
   return true;
+}
+
+/**
+ * サーバーサイドでのスコア集計
+ */
+async function calculateScores(roomId: string, questionId: string) {
+  console.log(`[calculateScores] starting for room=${roomId} question=${questionId}`);
+  
+  const roomSnap = await db.collection('rooms').doc(roomId).get();
+  if (!roomSnap.exists) return;
+  const room = roomSnap.data() || {};
+  
+  const points = {
+    correct: room.correctAnswerPoints ?? 100,
+    fastest: room.fastestAnswerBonusPoints ?? 50,
+    penalty: room.wrongAnswerPenalty ?? 0,
+    prediction: room.predictionHitBonusPoints ?? 50
+  };
+
+  // 1. 全回答を取得
+  const answersSnap = await db.collection('rooms').doc(roomId).collection('answers')
+    .where('questionId', '==', questionId).get();
+  const rawAnswers = answersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  // 2. 予想を取得
+  const predSnap = await db.collection('rooms').doc(roomId).collection('predictions')
+    .where('questionId', '==', questionId).get();
+  const prediction = predSnap.empty ? null : predSnap.docs[0].data();
+
+  // 3. 重複排除と最速正解の特定
+  const toMs = (v: any) => (v && typeof v.toMillis === 'function') ? v.toMillis() : 0;
+  const uniqueAnswers: any[] = [];
+  const playerMap = new Map<string, any>();
+  
+  for (const a of rawAnswers as any[]) {
+    const existing = playerMap.get(a.playerId);
+    if (!existing || toMs(a.answeredAt) < toMs(existing.answeredAt)) {
+      playerMap.set(a.playerId, a);
+    }
+  }
+  playerMap.forEach(v => uniqueAnswers.push(v));
+
+  const correctAnswers = uniqueAnswers.filter(a => a.isCorrect).sort((l, r) => toMs(l.answeredAt) - toMs(r.answeredAt));
+  const fastestId = correctAnswers[0]?.playerId;
+
+  // 4. 予想結果の更新
+  if (prediction) {
+    const isPredHit = prediction.predictedCount === correctAnswers.length;
+    await predSnap.docs[0].ref.update({
+      actualCount: correctAnswers.length,
+      isCorrect: isPredHit
+    });
+  }
+
+  // 5. 全プレイヤーのスコアを更新
+  const playersSnap = await db.collection('rooms').doc(roomId).collection('players').get();
+  const batch = db.batch();
+
+  for (const pDoc of playersSnap.docs) {
+    const p = pDoc.data();
+    const playerId = pDoc.id;
+    let delta = 0;
+
+    // 回答者としてのポイント
+    const myAnswer = playerMap.get(playerId);
+    if (myAnswer) {
+      if (myAnswer.isCorrect) {
+        delta += points.correct + (playerId === fastestId ? points.fastest : 0);
+      } else {
+        delta -= points.penalty;
+      }
+    }
+
+    // 出題者としてのポイント（予想的中）
+    if (prediction && playerId === prediction.playerId) {
+      if (prediction.predictedCount === correctAnswers.length) {
+        delta += points.prediction;
+      }
+    }
+
+    if (delta !== 0) {
+      batch.update(pDoc.ref, {
+        score: admin.firestore.FieldValue.increment(delta)
+      });
+    }
+  }
+
+  await batch.commit();
+  console.log(`[calculateScores] completed for room=${roomId}`);
 }
 
 /**
