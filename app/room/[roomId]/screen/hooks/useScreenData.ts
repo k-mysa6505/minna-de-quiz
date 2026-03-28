@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { subscribeToRoom, handoverMasterFromScreenDevice } from '@/lib/services/room/roomService';
 import { subscribeToPlayers } from '@/lib/services/auth/playerService';
-import { getAnswers, getGameState, getPrediction } from '@/lib/services/game/gameService';
-import { getQuestion, getQuestionProgress, getQuestions } from '@/lib/services/game/questionService';
+import { subscribeToGameState, subscribeToAnswers, subscribeToPrediction } from '@/lib/services/game/gameService';
+import { subscribeToQuestions } from '@/lib/services/game/questionService';
 import { subscribeToRoomReactions, type RoomReaction } from '@/lib/services/game/reactionService';
 import { preloadImages } from '@/lib/utils/imagePreloader';
 import type { Answer, GameState, Player, Prediction, Question, Room } from '@/types';
@@ -27,71 +27,78 @@ export type ScreenState = {
 export function useScreenData(roomId: string, requestedDeviceId: string) {
   const [state, setState] = useState<ScreenState>({
     room: null, players: [], gameState: null, currentQuestion: null,
-    allQuestions: [],
-    questionProgress: { created: 0, total: 0 }, creatingCompletedAuthorIds: [],
+    allQuestions: [], questionProgress: { created: 0, total: 0 }, creatingCompletedAuthorIds: [],
     currentAnswers: [], currentPrediction: null, revealDataQuestionId: null,
     reactions: [], error: '',
   });
 
   useEffect(() => {
-    if (!requestedDeviceId) return;
+    if (!roomId || !requestedDeviceId) return;
     const handover = () => { handoverMasterFromScreenDevice(roomId, requestedDeviceId).catch(console.error); };
     window.addEventListener('pagehide', handover);
     return () => { window.removeEventListener('pagehide', handover); handover(); };
   }, [roomId, requestedDeviceId]);
 
+  // 1. 基本情報（Room, Players, Reactions）の購読
   useEffect(() => {
-    const unsubRoom = subscribeToRoom(roomId, (room) => {
-      if (!room) setState(prev => ({ ...prev, room: null, error: 'ルームが見つかりません' }));
-      else setState(prev => ({ ...prev, room, error: '' }));
-    });
+    if (!roomId) return;
+    const unsubRoom = subscribeToRoom(roomId, (room) => setState(prev => ({ ...prev, room, error: !room ? 'ルームが見つかりません' : '' })));
     const unsubPlayers = subscribeToPlayers(roomId, (players) => setState(prev => ({ ...prev, players })));
     const unsubReactions = subscribeToRoomReactions(roomId, (reactions) => setState(prev => ({ ...prev, reactions })));
     return () => { unsubRoom(); unsubPlayers(); unsubReactions(); };
   }, [roomId]);
 
+  // 2. 問題リストの購読と進捗の自動計算
   useEffect(() => {
-    let cancelled = false;
-    const loadPhaseData = async () => {
-      if (!state.room) return;
+    if (!roomId) return;
+    return subscribeToQuestions(roomId, (questions) => {
+      setState(prev => {
+        // 画像はバックグラウンドで事前ロードする
+        const urls = questions.map(q => q.imageUrl).filter((url): url is string => !!url);
+        preloadImages(urls);
 
-      // プレイ中または作成中になったら全問題を一度だけ取得
-      let currentAllQuestions = state.allQuestions;
-      if ((state.room.status === 'playing' || state.room.status === 'creating') && currentAllQuestions.length === 0) {
-        currentAllQuestions = await getQuestions(roomId);
-        if (!cancelled) {
-          setState(prev => ({ ...prev, allQuestions: currentAllQuestions }));
-          // 画像をプリロード
-          const urls = currentAllQuestions.map(q => q.imageUrl).filter((url): url is string => !!url);
-          preloadImages(urls);
-        }
-      }
+        return {
+          ...prev,
+          allQuestions: questions,
+          creatingCompletedAuthorIds: questions.map(q => q.authorId),
+          questionProgress: { created: questions.length, total: prev.players.length }
+        };
+      });
+    });
+  }, [roomId]);
 
-      if (state.room.status === 'creating') {
-        const progress = await getQuestionProgress(roomId);
-        if (!cancelled) setState(prev => ({ ...prev, questionProgress: progress, creatingCompletedAuthorIds: currentAllQuestions.map(q => q.authorId) }));
-      }
-      if (state.room.status === 'playing') {
-        const gameState = await getGameState(roomId);
-        if (!gameState) {
-          if (!cancelled) setState(prev => ({ ...prev, gameState: null, currentQuestion: null }));
-          return;
+  // 3. ゲーム状態（GameState）の購読
+  useEffect(() => {
+    if (!roomId) return;
+    return subscribeToGameState(roomId, (gameState) => {
+      setState(prev => {
+        let currentQuestion = null;
+        if (gameState && prev.allQuestions.length > 0) {
+          const qId = gameState.questionOrder?.[gameState.currentQuestionIndex];
+          currentQuestion = prev.allQuestions.find(it => it.questionId === qId) || null;
         }
-        const qId = gameState.questionOrder?.[gameState.currentQuestionIndex];
-        const q = qId ? currentAllQuestions.find(it => it.questionId === qId) ?? null : null;
-        if (!cancelled) setState(prev => ({ ...prev, gameState, currentQuestion: q }));
-        if (gameState.phase === 'revealing' && q) {
-          const [answers, pred] = await Promise.all([getAnswers(roomId, q.questionId), getPrediction(roomId, q.questionId)]);
-          if (!cancelled) setState(prev => ({ ...prev, currentAnswers: answers, currentPrediction: pred, revealDataQuestionId: q.questionId }));
-        } else if (!cancelled) {
-          setState(prev => ({ ...prev, currentAnswers: [], currentPrediction: null, revealDataQuestionId: null }));
-        }
-      }
-    };
-    const interval = setInterval(loadPhaseData, 1500);
-    loadPhaseData();
-    return () => { cancelled = true; clearInterval(interval); };
-  }, [roomId, state.room, state.allQuestions.length]);
+        return { ...prev, gameState, currentQuestion };
+      });
+    });
+  }, [roomId]);
+
+  // 4. 結果発表（Revealing）フェーズ時のみ回答と予想を購読
+  useEffect(() => {
+    const isRevealing = state.gameState?.phase === 'revealing';
+    const qId = state.currentQuestion?.questionId;
+
+    if (!roomId || !isRevealing || !qId) {
+      setState(prev => ({ ...prev, currentAnswers: [], currentPrediction: null, revealDataQuestionId: null }));
+      return;
+    }
+
+    const unsubAnswers = subscribeToAnswers(roomId, qId, (answers) => setState(prev => ({ ...prev, currentAnswers: answers })));
+    const unsubPred = subscribeToPrediction(roomId, qId, (prediction) => setState(prev => ({ ...prev, currentPrediction: prediction })));
+    
+    setState(prev => ({ ...prev, revealDataQuestionId: qId }));
+
+    return () => { unsubAnswers(); unsubPred(); };
+  }, [roomId, state.gameState?.phase, state.currentQuestion?.questionId]);
 
   return state;
 }

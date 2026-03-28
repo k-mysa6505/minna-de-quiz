@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Question, QuestionFormData } from '@/types';
+import { onSnapshot } from 'firebase/firestore';
 
 /**
  * 問題を作成
@@ -165,4 +166,12 @@ export async function getQuestionProgress(roomId: string): Promise<{
   const totalCount = playersSnapshot.size;
 
   return { created: createdCount, total: totalCount };
+}
+
+export function subscribeToQuestions(roomId: string, callback: (questions: Question[]) => void) {
+  const questionsRef = collection(db, 'rooms', roomId, 'questions');
+  const q = query(questionsRef, orderBy('createdAt', 'asc'));
+  return onSnapshot(q, (snapshot) => {
+    callback(snapshot.docs.map(doc => ({ questionId: doc.id, ...doc.data() } as Question)));
+  });
 }

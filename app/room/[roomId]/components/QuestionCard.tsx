@@ -18,7 +18,7 @@ export function QuestionCard({ text, imageUrl, useScreenMode }: QuestionCardProp
     return (
       <div className="p-4 sm:p-6">
         <p className="text-center text-slate-300 text-sm sm:text-base font-medium">
-          問題はスクリーンに表示中です。スマホでは回答を選んで送信してください。
+          問題はスクリーンに表示中です。<br />スマホでは回答を選んで送信してください。
         </p>
       </div>
     );

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams, notFound } from 'next/navigation';
 import { disbandRoomFlow, resetRoomForReplayFlow } from '@/lib/services/room/roomFlowService';
 import { startGame } from '@/lib/services/room/roomService';
 import { calculatePredictionPoints } from '@/lib/utils/roundScoring';
@@ -10,10 +10,10 @@ import { useScreenData } from './hooks/useScreenData';
 import { toTimestamp } from './utils/screenUtils';
 import { WaitingScreen } from './components/WaitingScreen';
 import { CreatingScreen } from './components/CreatingScreen';
-import { AnsweringScreen } from './components/AnsweringScreen';
 import { RevealingScreen } from './components/RevealingScreen';
 import { FinishedScreen } from './components/FinishedScreen';
 import { LeaveRoomModal } from '../modals/LeaveRoomModal';
+import AnsweringScreen from './components/AnsweringScreen';
 import LoadingSpinner from '@/app/common/LoadingSpinner';
 
 export default function RoomScreenPage() {
@@ -67,26 +67,33 @@ export default function RoomScreenPage() {
 
   useEffect(() => {
     if (revealingPhase !== 'ranking' || state.gameState?.phase !== 'revealing') return;
-    if (correctAnswers.length === 0) {
+
+    // Reactのレンダリング時の配列を固定値として扱う（途中で通信が来て再発火するのを防ぐ）
+    const answers = correctAnswers;
+
+    // 1. 正解者がいない場合は2秒後に次へ
+    if (answers.length === 0) {
       const timer = setTimeout(() => setRevealingPhase('prediction'), 2000);
       return () => clearTimeout(timer);
     }
-    let index = 0;
-    const interval = setInterval(() => {
-      if (index < correctAnswers.length) {
-        const answer = correctAnswers[index];
-        if (answer) {
-          setRevealedPlayers(prev => prev.includes(answer.playerId) ? prev : [...prev, answer.playerId]);
-        }
-        index++;
-      }
-      else {
-        clearInterval(interval);
-        setTimeout(() => setRevealingPhase('prediction'), 1000);
+
+    // 2. 正解者がいる場合
+    let count = 0;
+    const intervalId = setInterval(() => {
+      count++;
+      // sliceを使って1人ずつ表示リストを増やす
+      setRevealedPlayers(answers.slice(0, count).map(a => a.playerId));
+
+      // 全員分表示しきったらインターバルを停止して次へ
+      if (count >= answers.length) {
+        clearInterval(intervalId);
+        setTimeout(() => setRevealingPhase('prediction'), 3000);
       }
     }, 500);
-    return () => clearInterval(interval);
-  }, [revealingPhase, state.gameState?.phase, correctAnswers]);
+
+    return () => clearInterval(intervalId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealingPhase, state.gameState?.phase]);
 
   useEffect(() => {
     if (revealingPhase !== 'prediction') { setCounts({ pred: 0, actual: 0, showPred: false, showActual: false, showBonus: false }); return; }
@@ -115,7 +122,7 @@ export default function RoomScreenPage() {
 
   // 早期リターンはHooksの後に書く
   if (!state.room && !state.error) return <LoadingSpinner message="読み込み中..." />;
-  if (state.error || !state.room) return <div className="p-6 text-center text-white">エラー: {state.error}</div>;
+  if (state.error || !state.room) return notFound();
 
   return (
     <main className="h-[100dvh] overflow-x-auto text-white p-6">
@@ -148,6 +155,9 @@ export default function RoomScreenPage() {
         }
         {state.room.status === 'playing' && state.gameState?.phase === 'revealing' && state.currentQuestion && (
           <RevealingScreen
+            gameState={state.gameState!}
+            timeLimit={state.room.timeLimit ?? 30}
+            remainingSeconds={remainingSeconds}
             revealingPhase={revealingPhase}
             currentQuestion={state.currentQuestion}
             answerDistribution={dist}
@@ -173,10 +183,6 @@ export default function RoomScreenPage() {
         {state.room.status === 'finished' && (
           <FinishedScreen
             players={state.players}
-            isReplaying={isReplaying}
-            isDisbanding={isDisbanding}
-            onReplay={() => runServiceAction('r', () => resetRoomForReplayFlow(roomId, requestedDeviceId))}
-            onDisband={() => setShowDisbandModal(true)}
           />
         )}
       </div>

@@ -128,6 +128,7 @@ export function GamePlayPhase({
 
       <div className="space-y-6">
         <GameProgressHeader
+          isScreen={false}
           currentQuestionIndex={gameState.currentQuestionIndex}
           totalQuestions={gameState.totalQuestions}
           authorNickname={players.find(p => p.playerId === currentQuestion.authorId)?.nickname}
