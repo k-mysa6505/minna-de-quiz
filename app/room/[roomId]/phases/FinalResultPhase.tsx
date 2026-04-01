@@ -150,7 +150,7 @@ export function FinalResultPhase({ roomId, players, currentPlayerId, useScreenMo
   return (
     <>
       <div className="space-y-6 animate-fade-in flex-1">
-        <div className="text-center space-y-2 mb-4">
+        <div className="text-center space-y-2 mb-8">
           <p className="text-xs font-bold uppercase tracking-[0.4em] text-blue-500/80">Result</p>
           <h3 className="text-3xl font-black text-white italic">総合ランキング</h3>
         </div>
@@ -202,9 +202,9 @@ export function FinalResultPhase({ roomId, players, currentPlayerId, useScreenMo
 
         {useScreenMode && (
           <div className="bg-white/5 rounded-2xl border border-white/10 p-8 text-center space-y-4 animate-fade-in">
-            <p className="text-slate-400 text-sm uppercase tracking-widest font-bold">Your Rank</p>
-            <p className="text-5xl sm:text-6xl font-black text-emerald-300 drop-shadow-[0_0_15px_rgba(16,185,129,0.3)]">{formatOrdinalRank(myRank)}</p>
-            <p className="text-slate-300 text-sm">でした！ 総合結果はスクリーンをご覧ください。</p>
+            <p className="text-slate-300 text-xl tracking-widest font-bold italic">あなたの順位</p>
+            <p className="text-5xl sm:text-6xl font-black text-emerald-300 drop-shadow-[0_0_15px_rgba(16,185,129,0.3)] italic">{myRank}位</p>
+            <p className="text-slate-400 text-sm">総合結果はスクリーンをご覧ください</p>
           </div>
         )}
 

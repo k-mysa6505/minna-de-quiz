@@ -171,7 +171,7 @@ export default function CreateRoomPage() {
             >
               <PlayerModeIllustration />
             </div>
-            <p className="text-xl font-bold text-white italic">プレイヤーモード</p>
+            <p className="text-lg sm:text-xl font-bold text-white italic">プレイヤーモード</p>
             <p className="text-sm text-slate-300 mt-1">この端末でプレイ</p>
           </motion.button>
 
@@ -198,7 +198,7 @@ export default function CreateRoomPage() {
             >
               <ScreenModeIllustration />
             </div>
-            <p className="text-xl font-bold text-white text-sm italic">スクリーンモード</p>
+            <p className="text-lg sm:text-xl font-bold text-white italic">スクリーンモード</p>
             <p className="text-sm text-slate-300 mt-1">表示専用にする</p>
           </motion.button>
         </div>

@@ -2,131 +2,102 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PhaseHeader } from '../../components/PhaseHeader';
 import { formatOrdinalRank } from '../utils/screenUtils';
-import { SecondaryButton } from '../../../../common/SecondaryButton';
-import { PrimaryButton } from '../../../../common/PrimaryButton';
 import type { Player } from '@/types';
 
-interface FinishedScreenProps {
-  players: Player[];
-  isReplaying: boolean;
-  isDisbanding: boolean;
-  onReplay: () => void;
-  onDisband: () => void;
-}
-
-export function FinishedScreen({
-  players, isReplaying, isDisbanding, onReplay, onDisband
-}: FinishedScreenProps) {
-  const [revealedCount, setRevealedCount] = useState(0);
+export function FinishedScreen({ players }: { players: Player[] }) {
+  const [revealedIndices, setRevealedIndices] = useState<number[]>([]);
   const [isStarted, setIsStarted] = useState(false);
 
-  // 初回マウント時に少し待ってから開始
+  // 【追加】退室したプレイヤーを画面に残すための履歴状態
+  const [historicalPlayers, setHistoricalPlayers] = useState<Map<string, Player>>(new Map());
+
+  // 【追加】playersが更新されるたびにMapを更新（追加・スコア更新のみ。削除はしない）
+  useEffect(() => {
+    setHistoricalPlayers(prev => {
+      const next = new Map(prev);
+      players.forEach(p => {
+        next.set(p.playerId, p);
+      });
+      return next;
+    });
+  }, [players]);
+
+  // 【変更】players ではなく historicalPlayers を使ってソートする
+  const sortedPlayers = useMemo(() => {
+    return Array.from(historicalPlayers.values()).sort((a, b) => b.score - a.score);
+  }, [historicalPlayers]);
+
   useEffect(() => {
     const timer = setTimeout(() => setIsStarted(true), 1000);
     return () => clearTimeout(timer);
   }, []);
 
-  // 固定された順序を一度だけ計算
-  const sortedPlayers = useMemo(() => {
-    return [...players].sort((a, b) => b.score - a.score);
-  }, [players]);
-
-  const revealOrder = useMemo(() => {
-    return [...sortedPlayers].reverse();
-  }, [sortedPlayers]);
-
   useEffect(() => {
     if (!isStarted) return;
 
-    if (revealedCount < revealOrder.length) {
-      const isLastOne = revealedCount === revealOrder.length - 1;
-      const delay = isLastOne ? 2800 : 700;
+    // 下位のインデックスから順に表示リストに追加していく
+    const total = sortedPlayers.length;
+    if (revealedIndices.length < total) {
+      const nextIndex = (total - 1) - revealedIndices.length; // 一番下のインデックスから
+      const isLastOne = nextIndex === 0; // 1位の時
+      const delay = isLastOne ? 1200 : 600;
 
       const timer = setTimeout(() => {
-        setRevealedCount(prev => prev + 1);
+        setRevealedIndices(prev => [...prev, nextIndex]);
       }, delay);
       return () => clearTimeout(timer);
     }
-  }, [revealedCount, revealOrder.length, isStarted]);
-
-  // 現在表示されているプレイヤーのリスト（上位順に並び替え直して表示）
-  const visiblePlayers = useMemo(() => {
-    const currentRevealed = revealOrder.slice(0, revealedCount);
-    return currentRevealed.sort((a, b) => b.score - a.score);
-  }, [revealOrder, revealedCount]);
-
-  const isRevealingLastOne = revealedCount === revealOrder.length - 1;
+  }, [revealedIndices, sortedPlayers.length, isStarted]);
 
   return (
     <section className="h-full p-4 md:p-6 flex flex-col items-center justify-center overflow-hidden">
-      <div className="w-full max-w-4xl space-y-6 animate-fade-in flex-1">
-        <div className="text-center space-y-2 mb-4">
-          <p className="text-xs font-bold uppercase tracking-[0.4em] text-blue-500/80">Result</p>
-          <h3 className="text-3xl md:text-5xl font-black text-white italic">最終結果発表</h3>
+      <div className="w-full max-w-4xl space-y-6 flex-1">
+        <div className="text-center space-y-2 mb-8">
+          <p className="text-xl font-bold uppercase tracking-[0.4em] text-blue-500/80">Final Result</p>
+          <h3 className="text-3xl md:text-5xl font-black text-white italic">総合ランキング</h3>
         </div>
 
-        <div className="bg-white/5 rounded-2xl border border-white/10 p-6 md:p-10 w-full relative min-h-[400px]">
-          <div className="space-y-4">
+        <div className="bg-white/5 rounded-2xl border border-white/10 p-6 md:p-10 w-full relative min-h-[100px]">
+          <div className="flex flex-col gap-4">
             <AnimatePresence mode="popLayout">
-              {visiblePlayers.map((player) => {
-                const rank = sortedPlayers.findIndex(p => p.playerId === player.playerId) + 1;
+              {sortedPlayers.map((player, index) => {
+                // このインデックスが「表示対象」に含まれているかチェック
+                if (!revealedIndices.includes(index)) return null;
+
+                const rank = index + 1;
                 const isFirst = rank === 1;
-                
+
                 return (
-                  <motion.div 
+                  <motion.div
                     key={player.playerId}
-                    initial={{ opacity: 0, x: -20 }}
+                    layout // 既存要素が動く際のアニメーションを自動化
+                    initial={{ opacity: 0, x: -30 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.4 }}
-                    layout
-                    className="flex justify-between items-center px-4 md:px-6 py-2 transition-all border-b border-white/5 last:border-0"
+                    transition={{
+                      layout: { duration: 0.4, ease: "easeOut" }, // 押し下げられる動き
+                      opacity: { duration: 0.4 },
+                      x: { duration: 0.4, ease: "easeOut" } // スライドインの動き
+                    }}
+                    className={`flex justify-between items-center px-4 md:px-6`}
                   >
                     <div className="flex items-center gap-10">
-                      <span className={`font-black text-xl md:text-2xl tabular-nums ${isFirst ? 'text-yellow-400' : 'text-white'}`}>
-                        {rank}．{player.nickname}
+                      <span className={`font-bold text-xl md:text-2xl tabular-nums w-12 text-center ${isFirst ? 'text-yellow-400' : 'text-white'}`}>
+                        {formatOrdinalRank(rank)}
+                      </span>
+                      <span className={`font-bold text-2xl md:text-3xl italic ${isFirst ? 'text-yellow-400' : 'text-white'}`}>
+                        {player.nickname}
                       </span>
                     </div>
-                    <div className="text-emerald-400 font-bold font-mono text-2xl md:text-3xl">
-                      {player.score}<span className="text-xs ml-1 opacity-70">pt</span>
+                    <div className={`text-emerald-400 font-bold font-mono text-xl md:text-3xl`}>
+                      {player.score}<span className="text-xl ml-1">pt</span>
                     </div>
                   </motion.div>
                 );
               })}
             </AnimatePresence>
           </div>
-
-          {/* 1位発表直前の「溜め」演出 */}
-          {isRevealingLastOne && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="absolute -top-6 left-1/2 -translate-x-1/2 text-yellow-400 font-bold italic tracking-widest text-xs uppercase"
-            >
-              👑 THE WINNER IS...
-            </motion.div>
-          )}
         </div>
-
-        {/* 全員表示が終わったら操作ボタンを出す */}
-        {revealedCount === players.length && (
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-8 flex gap-4 justify-center"
-          >
-            <PrimaryButton
-              onClick={onReplay}
-              disabled={isReplaying || isDisbanding}
-            >
-              {isReplaying ? 'RESETTING...' : 'REPLAY'}
-            </PrimaryButton>
-            <SecondaryButton onClick={onDisband} disabled={isReplaying || isDisbanding}>
-              {isDisbanding ? 'DISBAND' : 'DISBAND'}
-            </SecondaryButton>
-          </motion.div>
-        )}
       </div>
     </section>
   );

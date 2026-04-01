@@ -8,6 +8,7 @@ import {
 import { db } from '@/lib/firebase';
 import type { GameState, Answer, Prediction } from '@/types';
 import { serviceLogger } from '../core/serviceLogger';
+import { onSnapshot } from 'firebase/firestore';
 
 /**
  * ゲーム状態を初期化
@@ -351,4 +352,27 @@ export async function clearQuestionsAndAnswers(roomId: string): Promise<void> {
     serviceLogger.error('game.clearData', `failed: ${roomId}`, error);
     throw error;
   }
+}
+
+export function subscribeToGameState(roomId: string, callback: (state: GameState | null) => void) {
+  const ref = doc(db, 'rooms', roomId, 'gameState', 'state');
+  return onSnapshot(ref, (doc) => {
+    callback(doc.exists() ? (doc.data() as GameState) : null);
+  });
+}
+
+export function subscribeToAnswers(roomId: string, questionId: string, callback: (answers: Answer[]) => void) {
+  const answersRef = collection(db, 'rooms', roomId, 'answers');
+  const q = query(answersRef, where('questionId', '==', questionId));
+  return onSnapshot(q, (snapshot) => {
+    callback(snapshot.docs.map(doc => doc.data() as Answer));
+  });
+}
+
+export function subscribeToPrediction(roomId: string, questionId: string, callback: (prediction: Prediction | null) => void) {
+  const predictionsRef = collection(db, 'rooms', roomId, 'predictions');
+  const q = query(predictionsRef, where('questionId', '==', questionId));
+  return onSnapshot(q, (snapshot) => {
+    callback(snapshot.empty ? null : (snapshot.docs[0].data() as Prediction));
+  });
 }

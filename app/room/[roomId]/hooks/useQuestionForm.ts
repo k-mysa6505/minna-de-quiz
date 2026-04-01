@@ -13,23 +13,48 @@ export function useQuestionForm(roomId: string, currentPlayerId: string) {
   const [correctAnswer, setCorrectAnswer] = useState(0);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasCreated, setHasCreated] = useState(false);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 10 * 1024 * 1024) { // 10MB
+        setImageError('画像サイズが大きすぎます（最大10MBまで）');
+        setImageFile(null);
+        setImagePreview(null);
+        return;
+      }
+      // 許可するMIMEタイプを厳格に指定（SVG除外）
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+      if (!allowedTypes.includes(file.type)) {
+        setImageError('JPG, PNG, WebP, GIF形式の画像のみアップロードできます');
+        setImageFile(null);
+        setImagePreview(null);
+        return;
+      }
+      setImageError(null);
       setImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => setImagePreview(reader.result as string);
       reader.readAsDataURL(file);
+    } else {
+      setImageError(null);
+      setImageFile(null);
+      setImagePreview(null);
     }
   };
 
+  const CHOICE_TEXT_MAX = 50;
   const handleChoiceChange = (index: number, value: string) => {
-    const newChoices = [...choices];
-    newChoices[index] = value;
-    setChoices(newChoices);
+    // 文字数制限と空白トリム
+    let v = value.slice(0, CHOICE_TEXT_MAX);
+    setChoices(prev => {
+      const newChoices = [...prev];
+      newChoices[index] = v;
+      return newChoices;
+    });
   };
 
   const resetForm = () => {
@@ -40,6 +65,7 @@ export function useQuestionForm(roomId: string, currentPlayerId: string) {
     setImagePreview(null);
   };
 
+  const QUESTION_TEXT_MAX = 200;
   const submitQuestion = async () => {
     setIsSubmitting(true);
 
@@ -50,28 +76,35 @@ export function useQuestionForm(roomId: string, currentPlayerId: string) {
       );
     }
 
+    // 空白トリム・最大文字数制限
+    const trimmedText = questionText.trim().slice(0, QUESTION_TEXT_MAX);
+    const trimmedChoices = choices.map(c => c.trim().slice(0, CHOICE_TEXT_MAX)) as [string, string, string, string];
+
     const questionData: QuestionFormData = {
-      text: questionText,
+      text: trimmedText,
       imageUrl,
-      choices: choices as [string, string, string, string],
+      choices: trimmedChoices,
       correctAnswer: correctAnswer as 0 | 1 | 2 | 3,
     };
 
-    const created = await runServiceAction(
-      'questionCreation.createQuestion',
-      async () => {
-        await createQuestion(roomId, currentPlayerId, questionData);
-        return true;
-      },
-      { fallback: false }
-    );
-    
-    if (created) {
-      setHasCreated(true);
+    try {
+      const created = await runServiceAction(
+        'questionCreation.createQuestion',
+        async () => {
+          await createQuestion(roomId, currentPlayerId, questionData);
+          return true;
+        },
+        { fallback: false }
+      );
+      if (created) {
+        setHasCreated(true);
+      }
+      setIsSubmitting(false);
+      return created;
+    } catch (e) {
+      setIsSubmitting(false);
+      throw e;
     }
-
-    setIsSubmitting(false);
-    return created;
   };
 
   return {
@@ -84,6 +117,8 @@ export function useQuestionForm(roomId: string, currentPlayerId: string) {
     imageFile,
     imagePreview,
     setImagePreview,
+    imageError,
+    setImageError,
     isSubmitting,
     hasCreated,
     handleImageChange,

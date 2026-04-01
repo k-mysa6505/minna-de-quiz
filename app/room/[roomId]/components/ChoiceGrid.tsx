@@ -43,22 +43,17 @@ export function ChoiceGrid({
             disabled={disabled}
             className={`
               relative rounded-2xl border-2 transition-all duration-300 font-bold text-lg flex flex-col items-center justify-center overflow-hidden
-              ${useScreenMode ? 'p-4 min-h-[32svh] sm:min-h-[220px]' : 'p-6 min-h-[120px]'}
-              
-              /* 状態に応じたスタイル切り替え */
+              ${useScreenMode ? 'p-4 min-h-[24svh] sm:min-h-[220px]' : 'p-6 min-h-[120px]'}
               ${isActive
                 ? `bg-gradient-to-br ${color.active} text-white z-10 scale-[1.02] border-white/20 shadow-2xl`
                 : `${color.bg} ${color.border} ${color.text}`
               }
-
-              /* 答え合わせ時の演出（不正解を暗くしすぎない） */
               ${showResults 
                 ? isCorrect 
                   ? `ring-2 ring-offset-2 ring-offset-slate-950 ${color.ring}` 
                   : 'opacity-50 grayscale-[0.2]'
                 : ''
               }
-              
               ${disabled ? 'cursor-not-allowed' : 'cursor-pointer active:scale-95'}
             `}
           >
