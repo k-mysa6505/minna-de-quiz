@@ -4,6 +4,32 @@ import { useState, useEffect } from 'react';
 import type { Player } from '@/types';
 import { NumberTicker } from '@/app/common/NumberTicker';
 
+
+/**
+ * 的中・ニアピン判定関数
+ * @param predictedCount 予想人数
+ * @param correctAnswerCount 実際の正解人数
+ * @param totalParticipants 参加者数
+ */
+export function getPredictionHitStatus(
+  predictedCount: number | null | undefined,
+  correctAnswerCount: number,
+  totalParticipants: number
+): { isHit: boolean; isNear: boolean } {
+  if (predictedCount == null) return { isHit: false, isNear: false };
+  const isHit = predictedCount === correctAnswerCount;
+  // ニアピン判定ロジック
+  // 1. 5人未満ならニアピンなし
+  // 2. 5人以上なら「±10%」と「±1人」の大きい方を採用
+  const diff = Math.abs(predictedCount - correctAnswerCount);
+  const nearRange = totalParticipants >= 5
+    ? Math.max(1, Math.floor(totalParticipants * 0.1))
+    : -1; // 5人未満は到達不能な距離に設定
+  const isNear = !isHit && nearRange !== -1 && diff <= nearRange;
+  return { isHit, isNear };
+}
+
+
 interface PredictionResultProps {
   prediction: { predictedCount: number; isCorrect: boolean } | null;
   correctAnswerCount: number;
@@ -12,27 +38,16 @@ interface PredictionResultProps {
   totalParticipants: number;
 }
 
-export function PredictionResult({ 
-  prediction, 
-  correctAnswerCount, 
-  predictionPoints, 
+export function PredictionResult({
+  prediction,
+  correctAnswerCount,
+  predictionPoints,
   authorNickname,
-  totalParticipants 
+  totalParticipants
 }: PredictionResultProps) {
   const [stage, setStage] = useState(0);
 
-  // 的中判定
-  const isHit = prediction?.predictedCount === correctAnswerCount;
-  
-  // ニアピン判定ロジック
-  // 1. 5人未満ならニアピンなし
-  // 2. 5人以上なら「±10%」と「±1人」の大きい方を採用
-  const diff = Math.abs((prediction?.predictedCount || 0) - correctAnswerCount);
-  const nearRange = totalParticipants >= 5 
-    ? Math.max(1, Math.floor(totalParticipants * 0.1)) 
-    : -1; // 5人未満は到達不能な距離に設定
-
-  const isNear = !isHit && nearRange !== -1 && diff <= nearRange;
+  const { isHit, isNear } = getPredictionHitStatus(prediction?.predictedCount, correctAnswerCount, totalParticipants);
 
   useEffect(() => {
     if (!prediction) return;
@@ -52,6 +67,7 @@ export function PredictionResult({
     if (isNear) return 'text-amber-400';
     return 'text-rose-400';
   };
+
 
   return (
     <div className="bg-white/5 rounded-2xl border border-white/10 p-8 space-y-10 animate-fade-in overflow-hidden relative">

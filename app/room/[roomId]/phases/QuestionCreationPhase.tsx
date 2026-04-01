@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import type { Player } from '@/types';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X } from 'lucide-react';
 import { Modal } from "@/app/common/Modal";
 import templateDataset from '../data/questionTemplateDataset.json';
 import { useQuestionForm } from '../hooks/useQuestionForm';
@@ -27,8 +29,8 @@ const TEMPLATE_CATEGORIES = templateDataset as TemplateCategory[];
 
 export function QuestionCreationPhase({ roomId, players, currentPlayerId }: QuestionCreationPhaseProps) {
   // 文字数制限
-  const QUESTION_TEXT_MAX = 200;
-  const CHOICE_TEXT_MAX = 50;
+  const QUESTION_TEXT_MAX = 100;
+  const CHOICE_TEXT_MAX = 20;
 
   const {
     questionText, setQuestionText,
@@ -52,6 +54,7 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [selectedTemplateCategoryId, setSelectedTemplateCategoryId] = useState(TEMPLATE_CATEGORIES[0]?.id ?? '');
+  const [isImageZoomed, setIsImageZoomed] = useState(false);
 
   const applyTemplate = () => {
     const category = TEMPLATE_CATEGORIES.find(item => item.id === selectedTemplateCategoryId);
@@ -62,8 +65,6 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
     setCorrectAnswer(q.correctAnswer);
     setShowTemplateModal(false);
   };
-
-
 
   // バリデーション
   const validateForm = () => {
@@ -133,22 +134,36 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
                 required
               />
               <div className="text-xs text-slate-400 text-right mt-1">{questionText.length}/{QUESTION_TEXT_MAX}</div>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-slate-300 mb-3">画像（任意）</label>
-              <input
-                key={fileInputKey}
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  handleImageChange(e);
-                  if (e.target.files?.[0] && e.target.files[0].size > 10 * 1024 * 1024) {
-                    setShowImageErrorModal(true);
-                  }
-                }}
-                className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-md text-slate-300 file:mr-4 file:py-1 file:px-2 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 file:cursor-pointer"
-              />
-              {imagePreview && <div className="mt-4 p-4 bg-slate-800/50 rounded border border-slate-700/50"><Image src={imagePreview} alt="Preview" className="max-w-xs rounded-lg object-contain mx-auto" width={320} height={180} unoptimized /></div>}
+              <div>
+                <label className="block text-sm font-semibold text-slate-300 mb-3">画像（任意）</label>
+                <input
+                  key={fileInputKey}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    handleImageChange(e);
+                    if (e.target.files?.[0] && e.target.files[0].size > 10 * 1024 * 1024) {
+                      setShowImageErrorModal(true);
+                    }
+                  }}
+                  className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-md text-slate-300 file:mr-4 file:py-1 file:px-2 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 file:cursor-pointer"
+                />
+                {imagePreview && (
+                  <div className="mt-4 p-4 flex rounded-lg border border-slate-700/50 justify-center bg-slate-800/50 ">
+                    <div className="relative rounded-xl overflow-hidden max-w-fit shadow-lg">
+                      <Image
+                        onClick={() => setIsImageZoomed(true)}
+                        src={imagePreview}
+                        alt="Preview"
+                        className="max-w-full max-h-[180px] w-auto h-auto block object-cover"
+                        width={320}
+                        height={180}
+                        unoptimized
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
             {showImageErrorModal && (
               <Modal
@@ -221,10 +236,27 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
 
           {showConfirmModal && (
             <Modal onClose={() => setShowConfirmModal(false)} panelClassName="max-w-md w-full max-h-[80vh] overflow-y-auto p-8">
-              <h3 className="text-2xl font-bold text-white mb-6 text-center italic">この内容で問題を作成しますか？</h3>
+              <h3 className="text-2xl font-bold text-white mb-6 text-center italic">この内容で作成しますか？</h3>
               <div className="space-y-4 mb-6">
-                <div><p className="text-sm text-slate-300 mb-2">問題文</p><p className="text-white bg-slate-700/50 p-3 rounded-lg">{questionText}</p></div>
-                {imagePreview && <div><p className="text-sm text-slate-300 mb-2">画像</p><Image src={imagePreview} alt="Preview" className="w-full rounded-lg" width={400} height={225} unoptimized /></div>}
+                <div><p className="text-sm text-slate-300 mb-1">問題文</p><p className="text-white bg-slate-700/50 p-3 rounded-lg">{questionText}</p></div>
+                {imagePreview && (
+                  <div>
+                    <p className="text-sm text-slate-300 mb-1">画像</p>
+                    <div className="p-2 flex rounded-lg border border-slate-700/50 justify-center bg-slate-800/50">
+                      <div className="relative rounded-xl overflow-hidden max-w-fit shadow-lg">
+                        <Image
+                          onClick={() => setIsImageZoomed(true)}
+                          src={imagePreview}
+                          alt="Preview"
+                          className="max-w-full max-h-[150px] w-auto h-auto block object-cover"
+                          width={320}
+                          height={150}
+                          unoptimized
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div><p className="text-sm text-slate-300 mb-2">選択肢</p><div className="space-y-2">{choices.map((c, i) => <div key={i} className={`p-3 rounded-lg border-2 ${correctAnswer === i ? `${CHOICE_COLORS[i].bgSelected} ${CHOICE_COLORS[i].borderSelected} text-white font-bold` : `${CHOICE_COLORS[i].bg} ${CHOICE_COLORS[i].border} text-slate-200`}`}>{i + 1}. {c}{correctAnswer === i && ' ✓'}</div>)}</div></div>
               </div>
               {dbError && <div className="text-center text-red-400 text-sm font-bold mb-4">{dbError}</div>}
@@ -236,6 +268,39 @@ export function QuestionCreationPhase({ roomId, players, currentPlayerId }: Ques
           )}
         </>
       )}
+      <AnimatePresence>
+        {isImageZoomed && imagePreview && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-sm cursor-zoom-out p-4 md:p-8"
+            onClick={() => setIsImageZoomed(false)}
+          >
+            <motion.div 
+              layoutId="zoomed-image"
+              className="relative max-w-full max-h-full flex items-center justify-center rounded-2xl overflow-hidden shadow-2xl border border-white/10"
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            >
+              <Image
+                src={imagePreview}
+                alt="Full Preview"
+                className="max-w-full max-h-full object-contain"
+                width={1600}
+                height={900}
+                unoptimized
+              />
+              <button 
+                className="absolute top-4 right-4 text-white/70 hover:text-white p-2 rounded-full bg-black/50 hover:bg-black/80 transition-colors"
+                onClick={(e) => { e.stopPropagation(); setIsImageZoomed(false); }}
+              >
+                <X className="size-8" />
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

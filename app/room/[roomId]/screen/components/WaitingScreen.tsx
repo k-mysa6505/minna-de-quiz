@@ -19,17 +19,33 @@ interface WaitingScreenProps {
 
 export function WaitingScreen({ room, players, joinUrl, isStarting, onStart, onDisband }: WaitingScreenProps) {
   return (
-    <section className="backdrop-blur-sm h-full grid grid-cols-1 xl:grid-cols-2 gap-4 xl:gap-6 overflow-hidden">
-      <div className="p-4 md:p-5 flex min-h-0 flex-col">
+    <section
+      className="backdrop-blur-sm h-full w-full flex flex-row overflow-hidden"
+      style={{ minWidth: 0 }}
+    >
+      {/* 左カラム: プレイヤー一覧・ボタン */}
+      <div
+        className="flex flex-col min-h-0 p-4 md:p-5"
+        style={{ width: '50%', minWidth: 320, maxWidth: '50%', boxSizing: 'border-box', overflowY: 'auto', borderRight: '1px solid #334155' }}
+      >
         <div className="mb-5">
           <PhaseHeader title="プレイヤー待機中" isScreen={true} />
-          <p className="text-slate-300 mt-2 text-base md:text-lg">
+          <p className="text-slate-300 mt-4 text-2xl md:text-4xl leading-tight">
             現在：<span className="font-bold text-emerald-400">{players.length}人</span>
-            <span className="ml-2 text-xs md:text-sm text-slate-400">(最低参加人数: {room.minPlayers ?? 2}人)</span>
+            <span className="ml-4 text-base md:text-2xl text-slate-400">
+              (最低参加人数: {room.minPlayers ?? 2}人)
+            </span>
           </p>
         </div>
         <div className="min-h-0">
-          <PlayerListCard players={players} currentPlayerId="" sortMode="joinedAt" showMasterBadge maxVisiblePlayers={10} />
+          <PlayerListCard
+            players={players}
+            currentPlayerId=""
+            sortMode="joinedAt"
+            showMasterBadge
+            maxVisiblePlayers={10}
+            useScreenMode={room.useScreenMode === true}
+          />
         </div>
         <div className="mt-5 flex flex-col items-center flex-1">
           <div className="flex gap-4 justify-center">
@@ -43,14 +59,18 @@ export function WaitingScreen({ room, players, joinUrl, isStarting, onStart, onD
           </div>
         </div>
       </div>
-      <div className="rounded-2xl border border-slate-700/60 bg-slate-900/50 p-4 md:p-6 flex flex-col items-center justify-center text-center overflow-hidden">
+      {/* 右カラム: QRコード・ID */}
+      <div
+        className="rounded-2xl border border-slate-700/60 bg-slate-900/50 p-6 md:p-10 flex flex-col items-center justify-center text-center overflow-hidden h-full"
+        style={{ width: '50%', minWidth: 320, maxWidth: '50%', boxSizing: 'border-box', overflowY: 'auto' }}
+      >
         <p className="text-slate-300 text-sm md:text-base mb-4">ルーム参加用QRコード</p>
-        <div className="bg-white rounded-2xl p-3 md:p-4 shadow-2xl mb-4">
-          <QRCodeSVG value={joinUrl} size={240} level="M" includeMargin={true} />
+        <div className="bg-white rounded-2xl p-4 shadow-2xl mb-8 flex items-center justify-center">
+          <QRCodeSVG value={joinUrl} size={320} level="M" includeMargin={true} />
         </div>
         <div className="px-4 py-2 w-full max-w-xl">
-          <p className="text-slate-200 md:text-base mb-2">ROOM ID</p>
-          <RoomID id={room.roomId} className="text-3xl md:text-5xl" />
+          <p className="text-slate-400 text-sm md:text-lg mb-2 tracking-widest">ROOM ID</p>
+          <RoomID id={room.roomId} className="text-5xl md:text-7xl font-black" />
         </div>
       </div>
     </section>
