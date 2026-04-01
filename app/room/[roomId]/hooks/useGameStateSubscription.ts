@@ -10,24 +10,43 @@ export function useGameStateSubscription(roomId: string, allQuestions: Question[
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
   const [isReady, setIsReady] = useState(false);
   const prevQuestionIdRef = useRef<string | null>(null);
+  const allQuestionsRef = useRef<Question[]>(allQuestions);
 
   useEffect(() => {
-    if (allQuestions.length === 0) return;
+    allQuestionsRef.current = allQuestions;
+  }, [allQuestions]);
+
+  useEffect(() => {
+    if (!roomId) return;
+
     const unsubscribe = onSnapshot(doc(db, 'rooms', roomId, 'gameState', 'state'), (snap) => {
       if (!snap.exists()) return;
       const state = snap.data() as GameState;
       setGameState(state);
+
       const qId = state.questionOrder[state.currentQuestionIndex];
-      const q = allQuestions.find(it => it.questionId === qId) ?? null;
-      if (q && prevQuestionIdRef.current !== q.questionId) {
-        prevQuestionIdRef.current = q.questionId;
+      const q = allQuestionsRef.current.find(it => it.questionId === qId) ?? null;
+
+      if (qId && prevQuestionIdRef.current !== qId) {
+        prevQuestionIdRef.current = qId;
         setIsReady(false);
       }
+
       setCurrentQuestion(q);
       setIsReady((state.playersReady ?? []).includes(currentPlayerId));
     });
+
     return () => unsubscribe();
-  }, [roomId, allQuestions, currentPlayerId]);
+  }, [roomId, currentPlayerId]);
+
+  // allQuestions が後から読み込まれた場合に現在の問題を設定し直す
+  useEffect(() => {
+    if (gameState && allQuestions.length > 0) {
+      const qId = gameState.questionOrder[gameState.currentQuestionIndex];
+      const q = allQuestions.find(it => it.questionId === qId) ?? null;
+      setCurrentQuestion(q);
+    }
+  }, [allQuestions, gameState]);
 
   return { gameState, currentQuestion, isReady, setIsReady };
 }

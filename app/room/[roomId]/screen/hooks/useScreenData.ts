@@ -42,63 +42,72 @@ export function useScreenData(roomId: string, requestedDeviceId: string) {
   // 1. 基本情報（Room, Players, Reactions）の購読
   useEffect(() => {
     if (!roomId) return;
-    const unsubRoom = subscribeToRoom(roomId, (room) => setState(prev => ({ ...prev, room, error: !room ? 'ルームが見つかりません' : '' })));
-    const unsubPlayers = subscribeToPlayers(roomId, (players) => setState(prev => ({ ...prev, players })));
-    const unsubReactions = subscribeToRoomReactions(roomId, (reactions) => setState(prev => ({ ...prev, reactions })));
-    return () => { unsubRoom(); unsubPlayers(); unsubReactions(); };
+    return subscribeToRoom(roomId, (room) => setState(prev => ({ ...prev, room, error: !room ? 'ルームが見つかりません' : '' })));
   }, [roomId]);
 
-  // 2. 問題リストの購読と進捗の自動計算
+  useEffect(() => {
+    if (!roomId) return;
+    return subscribeToPlayers(roomId, (players) => setState(prev => ({ ...prev, players })));
+  }, [roomId]);
+
+  useEffect(() => {
+    if (!roomId) return;
+    return subscribeToRoomReactions(roomId, (reactions) => setState(prev => ({ ...prev, reactions })));
+  }, [roomId]);
+
+  // 2. 問題リストの購読
   useEffect(() => {
     if (!roomId) return;
     return subscribeToQuestions(roomId, (questions) => {
-      setState(prev => {
-        // 画像はバックグラウンドで事前ロードする
-        const urls = questions.map(q => q.imageUrl).filter((url): url is string => !!url);
-        preloadImages(urls);
+      // 画像はバックグラウンドで事前ロードする
+      const urls = questions.map(q => q.imageUrl).filter((url): url is string => !!url);
+      preloadImages(urls);
 
-        return {
-          ...prev,
-          allQuestions: questions,
-          creatingCompletedAuthorIds: questions.map(q => q.authorId),
-          questionProgress: { created: questions.length, total: prev.players.length }
-        };
-      });
+      setState(prev => ({
+        ...prev,
+        allQuestions: questions,
+        creatingCompletedAuthorIds: questions.map(q => q.authorId),
+      }));
     });
   }, [roomId]);
+
+  // 進捗状況は players と questions の変化に合わせて個別に計算
+  useEffect(() => {
+    setState(prev => ({
+      ...prev,
+      questionProgress: { created: prev.allQuestions.length, total: prev.players.length }
+    }));
+  }, [state.players.length, state.allQuestions.length]);
 
   // 3. ゲーム状態（GameState）の購読
   useEffect(() => {
     if (!roomId) return;
     return subscribeToGameState(roomId, (gameState) => {
       setState(prev => {
-        let currentQuestion = null;
-        if (gameState && prev.allQuestions.length > 0) {
-          const qId = gameState.questionOrder?.[gameState.currentQuestionIndex];
-          currentQuestion = prev.allQuestions.find(it => it.questionId === qId) || null;
-        }
+        const qId = gameState?.questionOrder?.[gameState?.currentQuestionIndex ?? 0];
+        const currentQuestion = prev.allQuestions.find(it => it.questionId === qId) || null;
         return { ...prev, gameState, currentQuestion };
       });
     });
   }, [roomId]);
 
   // 4. 結果発表（Revealing）フェーズ時のみ回答と予想を購読
-  useEffect(() => {
-    const isRevealing = state.gameState?.phase === 'revealing';
-    const qId = state.currentQuestion?.questionId;
+  const isRevealing = state.gameState?.phase === 'revealing';
+  const currentQId = state.currentQuestion?.questionId;
 
-    if (!roomId || !isRevealing || !qId) {
+  useEffect(() => {
+    if (!roomId || !isRevealing || !currentQId) {
       setState(prev => ({ ...prev, currentAnswers: [], currentPrediction: null, revealDataQuestionId: null }));
       return;
     }
 
-    const unsubAnswers = subscribeToAnswers(roomId, qId, (answers) => setState(prev => ({ ...prev, currentAnswers: answers })));
-    const unsubPred = subscribeToPrediction(roomId, qId, (prediction) => setState(prev => ({ ...prev, currentPrediction: prediction })));
+    const unsubAnswers = subscribeToAnswers(roomId, currentQId, (answers) => setState(prev => ({ ...prev, currentAnswers: answers })));
+    const unsubPred = subscribeToPrediction(roomId, currentQId, (prediction) => setState(prev => ({ ...prev, currentPrediction: prediction })));
     
-    setState(prev => ({ ...prev, revealDataQuestionId: qId }));
+    setState(prev => ({ ...prev, revealDataQuestionId: currentQId }));
 
     return () => { unsubAnswers(); unsubPred(); };
-  }, [roomId, state.gameState?.phase, state.currentQuestion?.questionId]);
+  }, [roomId, isRevealing, currentQId]);
 
   return state;
 }
