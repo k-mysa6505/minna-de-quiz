@@ -4,6 +4,8 @@ import "./globals.css";
 import AuthProvider from "./AuthProvider";
 import { MotionProvider } from "./MotionProvider";
 
+const siteUrl = "https://minna-de-quiz.vercel.app";
+
 const geistSans = Geist({
   subsets: ["latin"],
   variable: "--font-geist-sans",
@@ -21,18 +23,36 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: "みんクイ - みんなでクイズ",
   description: "みんなで作ってみんなで遊ぶクイズゲーム",
-  manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "みんクイ",
+  openGraph: {
+    title: "みんクイ - みんなでクイズ",
+    description: "みんなで作ってみんなで遊ぶクイズゲーム",
+    url: siteUrl,
+    siteName: "みんクイ - みんなでクイズ",
+    images: [
+      {
+        url: "/ogp.png",
+      },
+    ],
+    locale: "ja_JP",
+    type: "website",
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "みんクイ - みんなでクイズ",
+    description: "みんなで作ってみんなで遊ぶクイズゲーム",
+    images: ["/ogp.png"],
+  },
+  icons: {
+    icon: "/favicon.png",
+  },
+  manifest: "/manifest.json",
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0a0a0f",
+  themeColor: "#1A2238",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
