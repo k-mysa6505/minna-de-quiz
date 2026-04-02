@@ -89,6 +89,9 @@ export function GamePlayPhase({
 
   const isAuthor = currentQuestion.authorId === currentPlayerId;
   const otherPlayersCount = players.length - 1;
+  
+  // 操作無効化の判定（送信済み、またはタイムアウト）
+  const isInteractionDisabled = (timeLimit > 0 && remainingSeconds <= 0) || gameState.phase !== 'answering';
 
   // 結果表示フェーズ
   if (showResults) {
@@ -128,6 +131,7 @@ export function GamePlayPhase({
 
       <div className="space-y-6">
         <GameProgressHeader
+          isScreen={false}
           currentQuestionIndex={gameState.currentQuestionIndex}
           totalQuestions={gameState.totalQuestions}
           authorNickname={players.find(p => p.playerId === currentQuestion.authorId)?.nickname}
@@ -150,16 +154,16 @@ export function GamePlayPhase({
               selectedAnswer={selectedAnswer}
               onSelect={setSelectedAnswer}
               useScreenMode={useScreenMode}
-              disabled={hasSubmittedAnswer}
+              disabled={isInteractionDisabled || hasSubmittedAnswer}
               showResults={false}
             />
 
             <button
-              onClick={handleAnswerSubmit}
-              disabled={selectedAnswer === null || hasSubmittedAnswer}
+              onClick={() => handleAnswerSubmit()}
+              disabled={selectedAnswer === null || isInteractionDisabled || hasSubmittedAnswer}
               className={`
                 w-full font-bold py-4 sm:py-5 px-6 rounded-md shadow-lg transition-all duration-300 text-base sm:text-lg
-                ${hasSubmittedAnswer 
+                ${(hasSubmittedAnswer || (isInteractionDisabled && !hasSubmittedAnswer))
                   ? 'bg-slate-800 text-slate-500 cursor-default border border-white/5' 
                   : selectedAnswer === null 
                     ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
@@ -167,7 +171,7 @@ export function GamePlayPhase({
                 }
               `}
             >
-              {hasSubmittedAnswer ? '回答を送信しました' : '回答を送信'}
+              {hasSubmittedAnswer ? '回答を送信しました' : isInteractionDisabled ? 'タイムアウト' : '回答を送信'}
             </button>
 
             {hasSubmittedAnswer && (
@@ -193,7 +197,7 @@ export function GamePlayPhase({
                   {/* マイナスボタン */}
                   <button
                     onClick={() => setPredictedCorrectCount(Math.max(0, predictedCorrectCount - 1))}
-                    disabled={hasSubmittedPrediction || predictedCorrectCount <= 0}
+                    disabled={isInteractionDisabled || hasSubmittedPrediction || predictedCorrectCount <= 0}
                     className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center rounded-full bg-slate-800 border border-white/10 text-white text-2xl font-bold transition-all active:scale-90 disabled:opacity-20 disabled:scale-100"
                     aria-label="減少"
                   >
@@ -211,7 +215,7 @@ export function GamePlayPhase({
                   {/* プラスボタン */}
                   <button
                     onClick={() => setPredictedCorrectCount(Math.min(otherPlayersCount, predictedCorrectCount + 1))}
-                    disabled={hasSubmittedPrediction || predictedCorrectCount >= otherPlayersCount}
+                    disabled={isInteractionDisabled || hasSubmittedPrediction || predictedCorrectCount >= otherPlayersCount}
                     className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center rounded-full bg-slate-800 border border-white/10 text-white text-2xl font-bold transition-all active:scale-90 disabled:opacity-20 disabled:scale-100"
                     aria-label="増加"
                   >
@@ -226,17 +230,17 @@ export function GamePlayPhase({
             </div>
             
             <button
-              onClick={handlePredictionSubmit}
-              disabled={hasSubmittedPrediction}
+              onClick={() => handlePredictionSubmit()}
+              disabled={isInteractionDisabled || hasSubmittedPrediction}
               className={`
                 w-full font-bold py-4 sm:py-5 px-6 rounded-md shadow-lg transition-all duration-300 text-base sm:text-lg
-                ${hasSubmittedPrediction
+                ${(hasSubmittedPrediction || (isInteractionDisabled && !hasSubmittedPrediction))
                   ? 'bg-slate-800 text-slate-500 cursor-default border border-white/5'
                   : 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white active:scale-95'
                 }
               `}
             >
-              {hasSubmittedPrediction ? '予想を送信しました' : '予想を送信'}
+              {hasSubmittedPrediction ? '予想を送信しました' : isInteractionDisabled ? 'タイムアウト' : '予想を送信'}
             </button>
           </div>
         )}

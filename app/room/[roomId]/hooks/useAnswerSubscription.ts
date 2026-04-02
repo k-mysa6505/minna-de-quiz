@@ -12,21 +12,34 @@ export function useAnswerSubscription(roomId: string, currentQuestion: Question 
   const [hasSubmittedPrediction, setHasSubmittedPrediction] = useState(false);
   const [currentAnswerCount, setCurrentAnswerCount] = useState(0);
 
+  const qId = currentQuestion?.questionId;
+
   useEffect(() => {
-    if (!currentQuestion || !auth.currentUser) return;
-    const qId = currentQuestion.questionId;
+    if (!roomId || !qId || !auth.currentUser) {
+      setAnswers([]);
+      setPrediction(null);
+      setHasSubmittedAnswer(false);
+      setHasSubmittedPrediction(false);
+      return;
+    }
+
     const unsubAnswers = onSnapshot(query(collection(db, 'rooms', roomId, 'answers'), where('questionId', '==', qId)), (snap) => {
       const data = snap.docs.map(d => d.data() as Answer);
       setAnswers(data);
       setHasSubmittedAnswer(data.some(a => a.playerId === currentPlayerId));
     });
+
     const unsubPred = onSnapshot(query(collection(db, 'rooms', roomId, 'predictions'), where('questionId', '==', qId)), (snap) => {
       const p = snap.empty ? null : (snap.docs[0].data() as Prediction);
       setPrediction(p);
       setHasSubmittedPrediction(!snap.empty);
     });
-    return () => { unsubAnswers(); unsubPred(); };
-  }, [roomId, currentQuestion, currentPlayerId]);
+
+    return () => {
+      unsubAnswers();
+      unsubPred();
+    };
+  }, [roomId, qId, currentPlayerId]);
 
   useEffect(() => {
     setCurrentAnswerCount(answers.length + (prediction ? 1 : 0));

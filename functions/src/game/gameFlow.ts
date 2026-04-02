@@ -7,6 +7,7 @@
 
 import { onDocumentCreated, onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
+import { logger } from 'firebase-functions';
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -94,6 +95,7 @@ export const onAnswerWritten = onDocumentCreated(
     const answerData = event.data?.data();
     if (!answerData) return;
 
+    logger.info(`SCORE_LOG: [onAnswerWritten] room=${roomId} questionId=${answerData.questionId}`);
     await checkAndReveal(roomId, answerData.questionId);
   }
 );
@@ -111,11 +113,14 @@ export const onPredictionWritten = onDocumentCreated(
     const predData = event.data?.data();
     if (!predData) return;
 
+    logger.info(`SCORE_LOG: [onPredictionWritten] room=${roomId} questionId=${predData.questionId}`);
     await checkAndReveal(roomId, predData.questionId);
   }
 );
 
 async function transitionToRevealing(roomId: string, questionId: string, reason: 'submitted' | 'timeout') {
+  logger.info(`SCORE_LOG: [transitionToRevealing] START: room=${roomId} question=${questionId} reason=${reason}`);
+  
   const gameStateRef = db
     .collection('rooms')
     .doc(roomId)
@@ -124,6 +129,7 @@ async function transitionToRevealing(roomId: string, questionId: string, reason:
 
   const currentSnap = await gameStateRef.get();
   if (!currentSnap.exists) {
+    logger.warn(`SCORE_LOG: [transitionToRevealing] ABORT: gameState not found`);
     return false;
   }
 
@@ -134,21 +140,159 @@ async function transitionToRevealing(roomId: string, questionId: string, reason:
   };
 
   if (current.phase && current.phase !== 'answering') {
+    logger.info(`SCORE_LOG: [transitionToRevealing] SKIP: already in phase '${current.phase}'`);
     return false;
   }
 
   const currentQuestionId = current.questionOrder?.[current.currentQuestionIndex ?? 0];
-  if (!currentQuestionId || currentQuestionId !== questionId) {
+  if (!currentQuestionId) {
+    logger.warn(`SCORE_LOG: [transitionToRevealing] ABORT: currentQuestionId is missing at index ${current.currentQuestionIndex}`);
     return false;
   }
 
+  if (currentQuestionId !== questionId) {
+    logger.warn(`SCORE_LOG: [transitionToRevealing] ABORT: ID MISMATCH. Expected=${currentQuestionId}, Received=${questionId}`);
+    logger.info(`SCORE_LOG: Full questionOrder=[${current.questionOrder?.join(',')}]`);
+    return false;
+  }
+
+  // フェーズ移行と同時に集計中フラグを立てる
   await gameStateRef.update({
     phase: 'revealing',
     revealStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+    isCalculatingScores: true,
   });
 
-  console.log(`[gameFlow] room=${roomId} question=${questionId} -> revealing (${reason})`);
+  logger.info(`SCORE_LOG: Phase updated. Waiting 1s for consistency...`);
+
+  // 1秒待機してから集計（遅延回答の書き込みを待つ）
+  await sleep(1000);
+  try {
+    await calculateScores(roomId, questionId);
+  } catch (err) {
+    logger.error(`SCORE_LOG: [calculateScores] CRITICAL ERROR:`, err);
+  } finally {
+    // 集計完了を通知
+    await gameStateRef.update({ isCalculatingScores: false });
+    logger.info(`SCORE_LOG: Calculation process finished.`);
+  }
+
   return true;
+}
+
+/**
+ * サーバーサイドでのスコア集計
+ */
+async function calculateScores(roomId: string, questionId: string) {
+  logger.info(`SCORE_LOG: [calculateScores] STARTING: room=${roomId} question=${questionId}`);
+  
+  const roomSnap = await db.collection('rooms').doc(roomId).get();
+  if (!roomSnap.exists) {
+    logger.error(`SCORE_LOG: [calculateScores] Room not found.`);
+    return;
+  }
+  const room = roomSnap.data() || {};
+  
+  // ポイント設定
+  const points = {
+    correct: Number(room.correctAnswerPoints) || 100,
+    fastest: Number(room.fastestAnswerBonusPoints) || 50,
+    penalty: Number(room.wrongAnswerPenalty) || 0,
+    prediction: Number(room.predictionHitBonusPoints) || 50
+  };
+
+  logger.info(`SCORE_LOG: Points config:`, points);
+
+  // 1. 全回答を取得
+  const answersSnap = await db.collection('rooms').doc(roomId).collection('answers')
+    .where('questionId', '==', questionId).get();
+  const rawAnswers = answersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  logger.info(`SCORE_LOG: Found ${rawAnswers.length} raw answers.`);
+
+  // 2. 予想を取得
+  const predSnap = await db.collection('rooms').doc(roomId).collection('predictions')
+    .where('questionId', '==', questionId).get();
+  const prediction = predSnap.empty ? null : predSnap.docs[0].data();
+
+  // 3. 重複排除と最速正解の特定
+  const toMs = (v: any, fallback: number) => {
+    if (!v) return fallback; 
+    if (typeof v.toMillis === 'function') return v.toMillis();
+    if (typeof v.toDate === 'function') return v.toDate().getTime();
+    if (typeof v === 'number') return v;
+    return fallback;
+  };
+  
+  const playerMap = new Map<string, any>();
+  const sortedRawAnswers = (rawAnswers as any[]).sort((a, b) => toMs(a.answeredAt, 0) - toMs(b.answeredAt, 0));
+  
+  for (const a of sortedRawAnswers) {
+    if (!a.playerId) continue;
+    if (!playerMap.has(a.playerId)) {
+      playerMap.set(a.playerId, a);
+    }
+  }
+
+  const uniqueAnswers = Array.from(playerMap.values());
+  const correctAnswers = uniqueAnswers.filter(a => a.isCorrect).sort((l, r) => toMs(l.answeredAt, 0) - toMs(r.answeredAt, 0));
+  const fastestId = correctAnswers[0]?.playerId;
+
+  logger.info(`SCORE_LOG: results - unique=${uniqueAnswers.length}, correct=${correctAnswers.length}, fastest=${fastestId || 'none'}`);
+  logger.info(`SCORE_LOG: playerMap keys:`, Array.from(playerMap.keys()));
+
+  // 4. 予想結果の更新
+  if (prediction) {
+    const isPredHit = Number(prediction.predictedCount) === correctAnswers.length;
+    await predSnap.docs[0].ref.update({
+      actualCount: correctAnswers.length,
+      isCorrect: isPredHit
+    });
+    logger.info(`SCORE_LOG: prediction hit check - predicted=${prediction.predictedCount}, actual=${correctAnswers.length}, hit=${isPredHit}`);
+  }
+
+  // 5. 全プレイヤーのスコアを更新
+  const playersSnap = await db.collection('rooms').doc(roomId).collection('players').get();
+  const batch = db.batch();
+  let updatedCount = 0;
+
+  for (const pDoc of playersSnap.docs) {
+    const p = pDoc.data();
+    const playerId = pDoc.id;
+    let delta = 0;
+
+    const myAnswer = playerMap.get(playerId);
+    if (myAnswer) {
+      if (myAnswer.isCorrect) {
+        const isFastest = playerId === fastestId;
+        delta += points.correct + (isFastest ? points.fastest : 0);
+      } else {
+        delta -= points.penalty;
+      }
+    }
+
+    if (prediction && playerId === prediction.playerId) {
+      if (Number(prediction.predictedCount) === correctAnswers.length) {
+        delta += points.prediction;
+      }
+    }
+
+    if (delta !== 0) {
+      logger.info(`SCORE_LOG: APPLYING score update - player=${playerId} (nickname=${p.nickname}) delta=${delta}`);
+      batch.update(pDoc.ref, {
+        score: admin.firestore.FieldValue.increment(delta),
+        lastScoreDelta: delta
+      });
+      updatedCount++;
+    }
+  }
+
+  if (updatedCount > 0) {
+    await batch.commit();
+    logger.info(`SCORE_LOG: SUCCESS. Committed ${updatedCount} players.`);
+  } else {
+    logger.info(`SCORE_LOG: No score changes were applied.`);
+  }
 }
 
 /**
@@ -233,8 +377,8 @@ async function checkAndReveal(roomId: string, questionId: string) {
   const missingPlayerIds = requiredPlayerIds.filter((playerId) => !submittedPlayerIds.has(playerId));
   const nicknameMap = await getPlayerNicknameMap(roomId);
 
-  console.log(
-    `[onAnswerWritten] room=${roomId} question=${questionId} ` +
+  logger.info(
+    `SCORE_LOG: [checkAndReveal] room=${roomId} question=${questionId} ` +
     `uniqueSubmissions=${submittedPlayerIds.size} required=${requiredPlayerIds.length} ` +
     `requiredPlayers=[${formatPlayerLabels(requiredPlayerIds, nicknameMap)}] ` +
     `submittedPlayers=[${formatPlayerLabels(submittedPlayerIdList, nicknameMap)}] ` +
@@ -242,7 +386,7 @@ async function checkAndReveal(roomId: string, questionId: string) {
   );
 
   if (allParticipantsSubmitted) {
-    console.log(`[onAnswerWritten] All participants submitted. Moving to revealing.`);
+    logger.info(`SCORE_LOG: All participants submitted. Moving to revealing.`);
     await transitionToRevealing(roomId, questionId, 'submitted');
   }
 }
@@ -316,6 +460,7 @@ async function scheduleTimeoutReveal(roomId: string, after: FirebaseFirestore.Do
     await sleep(waitMs + 200);
   }
 
+  logger.info(`SCORE_LOG: Timeout reached. Attempting transition to revealing.`);
   await transitionToRevealing(roomId, questionId, 'timeout');
 }
 
@@ -335,6 +480,12 @@ export const onPlayerReadyChanged = onDocumentUpdated(
     const before = event.data?.before.data();
     if (!after || !before) return;
 
+    // 集計中は次の問題へ進ませない（計算完了を待つ）
+    if (after.isCalculatingScores === true) {
+      logger.info(`SCORE_LOG: [onPlayerReadyChanged] room=${roomId} is currently calculating scores. Skipping.`);
+      return;
+    }
+
     const playersReadyAfter: string[] = after.playersReady ?? [];
     const playersReadyBefore: string[] = before.playersReady ?? [];
 
@@ -353,8 +504,8 @@ export const onPlayerReadyChanged = onDocumentUpdated(
     const missingReadyPlayerIds = participantPlayerIds.filter((playerId) => !readySet.has(playerId));
     const nicknameMap = await getPlayerNicknameMap(roomId);
 
-    console.log(
-      `[onPlayerReadyChanged] room=${roomId} ` +
+    logger.info(
+      `SCORE_LOG: [onPlayerReadyChanged] room=${roomId} ` +
       `ready=${readySet.size}/${participantPlayerIds.length} ` +
       `readyPlayers=[${formatPlayerLabels(readyPlayerIds, nicknameMap)}] ` +
       `missingReadyPlayers=[${formatPlayerLabels(missingReadyPlayerIds, nicknameMap)}]`
@@ -365,8 +516,8 @@ export const onPlayerReadyChanged = onDocumentUpdated(
       if (revealStartedAt?.toMillis) {
         const elapsedMs = Date.now() - revealStartedAt.toMillis();
         if (elapsedMs < MIN_REVEAL_DURATION_MS) {
-          console.log(
-            `[onPlayerReadyChanged] Waiting reveal min duration: elapsed=${elapsedMs}ms min=${MIN_REVEAL_DURATION_MS}ms`
+          logger.info(
+            `SCORE_LOG: [onPlayerReadyChanged] Waiting reveal min duration: elapsed=${elapsedMs}ms min=${MIN_REVEAL_DURATION_MS}ms`
           );
           return;
         }
@@ -376,10 +527,10 @@ export const onPlayerReadyChanged = onDocumentUpdated(
         after.currentQuestionIndex >= after.totalQuestions - 1;
 
       if (isLastQuestion) {
-        console.log(`[onPlayerReadyChanged] Last question. Setting room to finished.`);
+        logger.info(`SCORE_LOG: Last question. Setting room to finished.`);
         await db.collection('rooms').doc(roomId).update({ status: 'finished' });
       } else {
-        console.log(`[onPlayerReadyChanged] Moving to next question.`);
+        logger.info(`SCORE_LOG: Moving to next question.`);
         await db
           .collection('rooms')
           .doc(roomId)

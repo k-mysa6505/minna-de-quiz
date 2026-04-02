@@ -13,7 +13,7 @@ export function PhaseHeader({
   isScreen = false,
 }: PhaseHeaderProps) {
   return (
-    <h2 className={`${isScreen ? 'text-4xl' : 'text-2xl'} font-black italic`}>
+    <h2 className={`${isScreen ? 'text-5xl' : 'text-2xl'} font-black italic`}>
       {title}
     </h2>
   );

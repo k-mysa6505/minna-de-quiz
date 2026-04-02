@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Question, QuestionFormData } from '@/types';
+import { onSnapshot } from 'firebase/firestore';
 
 /**
  * 問題を作成
@@ -28,6 +29,9 @@ export async function createQuestion(
     if (!data.text.trim()) {
       throw new Error('Question text is required');
     }
+    if (data.text.length > 200) {
+      throw new Error('Question text must be 200 characters or less');
+    }
 
     // 選択肢のバリデーション
     if (data.choices.length !== 4) {
@@ -35,6 +39,9 @@ export async function createQuestion(
     }
     if (data.choices.some(choice => !choice.trim())) {
       throw new Error('All choices must have text');
+    }
+    if (data.choices.some(choice => choice.length > 50)) {
+      throw new Error('Each choice must be 50 characters or less');
     }
 
     // 正解のインデックスバリデーション
@@ -159,4 +166,12 @@ export async function getQuestionProgress(roomId: string): Promise<{
   const totalCount = playersSnapshot.size;
 
   return { created: createdCount, total: totalCount };
+}
+
+export function subscribeToQuestions(roomId: string, callback: (questions: Question[]) => void) {
+  const questionsRef = collection(db, 'rooms', roomId, 'questions');
+  const q = query(questionsRef, orderBy('createdAt', 'asc'));
+  return onSnapshot(q, (snapshot) => {
+    callback(snapshot.docs.map(doc => ({ questionId: doc.id, ...doc.data() } as Question)));
+  });
 }
