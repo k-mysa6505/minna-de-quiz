@@ -121,6 +121,14 @@ export async function joinRoom(params: JoinRoomParams): Promise<string> {
       throw new Error('Room is closed for new participants');
     }
 
+    // 最大参加人数をチェック
+    const playersRef = collection(db, 'rooms', params.roomId, 'players');
+    const playersSnapshot = await getDocs(playersRef);
+    if (playersSnapshot.size >= roomData.maxPlayers) {
+      serviceLogger.warn('room.joinRoom', 'room is full', params.roomId);
+      throw new Error('そのルームは満員です');
+    }
+
     const shouldBecomeMaster = !roomData.masterId;
 
     // プレイヤー情報をサブコレクションに追加
@@ -192,7 +200,7 @@ export function subscribeToRoom(
   if (!roomId) {
     serviceLogger.error('room.subscribe', 'roomId is missing');
     callback(null);
-    return () => {};
+    return () => { };
   }
 
   // Firestoreのリアルタイム監視

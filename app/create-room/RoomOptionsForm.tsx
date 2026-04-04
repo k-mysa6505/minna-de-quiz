@@ -138,14 +138,15 @@ export function RoomOptionsForm({
       label: '最大参加人数',
       help: 'このルームに参加できる最大人数を設定します。',
       component: (
-        <input
-          type="number"
+        <select
           value={maxPlayers}
-          onChange={(e) => setMaxPlayers(Math.max(2, Math.min(20, parseInt(e.target.value) || 8)))}
-          min="2"
-          max="20"
+          onChange={(e) => setMaxPlayers(parseInt(e.target.value, 10))}
           className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-blue-500"
-        />
+        >
+          {Array.from({ length: 29 }, (_, i) => i + 2).map((v) => (
+            <option key={v} value={v}>{v}人</option>
+          ))}
+        </select>
       )
     }
   ];
